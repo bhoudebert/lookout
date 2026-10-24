@@ -93,7 +93,7 @@ def load_config(
     reader = _Reader(path)
     root = reader.mapping(raw, "the file")
     return Config(
-        database=Path(reader.text(root, "database", "data/lookout.db")),
+        database=Path(reader.text(root, "database", env.get("LOOKOUT_DATABASE", "data/lookout.db"))),
         llm=_llm(reader, reader.mapping(root.get("llm", {}), "llm"), env),
         interests=reader.text(root, "interests", ""),
         categories=reader.strings(root, "categories", DEFAULT_CATEGORIES),
@@ -109,7 +109,9 @@ def load_config(
             )
         ),
         github=_github(reader, reader.mapping(root.get("github", {}), "github")),
-        dashboard_dir=Path(reader.text(root, "dashboard_dir", "frontend/dist")),
+        dashboard_dir=Path(
+            reader.text(root, "dashboard_dir", env.get("LOOKOUT_DASHBOARD_DIR", "frontend/dist"))
+        ),
         body_limit=reader.integer(root, "body_limit", 4000, minimum=100),
     )
 

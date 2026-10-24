@@ -13,7 +13,7 @@ dismissed. Lookout learns from what you act on.
   declared is never below P1), the model second. Every priority carries its reason.
 - **Personal:** stars, reads and dismissals shape the ranking; the "why this rank" is always visible.
 - **Triage, not a digest:** an inbox with states, keyboard shortcuts and filters by priority, category and source.
-- **Yours:** one SQLite file, one container, MIT licence.
+- **Yours:** one SQLite file, one container (or a NixOS module), MIT licence.
 
 ## Quick start
 
