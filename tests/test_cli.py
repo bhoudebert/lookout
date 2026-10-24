@@ -179,6 +179,30 @@ def test_reassess_applies_a_new_stack_without_the_model(tmp_path: Path) -> None:
     assert "rule: critical advisory CVE-2026-1234" in lookout("export")
 
 
+def test_explain_and_forget(tmp_path: Path) -> None:
+    lookout = Lookout(tmp_path, personalization={"minimum_signals": 1})
+    lookout("run")
+    ids = [line.split()[2] for line in lookout("inbox").splitlines()[:-1]]
+    for item in ids[:2]:
+        lookout("act", item, "star")
+    why = lookout("explain", ids[2])
+    assert "model score 75" in why
+    assert "your profile moves it +" in why
+    assert "source:blog" in why
+    assert "profile reset" in lookout("forget")
+    assert "your profile moves it +0" in lookout("explain", ids[2])
+    assert "no item nope" in lookout("explain", "nope", exit_code=1)
+
+
+def test_explaining_an_item_the_model_has_not_read(tmp_path: Path) -> None:
+    lookout = Lookout(tmp_path)
+    lookout.network.llm_down = True
+    lookout("run")
+    why = lookout("explain", first_id(lookout))
+    assert "model score" not in why
+    assert "not yet assessed" in why or "no rule matched" in why
+
+
 def test_export_prints_json_lines(tmp_path: Path) -> None:
     lookout = Lookout(tmp_path)
     lookout("demo")

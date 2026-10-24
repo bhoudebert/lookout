@@ -3,8 +3,9 @@
 from datetime import timedelta
 
 import pytest
-from tests.support import NOW, FixedClock, make_item, repository
+from tests.support import NOW, FixedClock, database, make_item, triage_for
 
+from lookout.adapters.store.sqlite import SqliteItemRepository
 from lookout.application.ports import InboxQuery
 from lookout.application.triage import Action, Inbox, ItemNotFoundError, Triage
 from lookout.domain.item import InvalidTransitionError
@@ -13,9 +14,10 @@ from lookout.domain.state import State
 
 
 def setup() -> tuple[Triage, Inbox, FixedClock, object]:
-    repo = repository()
+    db = database()
+    repo = SqliteItemRepository(db)
     clock = FixedClock()
-    return Triage(repo), Inbox(repo, clock), clock, repo
+    return triage_for(repo, db, clock)[0], Inbox(repo, clock), clock, repo
 
 
 def test_opening_a_new_item_makes_it_seen() -> None:

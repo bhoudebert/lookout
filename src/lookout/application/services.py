@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from lookout.application.enrich import EnrichReport
 from lookout.application.ingest import IngestReport
+from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.reassess import Reassess
 from lookout.application.triage import Inbox, Triage
@@ -35,6 +36,7 @@ class Services:
     triage: Triage
     inbox: Inbox
     reassess: Reassess
+    personalize: Personalize
     clock: Clock
     run: Callable[[], RunReport]
     doctor: Callable[[], tuple[Check, ...]]

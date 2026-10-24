@@ -1,10 +1,12 @@
 """Have the model read new items, within a daily budget (openspec: enrichment)."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.ports_sources import Enricher, EnrichmentError, UsageRepository
 from lookout.domain.policy import PriorityPolicy
+from lookout.domain.profile import Profile
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +30,7 @@ class Enrich:
         policy: PriorityPolicy,
         *,
         daily_limit: int,
+        profile: Callable[[], Profile] = lambda: Profile({}),
     ) -> None:
         self._items = items
         self._enricher = enricher
@@ -35,11 +38,13 @@ class Enrich:
         self._clock = clock
         self._policy = policy
         self._daily_limit = daily_limit
+        self._profile = profile
 
     def run(self) -> EnrichReport:
         """Most urgent items first, so a spent budget never starves an emergency."""
         day = self._clock.now().date().isoformat()
         pending = self._items.pending_enrichment()
+        profile = self._profile()
         enriched = failed = 0
         for position, item in enumerate(pending):
             if self._usage.calls_on(day) >= self._daily_limit:
@@ -54,8 +59,7 @@ class Enrich:
             decision = self._policy.decide(
                 advisory=item.advisory, stack_matches=item.stack_matches, enrichment=reading
             )
-            self._items.save(
-                item.enriched(reading).assessed(decision.priority, decision.reason, item.stack_matches)
-            )
+            read = item.enriched(reading).assessed(decision.priority, decision.reason, item.stack_matches)
+            self._items.save(read.ranked(profile.boost(read)))
             enriched += 1
         return EnrichReport(enriched, failed)

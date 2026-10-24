@@ -5,9 +5,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from lookout.application.ports import Clock, InboxQuery, ItemRepository, Page
+from lookout.application.ports import Clock, Feedback, InboxQuery, ItemRepository, Page
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
+from lookout.domain.profile import SignalKind
 from lookout.domain.state import State
 
 
@@ -38,8 +39,9 @@ class Outcome:
 class Triage:
     """Applies the user's actions to items."""
 
-    def __init__(self, items: ItemRepository) -> None:
+    def __init__(self, items: ItemRepository, feedback: Feedback) -> None:
         self._items = items
+        self._feedback = feedback
 
     def act(self, item_id: str, action: Action, *, until: datetime | None = None) -> Outcome:
         """Apply ``action``; ``until`` is required for snoozing."""
@@ -48,6 +50,9 @@ class Triage:
             raise ItemNotFoundError(item_id)
         after = _apply(before, action, until)
         self._items.save(after)
+        kind = _SIGNALS.get(action)
+        if kind is not None and (action is not Action.OPEN or before.state is State.NEW):
+            self._feedback.record(after, kind)
         return Outcome(before, after)
 
     def act_many(
@@ -71,6 +76,14 @@ class Triage:
         self._items.save(outcome.before)
         return outcome.before
 
+
+_SIGNALS: dict[Action, SignalKind] = {
+    Action.OPEN: SignalKind.OPEN,
+    Action.DONE: SignalKind.DONE,
+    Action.DISMISS: SignalKind.DISMISS,
+    Action.SNOOZE: SignalKind.SNOOZE,
+    Action.STAR: SignalKind.STAR,
+}
 
 _SIMPLE: dict[Action, Callable[[Item], Item]] = {
     Action.OPEN: Item.open,

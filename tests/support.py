@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from lookout.adapters.store.sqlite import Database, SqliteItemRepository
+from lookout.adapters.store.sqlite import Database, SqliteItemRepository, SqliteSignalRepository
+from lookout.application.personalize import Personalize
 from lookout.application.ports_sources import EnrichmentError, SourceError
+from lookout.application.triage import Triage
 from lookout.domain.advisory import Advisory
 from lookout.domain.enrichment import Enrichment
 from lookout.domain.item import Item, item_id
@@ -121,3 +123,11 @@ def raw(
     advisory: Advisory | None = None,
 ) -> RawItem:
     return RawItem(source, url, title, body, published_at, advisory)
+
+
+def triage_for(
+    repo: SqliteItemRepository, db: Database, clock: FixedClock | None = None
+) -> tuple[Triage, Personalize]:
+    """A triage use case wired to real personalization on the same database."""
+    personalize = Personalize(repo, SqliteSignalRepository(db), clock or FixedClock())
+    return Triage(repo, personalize), personalize

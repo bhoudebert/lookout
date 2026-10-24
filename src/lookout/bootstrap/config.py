@@ -25,6 +25,14 @@ class LlmConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class PersonalizationConfig:
+    """How fast the profile forgets and how much it needs before it learns."""
+
+    half_life_days: int = 30
+    minimum_signals: int = 5
+
+
+@dataclass(frozen=True, slots=True)
 class SourceConfig:
     """One declared source."""
 
@@ -46,6 +54,7 @@ class Config:
     stack: Stack = field(default_factory=Stack)
     thresholds: Thresholds = field(default_factory=Thresholds)
     sources: tuple[SourceConfig, ...] = ()
+    personalization: PersonalizationConfig = field(default_factory=PersonalizationConfig)
     body_limit: int = 4000
 
 
@@ -74,6 +83,9 @@ def load_config(
         stack=_stack(reader, root.get("stack", [])),
         thresholds=_thresholds(reader, reader.mapping(root.get("thresholds", {}), "thresholds")),
         sources=_sources(reader, root.get("sources", []), supported_kinds),
+        personalization=_personalization(
+            reader, reader.mapping(root.get("personalization", {}), "personalization")
+        ),
         body_limit=reader.integer(root, "body_limit", 4000, minimum=100),
     )
 
@@ -147,6 +159,14 @@ def _stack(reader: _Reader, raw: object) -> Stack:
             )
         )
     return Stack(tuple(entries))
+
+
+def _personalization(reader: _Reader, data: dict[str, Any]) -> PersonalizationConfig:
+    base = PersonalizationConfig()
+    return PersonalizationConfig(
+        half_life_days=reader.integer(data, "half_life_days", base.half_life_days, minimum=1),
+        minimum_signals=reader.integer(data, "minimum_signals", base.minimum_signals),
+    )
 
 
 def _thresholds(reader: _Reader, data: dict[str, Any]) -> Thresholds:

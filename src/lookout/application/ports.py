@@ -6,6 +6,7 @@ from typing import Protocol
 
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
+from lookout.domain.profile import Signal, SignalKind
 from lookout.domain.state import State
 
 
@@ -51,3 +52,19 @@ class ItemRepository(Protocol):
     def pending_enrichment(self) -> tuple[Item, ...]: ...
 
     def all(self) -> tuple[Item, ...]: ...
+
+
+class SignalRepository(Protocol):
+    """What the user did."""
+
+    def add(self, signal: Signal) -> None: ...
+
+    def all(self) -> tuple[Signal, ...]: ...
+
+    def clear(self) -> None: ...
+
+
+class Feedback(Protocol):
+    """Told about every action that says something about taste."""
+
+    def record(self, item: Item, kind: SignalKind) -> None: ...
