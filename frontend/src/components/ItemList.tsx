@@ -51,7 +51,8 @@ export function ItemList({ items, focusedId, selected, now, onFocus, onOpen, onT
               </button>
             </div>
             <p className="meta">
-              {item.sources.join(", ")} · {item.category ?? "unread"} · {timeAgo(item.published_at, now)}
+              <span className="channel">{item.channel}</span> · {item.kind ?? "unread"} · {item.sources.join(", ")}
+              {item.author && <> · by {item.author}</>} · {timeAgo(item.published_at, now)}
               {item.state !== "new" && item.state !== "seen" && <> · {item.state}</>}
               {item.unread && <> · waiting for the model</>}
               {item.enrichment_failed && <> · the model could not read it</>}

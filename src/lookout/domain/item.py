@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Self
 
 from lookout.domain.advisory import Advisory
+from lookout.domain.channel import OTHER
 from lookout.domain.enrichment import Enrichment
 from lookout.domain.priority import Priority
 from lookout.domain.state import State
@@ -41,6 +42,9 @@ class Item:
     snoozed_until: datetime | None = None
     starred: bool = False
     boost: int = 0
+    author: str = ""
+    channel: str = OTHER
+    feed_tags: tuple[str, ...] = ()
     extra: dict[str, str] = field(default_factory=dict[str, str])
 
     # Triage ---------------------------------------------------------------------------------------------
@@ -87,8 +91,8 @@ class Item:
     # Assessment -----------------------------------------------------------------------------------------
 
     def enriched(self, enrichment: Enrichment) -> Self:
-        """Attach the model's reading."""
-        return replace(self, enrichment=enrichment, enrichment_failed=False)
+        """Attach the model's reading; the item is filed in the channel it chose."""
+        return replace(self, enrichment=enrichment, enrichment_failed=False, channel=enrichment.channel)
 
     def enrichment_gave_up(self) -> Self:
         """The model never produced a valid answer; the item stays, flagged."""

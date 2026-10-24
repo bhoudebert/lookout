@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.ports_sources import Enricher, EnrichmentError, UsageRepository
+from lookout.domain.channel import ChannelCatalogue
 from lookout.domain.policy import PriorityPolicy
 from lookout.domain.profile import Profile
 
@@ -31,6 +32,7 @@ class Enrich:
         *,
         daily_limit: int,
         profile: Callable[[], Profile] = lambda: Profile({}),
+        catalogue: ChannelCatalogue | None = None,
     ) -> None:
         self._items = items
         self._enricher = enricher
@@ -39,6 +41,7 @@ class Enrich:
         self._policy = policy
         self._daily_limit = daily_limit
         self._profile = profile
+        self._catalogue = catalogue or ChannelCatalogue()
 
     def run(self) -> EnrichReport:
         """Most urgent items first, so a spent budget never starves an emergency."""
@@ -51,7 +54,7 @@ class Enrich:
                 return EnrichReport(enriched, failed, waiting=len(pending) - position)
             self._usage.record_call(day)
             try:
-                reading = self._enricher.enrich(item)
+                reading = self._enricher.enrich(item, self._catalogue.allowed(item.sources))
             except EnrichmentError:
                 self._items.save(item.enrichment_gave_up())
                 failed += 1

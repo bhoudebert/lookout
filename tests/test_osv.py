@@ -208,12 +208,12 @@ def run_osv(tmp_path: Path, osv: Osv | None = None) -> Lookout:
     lookout = Lookout(
         tmp_path,
         stack=[{"name": "django", "ecosystem": "pypi", "version": "5.1.0"}],
-        sources=[{"name": "osv", "kind": "osv", "since_days": 30}],
+        sources=[{"name": "osv", "type": "osv", "since_days": 30}],
     )
     source = osv or django_pages()
     lookout.network.osv = source
     lookout.network.kev = fixture("kev.json")
-    lookout.network.chat = lambda _request: reading(score=5, category="security")
+    lookout.network.chat = lambda _request: reading(score=5, kind="security")
     lookout("run")
     return lookout
 
@@ -264,7 +264,7 @@ def write(tmp_path: Path, source: dict[str, object]) -> Path:
     path = tmp_path / "lookout.yaml"
     path.write_text(
         yaml.safe_dump(
-            {"database": str(tmp_path / "db"), "sources": [{"name": "o", "kind": "osv", **source}]}
+            {"database": str(tmp_path / "db"), "sources": [{"name": "o", "type": "osv", **source}]}
         )
     )
     return path

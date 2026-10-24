@@ -49,11 +49,17 @@ class Contribution:
 
 
 def features(item: Item) -> tuple[str, ...]:
-    """What an item is made of, as far as taste goes: its sources, category and tags."""
+    """What an item is made of, as far as taste goes: source, author, channel, kind and tags."""
     found = [f"source:{s}" for s in item.sources]
+    if item.author:
+        found.append(f"author:{item.author.lower()}")
+    found.append(f"channel:{item.channel}")
     if item.enrichment is not None:
-        found.append(f"category:{item.enrichment.category}")
-        found.extend(f"tag:{t}" for t in item.enrichment.tags)
+        found.append(f"kind:{item.enrichment.kind}")
+    found.extend(
+        f"tag:{t}"
+        for t in dict.fromkeys((*item.feed_tags, *(item.enrichment.tags if item.enrichment else ())))
+    )
     return tuple(found)
 
 

@@ -19,7 +19,7 @@ half-life.
 
 ### Requirement: Profile
 
-The profile SHALL hold weights per source, category and tag, and, when an embedder is configured, the centroid of
+The profile SHALL hold weights per source, author, channel, kind and tag, and, when an embedder is configured, the centroid of
 liked and of disliked items. The profile SHALL start empty, optionally seeded from declared interests, and learning
 SHALL start after a configurable minimum of signals.
 

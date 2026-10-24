@@ -1,1 +1,1 @@
-"""Source adapters: one per kind of source, all implementing ``SourceFetcher``."""
+"""Source adapters: one per type of source, all implementing ``SourceFetcher``."""

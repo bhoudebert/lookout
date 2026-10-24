@@ -29,6 +29,7 @@ export function ItemDetail({ id, onAction, onSnooze, onClose }: Props) {
     );
   }
   const { item, body, explanation } = query.data;
+  const tags = [...new Set([...item.feed_tags, ...item.tags])];
   const closed = item.state === "done" || item.state === "dismissed" || item.state === "snoozed";
   return (
     <aside className="detail" aria-label="Item detail">
@@ -41,6 +42,17 @@ export function ItemDetail({ id, onAction, onSnooze, onClose }: Props) {
       </p>
       {item.action_needed && <p className="action-needed">Action needed</p>}
       {item.summary && <p className="summary">{item.summary}</p>}
+      <p className="facets">
+        <span className="channel">{item.channel}</span> · {item.kind ?? "not read yet"}
+        {item.author && <> · by {item.author}</>}
+      </p>
+      {tags.length > 0 && (
+        <ul className="tags" aria-label="Tags">
+          {tags.map((tag) => (
+            <li key={tag}>{tag}</li>
+          ))}
+        </ul>
+      )}
       <p className="excerpt">{body}</p>
       <p>
         <a href={item.url} target="_blank" rel="noreferrer noopener">

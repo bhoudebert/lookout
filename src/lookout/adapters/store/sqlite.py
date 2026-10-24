@@ -18,7 +18,7 @@ class SchemaTooNewError(Exception):
     """The database was written by a newer Lookout."""
 
 
-def _v1(db: sqlite3.Connection) -> None:
+def migrate_v1(db: sqlite3.Connection) -> None:
     db.execute(
         """
         CREATE TABLE items (
@@ -64,7 +64,16 @@ def _v1(db: sqlite3.Connection) -> None:
 
 _ORDER = "priority, rank DESC, published_at DESC"
 
-MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (_v1,)
+
+def migrate_v2(db: sqlite3.Connection) -> None:
+    """Channels and authors (ADR 0012): the category becomes the kind; items gain a channel and an author."""
+    db.execute("ALTER TABLE items RENAME COLUMN category TO kind")
+    db.execute("ALTER TABLE items ADD COLUMN channel TEXT NOT NULL DEFAULT 'Other'")
+    db.execute("ALTER TABLE items ADD COLUMN author TEXT NOT NULL DEFAULT ''")
+    db.execute("CREATE INDEX items_channel ON items (channel)")
+
+
+MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (migrate_v1, migrate_v2)
 
 
 class Database:
@@ -134,18 +143,19 @@ class SqliteItemRepository:
         """Insert or replace an item."""
         enrichment = item.enrichment
         rank = (enrichment.score if enrichment else 0) + item.boost
-        category = enrichment.category if enrichment else ""
-        tags = " ".join(enrichment.tags) if enrichment else ""
+        kind = enrichment.kind if enrichment else ""
+        tags = " ".join((*item.feed_tags, *(enrichment.tags if enrichment else ())))
         summary = enrichment.summary if enrichment else ""
         pending = enrichment is None and not item.enrichment_failed
         self._db.run(
             """
-            INSERT INTO items (id, priority, state, starred, category, sources, search, rank, pending,
-                               published_at, snoozed_until, data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO items (id, priority, state, starred, kind, channel, author, sources, search, rank,
+                               pending, published_at, snoozed_until, data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 priority = excluded.priority, state = excluded.state, starred = excluded.starred,
-                category = excluded.category, sources = excluded.sources, search = excluded.search,
+                kind = excluded.kind, channel = excluded.channel, author = excluded.author,
+                sources = excluded.sources, search = excluded.search,
                 rank = excluded.rank, pending = excluded.pending, published_at = excluded.published_at,
                 snoozed_until = excluded.snoozed_until, data = excluded.data
             """,
@@ -154,9 +164,11 @@ class SqliteItemRepository:
                 int(item.priority),
                 item.state.value,
                 int(item.starred),
-                category,
+                kind,
+                item.channel,
+                item.author,
                 "|" + "|".join(item.sources) + "|",
-                f"{item.title}\n{summary}\n{tags}".lower(),
+                f"{item.title}\n{summary}\n{tags}\n{item.author}".lower(),
                 rank,
                 int(pending),
                 item.published_at.astimezone(UTC).isoformat(),
@@ -172,9 +184,12 @@ class SqliteItemRepository:
         if query.priorities:
             clauses.append(f"priority IN ({_marks(query.priorities)})")
             args.extend(int(p) for p in query.priorities)
-        if query.categories:
-            clauses.append(f"category IN ({_marks(query.categories)})")
-            args.extend(query.categories)
+        if query.kinds:
+            clauses.append(f"kind IN ({_marks(query.kinds)})")
+            args.extend(query.kinds)
+        if query.channels:
+            clauses.append(f"channel IN ({_marks(query.channels)})")
+            args.extend(query.channels)
         if query.states:
             clauses.append(f"state IN ({_marks(query.states)})")
             args.extend(s.value for s in query.states)

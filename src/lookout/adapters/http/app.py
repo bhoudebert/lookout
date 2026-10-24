@@ -14,6 +14,7 @@ from lookout.adapters.http.schemas import (
     ActionOut,
     BulkIn,
     BulkOut,
+    ChannelOut,
     ExplanationOut,
     Health,
     ItemDetail,
@@ -23,6 +24,7 @@ from lookout.adapters.http.schemas import (
     SeenBelowIn,
     SourceOut,
     SourcePatch,
+    TaxonomyOut,
     UndoOut,
 )
 from lookout.application.ports import InboxQuery
@@ -52,7 +54,8 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     @app.get("/api/items")
     def list_items(
         priority: Annotated[list[Literal["P0", "P1", "P2", "P3"]] | None, Query()] = None,
-        category: Annotated[list[str] | None, Query()] = None,
+        kind: Annotated[list[str] | None, Query()] = None,
+        channel: Annotated[list[str] | None, Query()] = None,
         source: Annotated[list[str] | None, Query()] = None,
         state: Annotated[list[State] | None, Query()] = None,
         starred: bool | None = None,
@@ -62,7 +65,8 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     ) -> ItemPage:
         query = InboxQuery(
             priorities=frozenset(Priority[p] for p in priority or []),
-            categories=frozenset(category or []),
+            kinds=frozenset(kind or []),
+            channels=frozenset(channel or []),
             sources=frozenset(source or []),
             states=frozenset(state) if state else DEFAULT_STATES,
             starred=starred,
@@ -121,6 +125,13 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     @app.post("/api/items/seen-below")
     def seen_below(body: SeenBelowIn) -> BulkOut:
         return BulkOut(changed=services.triage.mark_seen_below(Priority[body.priority]))
+
+    @app.get("/api/taxonomy")
+    def taxonomy() -> TaxonomyOut:
+        return TaxonomyOut(
+            channels=[ChannelOut(name=c.name, description=c.description) for c in services.channels],
+            kinds=list(services.kinds),
+        )
 
     @app.get("/api/sources")
     def sources() -> list[SourceOut]:

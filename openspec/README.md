@@ -7,6 +7,7 @@ into the specs and its folder moves to `changes/archive/` (dated), kept as the r
 | Capability       | Covers                                                                                     |
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | source-ingestion | Declared sources, fetchers, normalisation, dedupe, failures, politeness                    |
+| channels         | Channels (topics) and kinds (types), source-driven filing, facts from the article, filters |
 | enrichment       | Summary, category, tags, score and action flag from the LLM; schema validation; budget     |
 | priority         | P0-P3 from rule floors and the model score, with a recorded reason                         |
 | triage           | Item states, transitions, snooze, star, undo; the inbox query                              |

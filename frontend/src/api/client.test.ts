@@ -13,14 +13,15 @@ describe("itemsQuery", () => {
   it("writes every filter", () => {
     const query = itemsQuery({
       priorities: ["P0", "P1"],
-      category: "security",
+      channel: "Rust",
+      kind: "security",
       source: "hn",
       view: "done",
       starred: true,
       text: "django",
     });
     expect(query).toBe(
-      "priority=P0&priority=P1&category=security&source=hn&state=done&starred=true&text=django&limit=100",
+      "priority=P0&priority=P1&channel=Rust&kind=security&source=hn&state=done&starred=true&text=django&limit=100",
     );
   });
   it("writes nothing for the defaults", () => {

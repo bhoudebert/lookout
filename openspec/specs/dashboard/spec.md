@@ -8,8 +8,8 @@ The web inbox where the user works.
 
 ### Requirement: Inbox view
 
-The dashboard SHALL list the inbox with priority badge, title, source, category, summary and age, grouped or ordered by
-priority band, and filterable by priority, category, source, state, star and text. Filters SHALL be reflected in the URL.
+The dashboard SHALL list the inbox with priority badge, title, source, channel, kind, author, summary and age, grouped or ordered by
+priority band, and filterable by priority, channel, kind, source, state, star and text. Filters SHALL be reflected in the URL.
 
 #### Scenario: Filter by priority
 

@@ -9,6 +9,7 @@ from lookout.application.personalize import Personalize
 from lookout.application.ports_sources import EnrichmentError, SourceError
 from lookout.application.triage import Triage
 from lookout.domain.advisory import Advisory
+from lookout.domain.channel import Channel
 from lookout.domain.enrichment import Enrichment
 from lookout.domain.item import Item, item_id
 from lookout.domain.priority import Priority
@@ -31,10 +32,20 @@ class FixedClock:
 
 
 def enrichment(
-    score: int = 50, category: str = "tooling", tags: tuple[str, ...] = (), summary: str = "s"
+    score: int = 50,
+    kind: str = "tooling",
+    tags: tuple[str, ...] = (),
+    summary: str = "s",
+    channel: str = "Other",
 ) -> Enrichment:
     return Enrichment(
-        summary=summary, category=category, tags=tags, score=score, action_needed=False, reason="because"
+        summary=summary,
+        kind=kind,
+        channel=channel,
+        tags=tags,
+        score=score,
+        action_needed=False,
+        reason="because",
     )
 
 
@@ -47,7 +58,10 @@ def make_item(
     priority: Priority = Priority.P2,
     advisory: Advisory | None = None,
     score: int | None = None,
-    category: str = "tooling",
+    kind: str = "tooling",
+    channel: str = "Other",
+    author: str = "",
+    feed_tags: tuple[str, ...] = (),
     published_at: datetime = NOW,
 ) -> Item:
     item = Item(
@@ -59,8 +73,11 @@ def make_item(
         sources=sources,
         advisory=advisory,
         priority=priority,
+        author=author,
+        channel=channel,
+        feed_tags=feed_tags,
     )
-    return item.enriched(enrichment(score, category)) if score is not None else item
+    return item.enriched(enrichment(score, kind, channel=channel)) if score is not None else item
 
 
 _OPENED: list[Database] = []
@@ -105,7 +122,7 @@ class ScriptedEnricher:
         self.answers = answers or {}
         self.asked: list[str] = []
 
-    def enrich(self, item: Item) -> Enrichment:
+    def enrich(self, item: Item, channels: tuple[Channel, ...]) -> Enrichment:
         self.asked.append(item.title)
         answer = self.answers.get(item.title, enrichment(50))
         if isinstance(answer, EnrichmentError):

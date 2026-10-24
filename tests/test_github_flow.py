@@ -11,12 +11,12 @@ from lookout.application.errors import ConfigError
 from lookout.application.github import GitHubError
 from lookout.bootstrap.container import build, load
 
-GITHUB = {"name": "gh-watch", "kind": "github", "repos": ["o/r"], "kinds": ["advisories", "dependabot"]}
+GITHUB = {"name": "gh-watch", "type": "github", "repos": ["o/r"], "watch": ["advisories", "dependabot"]}
 
 
 def watching(tmp_path: Path, github: FakeGitHub | None = None) -> Lookout:
     lookout = Lookout(tmp_path, github=github, sources=[GITHUB])
-    lookout.network.chat = lambda _request: reading(score=5, category="security")
+    lookout.network.chat = lambda _request: reading(score=5, kind="security")
     return lookout
 
 
@@ -50,7 +50,7 @@ def test_without_gh_or_a_token_only_the_github_source_fails(tmp_path: Path) -> N
         tmp_path,
         github=FakeGitHub(via="unavailable", error=GitHubError("log in with `gh auth login`")),
         sources=[
-            {"name": "blog", "kind": "rss", "url": "https://example.com/feed"},
+            {"name": "blog", "type": "rss", "url": "https://example.com/feed"},
             GITHUB,
         ],
     )
@@ -84,7 +84,7 @@ def write(tmp_path: Path, source: dict[str, object], github: object | None = Non
     path = tmp_path / "lookout.yaml"
     data: dict[str, object] = {
         "database": str(tmp_path / "db"),
-        "sources": [{"name": "g", "kind": "github", **source}],
+        "sources": [{"name": "g", "type": "github", **source}],
     }
     if github is not None:
         data["github"] = github
@@ -100,9 +100,9 @@ def write(tmp_path: Path, source: dict[str, object], github: object | None = Non
         ({"repos": "o/r"}, "needs 'repos'"),
         ({"repos": [1]}, "needs 'repos'"),
         ({"repos": ["no-slash"]}, "'no-slash' is not of the form owner/name"),
-        ({"repos": ["o/r"], "kinds": ["releases", "stars"]}, "'kinds' must be a list of"),
-        ({"repos": ["o/r"], "kinds": []}, "'kinds' must be a list of"),
-        ({"repos": ["o/r"], "kinds": "releases"}, "'kinds' must be a list of"),
+        ({"repos": ["o/r"], "watch": ["releases", "stars"]}, "'watch' must be a list of"),
+        ({"repos": ["o/r"], "watch": []}, "'watch' must be a list of"),
+        ({"repos": ["o/r"], "watch": "releases"}, "'watch' must be a list of"),
     ],
 )
 def test_github_sources_are_validated_when_wiring(

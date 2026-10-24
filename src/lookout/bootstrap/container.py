@@ -14,7 +14,7 @@ from lookout.adapters.github.gh_cli import GhCliGateway, gh_is_logged_in
 from lookout.adapters.github.rest import RestGateway
 from lookout.adapters.github.unavailable import UnavailableGateway
 from lookout.adapters.llm.openai_compatible import OpenAiEnricher
-from lookout.adapters.sources.github import KINDS as GITHUB_KINDS
+from lookout.adapters.sources.github import WATCHABLE as GITHUB_WATCHABLE
 from lookout.adapters.sources.github import GitHubFetcher
 from lookout.adapters.sources.osv import OsvFetcher
 from lookout.adapters.sources.rss import RssFetcher
@@ -41,6 +41,7 @@ from lookout.application.triage import Inbox, Triage
 from lookout.bootstrap.config import Config, SourceConfig, load_config
 from lookout.bootstrap.demo import seed_demo
 from lookout.bootstrap.doctor import run_checks
+from lookout.domain.channel import ChannelCatalogue, UnknownChannelError
 from lookout.domain.policy import PriorityPolicy
 from lookout.domain.stack import StackEntry
 
@@ -82,12 +83,16 @@ def _github(source: SourceConfig, ways: Ways) -> SourceFetcher:
         if not REPO.match(repo):
             msg = f"source '{source.name}' (github): '{repo}' is not of the form owner/name"
             raise ConfigError(msg)
-    kinds = source.settings.get("kinds", ["releases", "advisories"])
-    if not isinstance(kinds, list) or not kinds or not set(cast("list[object]", kinds)) <= set(GITHUB_KINDS):
-        msg = f"source '{source.name}' (github): 'kinds' must be a list of {', '.join(GITHUB_KINDS)}"
+    watch = source.settings.get("watch", ["releases", "advisories"])
+    if (
+        not isinstance(watch, list)
+        or not watch
+        or not set(cast("list[object]", watch)) <= set(GITHUB_WATCHABLE)
+    ):
+        msg = f"source '{source.name}' (github): 'watch' must be a list of {', '.join(GITHUB_WATCHABLE)}"
         raise ConfigError(msg)
     return GitHubFetcher(
-        source.name, tuple(cast("list[str]", repos)), tuple(cast("list[str]", kinds)), ways.github
+        source.name, tuple(cast("list[str]", repos)), tuple(cast("list[str]", watch)), ways.github
     )
 
 
@@ -103,7 +108,7 @@ def _osv(source: SourceConfig, ways: Ways) -> SourceFetcher:
     return OsvFetcher(source.name, ways.stack, ways.http, ways.now, kev=kev, since_days=days)
 
 
-SOURCE_KINDS: dict[str, Callable[[SourceConfig, Ways], SourceFetcher]] = {
+SOURCE_TYPES: dict[str, Callable[[SourceConfig, Ways], SourceFetcher]] = {
     "rss": _rss,
     "github": _github,
     "osv": _osv,
@@ -173,9 +178,15 @@ class Container:
                 self.config, self.database, self.llm_http, self.fetchers, self.github_via
             ),
             seed_demo=lambda: seed_demo(
-                self.items, self.clock.now(), PriorityPolicy(self.config.thresholds), self.config.stack
+                self.items,
+                self.clock.now(),
+                PriorityPolicy(self.config.thresholds),
+                self.config.stack,
+                tuple(c.name for c in self.config.channels),
             ),
             export=lambda: (encode(item) for item in self.items.all()),
+            kinds=self.config.kinds,
+            channels=self.config.channels,
             schedule_minutes=self.config.schedule.interval_minutes,
             dashboard_dir=self.config.dashboard_dir,
             close=self.close,
@@ -187,9 +198,16 @@ class Container:
         return report
 
 
+def _catalogue(config: Config) -> ChannelCatalogue:
+    try:
+        return ChannelCatalogue(config.channels, {s.name: s.channels for s in config.sources})
+    except UnknownChannelError as error:
+        raise ConfigError(str(error)) from error
+
+
 def load(path: Path, environ: dict[str, str] | None = None) -> Config:
-    """Read the configuration, knowing which source kinds exist."""
-    return load_config(path, tuple(SOURCE_KINDS), environ)
+    """Read the configuration, knowing which source types exist."""
+    return load_config(path, tuple(SOURCE_TYPES), environ)
 
 
 def build(
@@ -231,12 +249,13 @@ def _assemble(
         minimum_signals=config.personalization.minimum_signals,
     )
     policy = PriorityPolicy(config.thresholds)
+    catalogue = _catalogue(config)
     enricher = OpenAiEnricher(
         llm_http,
         base_url=config.llm.base_url,
         model=config.llm.model,
         api_key=config.llm.api_key,
-        categories=config.categories,
+        kinds=config.kinds,
         interests=config.interests,
         stack=tuple(e.name for e in config.stack.entries),
         summary_chars=config.llm.summary_chars,
@@ -247,7 +266,9 @@ def _assemble(
         items=items,
         statuses=statuses,
         clock=clock,
-        ingest=Ingest(items, statuses, clock, policy, config.stack, body_limit=config.body_limit),
+        ingest=Ingest(
+            items, statuses, clock, policy, config.stack, body_limit=config.body_limit, catalogue=catalogue
+        ),
         enrich=Enrich(
             items,
             enricher,
@@ -256,15 +277,16 @@ def _assemble(
             policy,
             daily_limit=config.llm.daily_limit,
             profile=personalize.profile,
+            catalogue=catalogue,
         ),
         triage=Triage(items, personalize),
         inbox=Inbox(items, clock),
         reassess=Reassess(items, policy, config.stack),
         personalize=personalize,
         sources=SourceDirectory(
-            tuple(DeclaredSource(s.name, s.kind, s.enabled) for s in config.sources), statuses
+            tuple(DeclaredSource(s.name, s.type, s.enabled) for s in config.sources), statuses
         ),
-        fetchers=tuple(SOURCE_KINDS[s.kind](s, ways) for s in config.sources if s.enabled),
+        fetchers=tuple(SOURCE_TYPES[s.type](s, ways) for s in config.sources if s.enabled),
         http=ways.http,
         github_via=ways.github.via,
         llm_http=llm_http,

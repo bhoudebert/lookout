@@ -112,9 +112,9 @@ def test_advisory_without_identifiers_names_the_package() -> None:
 
 def test_enrichment_rejects_invalid_values() -> None:
     with pytest.raises(ValueError, match="score"):
-        Enrichment("s", "c", (), 101, action_needed=False, reason="r")
+        Enrichment("s", "c", "Other", (), 101, action_needed=False, reason="r")
     with pytest.raises(ValueError, match="tags"):
-        Enrichment("s", "c", ("a", "b", "c", "d", "e", "f"), 10, action_needed=False, reason="r")
+        Enrichment("s", "c", "Other", ("a", "b", "c", "d", "e", "f"), 10, action_needed=False, reason="r")
 
 
 def test_alert_on_a_watched_repository_counts_as_using_it() -> None:

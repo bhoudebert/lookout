@@ -73,7 +73,12 @@ def create_app(open_services: Opener, serve: Server) -> typer.Typer:
         priority: Annotated[
             list[str] | None, typer.Option("--priority", "-p", help="P0 to P3, repeatable.")
         ] = None,
-        category: Annotated[list[str] | None, typer.Option("--category")] = None,
+        kind: Annotated[
+            list[str] | None, typer.Option("--kind", help="What it is: release, security, ...")
+        ] = None,
+        channel: Annotated[
+            list[str] | None, typer.Option("--channel", help="The topic: AI, Rust, ...")
+        ] = None,
         source: Annotated[list[str] | None, typer.Option("--source")] = None,
         state: Annotated[list[State] | None, typer.Option("--state", help="Default: new and seen.")] = None,
         starred: Annotated[bool, typer.Option("--starred", help="Only starred items.")] = False,
@@ -83,7 +88,8 @@ def create_app(open_services: Opener, serve: Server) -> typer.Typer:
         """List items, most urgent first."""
         query = InboxQuery(
             priorities=frozenset(_priority(p) for p in priority or []),
-            categories=frozenset(category or []),
+            kinds=frozenset(kind or []),
+            channels=frozenset(channel or []),
             sources=frozenset(source or []),
             states=frozenset(state) if state else frozenset({State.NEW, State.SEEN}),
             starred=True if starred else None,
@@ -218,7 +224,7 @@ def _wake(now: datetime, hours: float, until: str | None) -> datetime:
 
 
 def _line(item: Item) -> str:
-    category = item.enrichment.category if item.enrichment else "unread"
+    kind = item.enrichment.kind if item.enrichment else "unread"
     star = "*" if item.starred else "-"
-    where = f"{', '.join(item.sources)}, {category}"
+    where = f"{', '.join(item.sources)}, {item.channel}, {kind}"
     return f"{item.priority.name} {star} {item.id} [{item.state.value}] {item.title} ({where})"

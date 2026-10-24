@@ -21,7 +21,7 @@ def run_checks(
 ) -> tuple[Check, ...]:
     """Check the database, the model endpoint and every enabled source."""
     checks = [_database(config, database), _llm(config, llm_http)]
-    if any(s.kind == "github" for s in config.sources):
+    if any(s.type == "github" for s in config.sources):
         checks.append(_github(github_via))
     checks.extend(_source(fetcher.name, fetcher.fetch) for fetcher in fetchers)
     if not fetchers:

@@ -5,7 +5,7 @@ Read this before changing anything. It applies to people and to coding agents (C
 ## What this is
 
 Lookout: a self-hosted watch tower. It pulls items from the sources you plug in (feeds, GitHub, advisories, Reddit,
-YouTube, pages), has an LLM summarise, categorise and prioritise them, learns what matters to you, and gives you an
+YouTube, pages), has an LLM summarise, classify and prioritise them, learns what matters to you, and gives you an
 inbox to triage (seen, done, snoozed, dismissed). `README.md` explains the product, `docs/ENGINEERING.md` how it is
 built, `docs/TESTING.md` how it is proven, `openspec/project.md` holds the conventions and the vocabulary, and
 `openspec/specs/<capability>/spec.md` describe the behaviour as requirements with scenarios. MIT licence.

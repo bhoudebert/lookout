@@ -51,7 +51,7 @@ def api(tmp_path: Path) -> Iterator[Api]:
 def filled(api: Api) -> Api:
     api.lookout.network.chat = lambda request: reading(
         score=95 if "Django" in request.content.decode() else 10,
-        category="security" if "Django" in request.content.decode() else "other",
+        kind="security" if "Django" in request.content.decode() else "other",
     )
     api.run()
     return api
@@ -65,7 +65,7 @@ def test_run_fills_the_inbox_with_prioritised_items(filled: Api) -> None:
     items = filled.items()
     assert [i["priority"] for i in items] == ["P0", "P3", "P3"]
     top = items[0]
-    assert (top["title"], top["category"], top["score"], top["unread"]) == (
+    assert (top["title"], top["kind"], top["score"], top["unread"]) == (
         "Django 6.0 released",
         "security",
         95,
@@ -80,7 +80,7 @@ def test_run_fills_the_inbox_with_prioritised_items(filled: Api) -> None:
 def test_filters(filled: Api) -> None:
     assert len(filled.items(priority="P0")) == 1
     assert len(filled.items(priority=["P0", "P3"])) == 3
-    assert len(filled.items(category="security")) == 1
+    assert len(filled.items(kind="security")) == 1
     assert len(filled.items(source="blog")) == 3
     assert len(filled.items(source="nope")) == 0
     assert len(filled.items(text="django")) == 1
@@ -165,7 +165,7 @@ def test_mark_everything_below_a_priority_as_seen(filled: Api) -> None:
 
 def test_sources_can_be_switched_off_and_on(filled: Api) -> None:
     (blog,) = filled.client.get("/api/sources").json()
-    assert (blog["name"], blog["kind"], blog["enabled"], blog["items_seen"]) == ("blog", "rss", True, 3)
+    assert (blog["name"], blog["type"], blog["enabled"], blog["items_seen"]) == ("blog", "rss", True, 3)
     off = filled.client.patch("/api/sources/blog", json={"enabled": False}).json()
     assert off["enabled"] is False
     filled.lookout.network.feed = (filled.lookout.network.feed or b"").replace(b"nodate", b"another")  # type: ignore[union-attr]
@@ -177,7 +177,7 @@ def test_sources_can_be_switched_off_and_on(filled: Api) -> None:
 
 def test_a_source_disabled_in_the_file_cannot_be_enabled_from_the_dashboard(tmp_path: Path) -> None:
     lookout = Lookout(
-        tmp_path, sources=[{"name": "off", "kind": "rss", "url": "https://x", "enabled": False}]
+        tmp_path, sources=[{"name": "off", "type": "rss", "url": "https://x", "enabled": False}]
     )
     instance = Api(lookout)
     try:
@@ -278,3 +278,58 @@ def test_dashboard_without_an_assets_folder(tmp_path: Path) -> None:
         assert instance.client.get("/").text == "<html>bare</html>"
     finally:
         instance.services.close()
+
+
+CHANNELS = [
+    {"name": "AI", "description": "Models and tools"},
+    {"name": "Rust"},
+    {"name": "Security"},
+    {"name": "Web"},
+]
+
+
+@pytest.fixture
+def sorted_api(tmp_path: Path) -> Iterator[Api]:
+    """The demo inbox, filed in declared channels."""
+    instance = Api(Lookout(tmp_path, channels=CHANNELS))
+    assert instance.services.seed_demo() == 6
+    yield instance
+    instance.services.close()
+
+
+def test_the_taxonomy_lists_the_channels_with_other_and_the_kinds(sorted_api: Api) -> None:
+    taxonomy = sorted_api.client.get("/api/taxonomy").json()
+    assert [c["name"] for c in taxonomy["channels"]] == ["AI", "Rust", "Security", "Web", "Other"]
+    assert taxonomy["channels"][0]["description"] == "Models and tools"
+    assert "security" in taxonomy["kinds"]
+    assert "schedule" in taxonomy["kinds"]
+
+
+def test_items_carry_their_channel_kind_author_and_the_articles_tags(sorted_api: Api) -> None:
+    django = next(i for i in sorted_api.items() if i["title"].startswith("Django"))
+    assert (django["channel"], django["kind"], django["author"]) == (
+        "Security",
+        "security",
+        "Django Security Team",
+    )
+    assert django["feed_tags"] == ["django"]
+    assert django["tags"] == ["django", "sql-injection"]
+
+
+def test_the_inbox_filters_by_channel_and_by_kind_independently(sorted_api: Api) -> None:
+    assert {i["channel"] for i in sorted_api.items()} == {"Security", "Web", "Other", "Rust", "AI"}
+    assert [i["title"][:6] for i in sorted_api.items(channel="Rust")] == ["Show H"]
+    assert len(sorted_api.items(channel=["Security", "AI"])) == 3
+    assert len(sorted_api.items(kind="security")) == 2
+    assert len(sorted_api.items(kind="release")) == 2
+    assert [i["channel"] for i in sorted_api.items(kind="release", channel="Web")] == ["Web"]
+    assert sorted_api.items(kind="release", channel="Rust") == []
+
+
+def test_the_text_filter_also_searches_the_author(sorted_api: Api) -> None:
+    assert [i["author"] for i in sorted_api.items(text="ferris")] == ["ferris"]
+
+
+def test_demo_items_fall_back_to_other_when_their_channel_is_not_declared(api: Api) -> None:
+    api.services.seed_demo()
+    assert {i["channel"] for i in api.items()} == {"Other"}

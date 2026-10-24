@@ -2,7 +2,7 @@
 
 A self-hosted watch tower for the feeds, releases and advisories that matter to your work.
 
-Plug in sources, let an LLM summarise, categorise and prioritise each item, and work an inbox: seen, done, snoozed,
+Plug in sources, let an LLM summarise, classify and prioritise each item, and work an inbox: seen, done, snoozed,
 dismissed. Lookout learns from what you act on.
 
 - **Sources as adapters:** RSS and Atom today (which covers blogs, GitHub releases, Reddit, Hacker News and YouTube
@@ -12,7 +12,7 @@ dismissed. Lookout learns from what you act on.
 - **Priority you can trust:** P0 to P3, from deterministic rules first (a critical advisory on a dependency you
   declared is never below P1), the model second. Every priority carries its reason.
 - **Personal:** stars, reads and dismissals shape the ranking; the "why this rank" is always visible.
-- **Triage, not a digest:** an inbox with states, keyboard shortcuts and filters by priority, category and source.
+- **Triage, not a digest:** an inbox with states, keyboard shortcuts and filters by priority, channel, kind and source.
 - **Yours:** one SQLite file, one container (or a NixOS module), MIT licence.
 
 ## Quick start
