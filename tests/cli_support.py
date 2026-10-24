@@ -48,22 +48,35 @@ class Network:
         self.chat: Callable[[httpx.Request], str] = lambda _request: reading()
         self.llm_down = False
         self.requests: list[httpx.Request] = []
+        self.osv: Callable[[httpx.Request], httpx.Response] = lambda _request: httpx.Response(
+            200, json={"vulns": []}
+        )
+        self.kev: bytes | int = json.dumps({"vulnerabilities": []}).encode()
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         url = str(request.url)
         if url.startswith(LLM_URL):
-            if self.llm_down:
-                raise httpx.ConnectError("connection refused", request=request)
-            if url.endswith("/models"):
-                return httpx.Response(200, json=self.models)
-            content = self.chat(request)
-            return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+            return self._model(request, url)
+        if url == "https://api.osv.dev/v1/query":
+            return self.osv(request)
+        if url.startswith("https://www.cisa.gov/"):
+            return self._served(self.kev)
         if url == FEED_URL:
-            if isinstance(self.feed, int):
-                return httpx.Response(self.feed)
-            return httpx.Response(200, content=self.feed)
+            return self._served(self.feed)
         return httpx.Response(404)
+
+    def _model(self, request: httpx.Request, url: str) -> httpx.Response:
+        if self.llm_down:
+            raise httpx.ConnectError("connection refused", request=request)
+        if url.endswith("/models"):
+            return httpx.Response(200, json=self.models)
+        content = self.chat(request)
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    @staticmethod
+    def _served(content: bytes | int) -> httpx.Response:
+        return httpx.Response(content) if isinstance(content, int) else httpx.Response(200, content=content)
 
 
 class Lookout:

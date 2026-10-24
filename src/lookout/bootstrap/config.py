@@ -180,6 +180,7 @@ def _stack(reader: _Reader, raw: object) -> Stack:
                 name=data["name"],
                 ecosystem=reader.text(data, "ecosystem", "other"),
                 aliases=reader.strings(data, "aliases", ()),
+                version=reader.text(data, "version", ""),
             )
         )
     return Stack(tuple(entries))

@@ -3,6 +3,7 @@
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import cast
 
@@ -15,6 +16,7 @@ from lookout.adapters.github.unavailable import UnavailableGateway
 from lookout.adapters.llm.openai_compatible import OpenAiEnricher
 from lookout.adapters.sources.github import KINDS as GITHUB_KINDS
 from lookout.adapters.sources.github import GitHubFetcher
+from lookout.adapters.sources.osv import OsvFetcher
 from lookout.adapters.sources.rss import RssFetcher
 from lookout.adapters.store.codec import encode
 from lookout.adapters.store.sqlite import (
@@ -40,6 +42,7 @@ from lookout.bootstrap.config import Config, SourceConfig, load_config
 from lookout.bootstrap.demo import seed_demo
 from lookout.bootstrap.doctor import run_checks
 from lookout.domain.policy import PriorityPolicy
+from lookout.domain.stack import StackEntry
 
 HTTP_TIMEOUT = 30.0
 LLM_TIMEOUT = 300.0
@@ -51,6 +54,8 @@ class Ways:
 
     http: httpx.Client
     github: GitHubGateway
+    stack: tuple[StackEntry, ...]
+    now: Callable[[], datetime]
 
 
 def _rss(source: SourceConfig, ways: Ways) -> SourceFetcher:
@@ -86,7 +91,23 @@ def _github(source: SourceConfig, ways: Ways) -> SourceFetcher:
     )
 
 
-SOURCE_KINDS: dict[str, Callable[[SourceConfig, Ways], SourceFetcher]] = {"rss": _rss, "github": _github}
+def _osv(source: SourceConfig, ways: Ways) -> SourceFetcher:
+    kev = source.settings.get("kev", True)
+    days = source.settings.get("since_days", 30)
+    if not isinstance(kev, bool):
+        msg = f"source '{source.name}' (osv): 'kev' must be true or false"
+        raise ConfigError(msg)
+    if isinstance(days, bool) or not isinstance(days, int) or days < 1:
+        msg = f"source '{source.name}' (osv): 'since_days' must be a whole number of at least 1"
+        raise ConfigError(msg)
+    return OsvFetcher(source.name, ways.stack, ways.http, ways.now, kev=kev, since_days=days)
+
+
+SOURCE_KINDS: dict[str, Callable[[SourceConfig, Ways], SourceFetcher]] = {
+    "rss": _rss,
+    "github": _github,
+    "osv": _osv,
+}
 
 
 def choose_gateway(
@@ -187,7 +208,9 @@ def build(
     llm_http = httpx.Client(transport=transport, timeout=LLM_TIMEOUT)
     try:
         gateway = github or choose_gateway(config.github.via, http, environ or {})
-        return _assemble(config, database, clock, Ways(http, gateway), llm_http)
+        return _assemble(
+            config, database, clock, Ways(http, gateway, config.stack.entries, clock.now), llm_http
+        )
     except Exception:
         http.close()
         llm_http.close()

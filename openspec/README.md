@@ -12,6 +12,7 @@ into the specs and its folder moves to `changes/archive/` (dated), kept as the r
 | triage           | Item states, transitions, snooze, star, undo; the inbox query                              |
 | personalization  | Feedback signals, profile, ranking inside a priority band, the "why this rank" explanation |
 | stack-watch      | The declared stack and watchlist, matching items to it                                     |
+| osv-advisories   | Vulnerabilities for the declared stack from OSV, CVSS severity, CISA known-exploited flag  |
 | github-sources   | Releases, advisories and Dependabot alerts through `gh` or a token                         |
 | dashboard        | The web inbox: lists, filters, detail, shortcuts, source management                        |
 | scheduling       | Periodic runs, run records, quiet failure handling                                         |

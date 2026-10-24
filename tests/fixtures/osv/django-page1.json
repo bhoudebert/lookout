@@ -1,0 +1,27 @@
+{
+  "vulns": [
+    {
+      "id": "GHSA-aaaa-bbbb-cccc",
+      "aliases": ["CVE-2026-1234", "PYSEC-2026-9"],
+      "summary": "SQL injection in JSON key lookups",
+      "details": "A crafted key allows SQL injection.\nSecond line.",
+      "published": "2026-10-20T08:00:00Z",
+      "modified": "2026-10-21T08:00:00Z",
+      "database_specific": { "severity": "CRITICAL" },
+      "affected": [
+        {
+          "package": { "name": "django", "ecosystem": "PyPI" },
+          "ranges": [
+            { "type": "ECOSYSTEM", "events": [{ "introduced": "5.0" }, { "fixed": "5.1.2" }, { "fixed": "5.2.9" }] },
+            "junk"
+          ]
+        },
+        "junk"
+      ]
+    },
+    { "id": "OSV-OLD-1", "aliases": [], "summary": "An old one", "published": "2025-01-01T00:00:00Z" },
+    { "id": "", "summary": "no id" },
+    "not an object"
+  ],
+  "next_page_token": "page-2"
+}

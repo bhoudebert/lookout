@@ -50,9 +50,29 @@ An advisory or alert on a repository you list **counts as affecting your stack**
 
 Lookout reaches GitHub with your local `gh` login when you have one (no token to store), otherwise with a token from `LOOKOUT_GITHUB_TOKEN` or `GITHUB_TOKEN`. Choose with `github.via` in the [configuration](/configuration). `lookout doctor` says which one is used. With neither, only the GitHub sources fail, with a message that says how to fix it.
 
+## OSV: vulnerabilities for what you run
+
+The `osv` kind asks [OSV](https://osv.dev) about every entry of your `stack` whose ecosystem it covers (`pypi`, `npm`, `crates`, `go`), so advisories for packages you use arrive even from repositories you do not watch.
+
+```yaml
+stack:
+  - name: django
+    ecosystem: pypi
+    version: "5.1.0" # quote it; OSV then returns only what affects this version
+sources:
+  - name: osv
+    kind: osv
+    since_days: 30 # only vulnerabilities published in the last 30 days (default)
+    kev: true # mark those CISA lists as exploited (default)
+```
+
+Severity is a fact, never the model's opinion: the database's own rating, else computed from the CVSS v3 vector, else moderate. A critical vulnerability on a package in your stack is **P0**, high is **P1**, and one that CISA lists in its _Known Exploited Vulnerabilities_ catalogue is **P0** whatever its rating. See [how priority is decided](/priorities).
+
+Without a `version`, every recent vulnerability of the package is shown. Entries of other ecosystems (such as a database) are skipped; a stack with none OSV can use fails the source with a message saying so.
+
 ## Coming
 
-OSV and NVD, so advisories for packages in your stack arrive even from repositories you do not watch, and website-change watching. Dedicated Hacker News and Reddit adapters are planned too. See the [roadmap](https://github.com/bhoudebert/lookout/blob/main/ROADMAP.md).
+Website-change watching, and dedicated Hacker News and Reddit adapters (scores, comment counts). See the [roadmap](https://github.com/bhoudebert/lookout/blob/main/ROADMAP.md).
 
 ## Politeness and failures
 

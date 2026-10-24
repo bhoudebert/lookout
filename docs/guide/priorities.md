@@ -12,7 +12,7 @@ Facts, not opinions. They apply when an item carries a structured advisory that 
 | Critical severity     | P0       |
 | High severity         | P1       |
 
-An advisory for a package you do not use gets no floor.
+An advisory for a package you do not use gets no floor, except one raised on a [GitHub repository you watch](/sources), which counts as affecting you. Severity and the exploited flag come from the sources (OSV, GitHub, CISA), never from the model.
 
 ## 2. The model's score
 
