@@ -1,0 +1,23 @@
+# Lookout with its configuration and data on the host.
+#   cp ../lookout.example.yaml config/lookout.yaml   # edit it: sources, stack, interests
+#   docker compose up -d
+#   docker compose exec lookout lookout doctor
+# The dashboard has no login: keep it on 127.0.0.1 (as below) or put an authenticating proxy in front.
+services:
+  lookout:
+    image: ghcr.io/bhoudebert/lookout:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8899:8899"
+    volumes:
+      - ./config:/config:ro
+      - lookout-data:/data
+    environment:
+      # Ollama on the host. On Linux add `extra_hosts` below; or point at any OpenAI-compatible endpoint.
+      LOOKOUT_LLM_API_KEY: ${LOOKOUT_LLM_API_KEY:-}
+      LOOKOUT_GITHUB_TOKEN: ${LOOKOUT_GITHUB_TOKEN:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  lookout-data:

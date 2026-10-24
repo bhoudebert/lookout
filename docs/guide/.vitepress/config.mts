@@ -36,6 +36,7 @@ export default defineConfig({
         items: [
           { text: "Configuration", link: "/configuration" },
           { text: "Running and scheduling", link: "/running" },
+          { text: "Self-hosting", link: "/self-hosting" },
           { text: "Troubleshooting", link: "/troubleshooting" },
         ],
       },

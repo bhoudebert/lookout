@@ -2,7 +2,7 @@
 
 Lookout reads `lookout.yaml` (override with `--config` or `LOOKOUT_CONFIG`). Start from `lookout.example.yaml`. Errors name the file, the key and the expected form.
 
-Secrets never go in the file: set `LOOKOUT_LLM_API_KEY` in the environment if your endpoint needs a key.
+Secrets never go in the file: set `LOOKOUT_LLM_API_KEY` in the environment if your endpoint needs a key. `LOOKOUT_DATABASE` and `LOOKOUT_DASHBOARD_DIR` give defaults for `database` and `dashboard_dir` (the container image sets them); a key in the file wins.
 
 ## Keys
 

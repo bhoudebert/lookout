@@ -119,3 +119,11 @@ def test_rss_source_without_a_url_fails_at_wiring(tmp_path: Path) -> None:
     )
     with pytest.raises(ConfigError, match=r"source 'a' .rss. needs a 'url'"):
         build(config)
+
+
+def test_paths_can_come_from_the_environment_and_the_file_wins(tmp_path: Path) -> None:
+    env = {"LOOKOUT_DATABASE": "/data/lookout.db", "LOOKOUT_DASHBOARD_DIR": "/app/dashboard"}
+    config = load(write(tmp_path, ""), env)
+    assert (config.database, config.dashboard_dir) == (Path("/data/lookout.db"), Path("/app/dashboard"))
+    explicit = load(write(tmp_path, {"database": "mine.db", "dashboard_dir": "mine"}), env)
+    assert (explicit.database, explicit.dashboard_dir) == (Path("mine.db"), Path("mine"))
