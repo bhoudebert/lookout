@@ -1,0 +1,226 @@
+/*
+ * Design proposal: SAMURAI CALM.
+ * Washi paper and sumi ink, made gentler: warmer and softer text (about 12:1 instead of 15:1), no texture, one-pixel
+ * rules, a tinted P0 instead of a solid block, lighter serif titles, more air. Light is warm paper; dark is a brown-black
+ * lacquer, not pure black, with muted gold.
+ * This file is a layer on top of styles.css: delete the import in main.tsx to go back.
+ */
+:root {
+  --serif:
+    "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+    serif;
+  --bg: #f2ede2;
+  --fg: #2e2a25;
+  --muted: #675f54;
+  --line: #ddd5c5;
+  --card: #f8f5ed;
+  --surface-2: #e9e2d3;
+  --accent: #a63a32;
+  --accent-text: #9a352d;
+  --accent-fill: #a63a32;
+  --on-accent: #ffffff;
+  --p0: #9a3028;
+  --p1: #74501d;
+  --p2: #35557f;
+  --p3: #665f54;
+  --focus: #35557f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1712;
+    --fg: #d6cdbc;
+    --muted: #a1978a;
+    --line: #353026;
+    --card: #211d17;
+    --surface-2: #2a251e;
+    --accent: #cfae62;
+    --accent-text: #cfae62;
+    --accent-fill: #cfae62;
+    --on-accent: #1a1712;
+    --p0: #ef8a80;
+    --p1: #cfae62;
+    --p2: #93b0dc;
+    --p3: #a1978a;
+    --focus: #93b0dc;
+  }
+}
+
+body {
+  line-height: 1.65;
+}
+h1,
+h2,
+legend,
+.tree-title,
+header nav a,
+.title,
+.channel,
+.tree button,
+th {
+  font-family: var(--serif);
+}
+h1 {
+  color: var(--fg);
+  letter-spacing: 0.16em;
+  font-size: 1.15rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+/* A small seal before the name. */
+h1::before {
+  content: "";
+  width: 0.8rem;
+  height: 0.8rem;
+  background: var(--accent-fill);
+  opacity: 0.85;
+  transform: rotate(-5deg);
+  border-radius: 1px;
+}
+h2 {
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+header {
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid var(--line);
+}
+header nav a {
+  letter-spacing: 0.08em;
+  font-size: 0.95rem;
+}
+header nav a[aria-current="page"] {
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* Controls: soft borders, gentle hover. */
+button,
+select,
+input,
+textarea {
+  border-radius: 3px;
+}
+button:not(:disabled):hover,
+select:hover {
+  border-color: var(--muted);
+  background: var(--surface-2);
+}
+.run button {
+  font-family: var(--serif);
+  letter-spacing: 0.05em;
+}
+.chip[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--fg) 14%, var(--card));
+  color: var(--fg);
+  border-color: var(--muted);
+  font-weight: 700;
+}
+
+/* Panels: one-pixel outlines, no weight. */
+.filters,
+.tree,
+.detail,
+.presets,
+.manage-form,
+.channels,
+.modal {
+  border-radius: 4px;
+  border-color: var(--line);
+  background: var(--card);
+}
+.modal {
+  box-shadow: 0 14px 40px rgb(0 0 0 / 0.18);
+}
+
+/* The list: entries separated by hairlines, with air. */
+.items {
+  gap: 0;
+}
+.item {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 1.05rem 0.6rem;
+}
+.item:hover {
+  background: color-mix(in srgb, var(--surface-2) 45%, transparent);
+  border-color: var(--line);
+}
+.item.focused {
+  border-color: transparent;
+  border-bottom-color: var(--line);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.title {
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+.title:hover {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.channel {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.meta,
+.tags span {
+  color: var(--muted);
+}
+.tags span {
+  background: none;
+  padding: 0;
+}
+
+/* Priority: soft tints; P0 is a tinted seal, not a block. */
+.badge {
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+}
+.badge.p0 {
+  font-weight: 700;
+  background: color-mix(in srgb, var(--p0) 15%, transparent);
+  border-color: color-mix(in srgb, var(--p0) 55%, transparent);
+}
+
+/* Categories */
+.tree button {
+  border-radius: 3px;
+  font-size: 1rem;
+}
+.tree button:hover {
+  background: var(--surface-2);
+}
+.tree button[aria-current="true"] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.tree button[aria-current="true"] .count {
+  color: var(--accent-text);
+}
+
+.nudge {
+  border-radius: 3px;
+  border-color: var(--line);
+  border-left: 2px solid var(--accent);
+}
+.toast {
+  border-radius: 3px;
+}
+.divider {
+  font-family: var(--serif);
+  border-top-style: solid;
+  border-top-color: var(--line);
+}
