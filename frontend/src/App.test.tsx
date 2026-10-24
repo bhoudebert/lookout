@@ -543,6 +543,23 @@ describe("running", () => {
     expect(await screen.findByRole("button", { name: "Django flaw" })).toBeInTheDocument();
   });
 
+  it("says how many items are waiting for the model when the daily limit was reached, and why", async () => {
+    const backend = new FakeBackend([]);
+    backend.run = {
+      ...backend.run,
+      running: false,
+      finished_at: "2026-10-24T09:00:00Z",
+      enriched: 200,
+      waiting: 240,
+    };
+    mount(backend);
+    const status = await screen.findByRole("status");
+    await waitFor(() => {
+      expect(status).toHaveTextContent("Last run: 0 new, 200 read, 240 waiting for the model");
+    });
+    expect(status).toHaveAttribute("title", expect.stringContaining("daily model limit was reached"));
+  });
+
   it("reports a failed run", async () => {
     const backend = new FakeBackend([]);
     backend.run = { ...backend.run, error: "OSError: disk full", running: false, finished_at: "2026-10-24T09:00:00Z" };
