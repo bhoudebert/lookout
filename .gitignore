@@ -17,3 +17,4 @@ playwright-report/
 test-results/
 .vitepress/cache/
 .vitepress/dist/
+.import_linter_cache/
