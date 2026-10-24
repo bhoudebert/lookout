@@ -26,3 +26,12 @@ test("an item with the reason for its priority", async ({ browser }) => {
   await page.screenshot({ path: `${OUT}/detail-light.png` });
   await context.close();
 });
+
+test("the categories, as a tree", async ({ browser }) => {
+  const context = await browser.newContext({ colorScheme: "dark", viewport: { width: 1200, height: 760 } });
+  const page = await context.newPage();
+  await page.goto("/categories");
+  await expect(page.getByRole("region", { name: "Categories" })).toBeVisible();
+  await page.screenshot({ path: `${OUT}/categories-dark.png` });
+  await context.close();
+});
