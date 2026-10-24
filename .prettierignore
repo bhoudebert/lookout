@@ -8,3 +8,9 @@ coverage
 dist
 .import_linter_cache
 .venv
+frontend/openapi.json
+frontend/src/api/schema.ts
+frontend/coverage
+frontend/dist
+frontend/playwright-report
+frontend/test-results

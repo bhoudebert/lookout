@@ -1,0 +1,48 @@
+import { Inbox } from "./components/Inbox";
+import { RunButton } from "./components/RunButton";
+import { SourcesView } from "./components/SourcesView";
+import { useLocation } from "./router";
+
+export function App() {
+  const { location, go } = useLocation();
+  const link = (to: string, label: string) => (
+    <a
+      href={to}
+      aria-current={location.path === to ? "page" : undefined}
+      onClick={(e) => {
+        e.preventDefault();
+        go(to);
+      }}
+    >
+      {label}
+    </a>
+  );
+  return (
+    <>
+      <header>
+        <h1>Lookout</h1>
+        <nav aria-label="Main">
+          {link("/", "Inbox")}
+          {link("/sources", "Sources")}
+        </nav>
+        <RunButton />
+      </header>
+      <main>
+        {location.path === "/sources" ? (
+          <SourcesView />
+        ) : (
+          <Inbox
+            filters={location.filters}
+            openId={location.item}
+            onFilters={(filters) => {
+              go("/", filters, location.item);
+            }}
+            onOpen={(id) => {
+              go("/", location.filters, id);
+            }}
+          />
+        )}
+      </main>
+    </>
+  );
+}

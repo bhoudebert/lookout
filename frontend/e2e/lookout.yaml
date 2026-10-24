@@ -1,0 +1,16 @@
+# The configuration the end-to-end journeys run against.
+database: frontend/e2e/.data/e2e.db
+dashboard_dir: frontend/dist
+llm:
+  base_url: http://127.0.0.1:8902/v1
+  model: fake-model
+interests: Python and security.
+stack:
+  - name: django
+    ecosystem: pypi
+schedule:
+  interval_minutes: 0
+sources:
+  - name: fake-feed
+    kind: rss
+    url: http://127.0.0.1:8902/feed.xml

@@ -5,6 +5,15 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      react:
+        patterns: ["react", "react-dom", "@types/react*", "@tanstack/*"]
+      testing:
+        patterns: ["vitest", "@vitest/*", "@testing-library/*", "jsdom", "@playwright/*", "@axe-core/*"]
+  - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
