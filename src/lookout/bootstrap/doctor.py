@@ -23,7 +23,7 @@ def run_checks(
 
 
 def _database(config: Config, database: Database) -> Check:
-    version = database.connection.execute("PRAGMA user_version").fetchone()[0]
+    version = database.query("PRAGMA user_version")[0][0]
     return Check(
         "database",
         ok=True,

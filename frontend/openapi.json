@@ -1,0 +1,1219 @@
+{
+  "components": {
+    "schemas": {
+      "Action": {
+        "description": "What the user can do to an item.",
+        "enum": [
+          "open",
+          "done",
+          "dismiss",
+          "snooze",
+          "reopen",
+          "star",
+          "unstar"
+        ],
+        "title": "Action",
+        "type": "string"
+      },
+      "ActionIn": {
+        "description": "Do something to an item.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "hours": {
+            "default": 24.0,
+            "description": "Snooze duration, used by `snooze` without `until`.",
+            "exclusiveMinimum": 0.0,
+            "title": "Hours",
+            "type": "number"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "ActionIn",
+        "type": "object"
+      },
+      "ActionOut": {
+        "description": "The item after an action, and how to undo it.",
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/ItemOut"
+          },
+          "undo": {
+            "$ref": "#/components/schemas/UndoOut"
+          }
+        },
+        "required": [
+          "item",
+          "undo"
+        ],
+        "title": "ActionOut",
+        "type": "object"
+      },
+      "BulkIn": {
+        "description": "The same action on several items.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "hours": {
+            "default": 24.0,
+            "description": "Snooze duration, used by `snooze` without `until`.",
+            "exclusiveMinimum": 0.0,
+            "title": "Hours",
+            "type": "number"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "action",
+          "ids"
+        ],
+        "title": "BulkIn",
+        "type": "object"
+      },
+      "BulkOut": {
+        "description": "How many items changed.",
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "changed"
+        ],
+        "title": "BulkOut",
+        "type": "object"
+      },
+      "ContributionOut": {
+        "description": "One line of \"why this rank\".",
+        "properties": {
+          "feature": {
+            "title": "Feature",
+            "type": "string"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "feature",
+          "points"
+        ],
+        "title": "ContributionOut",
+        "type": "object"
+      },
+      "ExplanationOut": {
+        "description": "Why an item ranks where it does.",
+        "properties": {
+          "boost": {
+            "title": "Boost",
+            "type": "integer"
+          },
+          "contributions": {
+            "items": {
+              "$ref": "#/components/schemas/ContributionOut"
+            },
+            "title": "Contributions",
+            "type": "array"
+          },
+          "model_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Score"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "string"
+          },
+          "priority_reason": {
+            "title": "Priority Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "priority",
+          "priority_reason",
+          "model_score",
+          "boost",
+          "contributions"
+        ],
+        "title": "ExplanationOut",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Health": {
+        "description": "Liveness.",
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "ItemDetail": {
+        "description": "One item with its full text and the rank explanation.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "explanation": {
+            "$ref": "#/components/schemas/ExplanationOut"
+          },
+          "item": {
+            "$ref": "#/components/schemas/ItemOut"
+          }
+        },
+        "required": [
+          "item",
+          "body",
+          "explanation"
+        ],
+        "title": "ItemDetail",
+        "type": "object"
+      },
+      "ItemOut": {
+        "description": "An item as the inbox lists it.",
+        "properties": {
+          "action_needed": {
+            "title": "Action Needed",
+            "type": "boolean"
+          },
+          "boost": {
+            "title": "Boost",
+            "type": "integer"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "enrichment_failed": {
+            "title": "Enrichment Failed",
+            "type": "boolean"
+          },
+          "excerpt": {
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "string"
+          },
+          "priority_label": {
+            "title": "Priority Label",
+            "type": "string"
+          },
+          "priority_reason": {
+            "title": "Priority Reason",
+            "type": "string"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "snoozed_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snoozed Until"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "stack_matches": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stack Matches",
+            "type": "array"
+          },
+          "starred": {
+            "title": "Starred",
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/State"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unread": {
+            "description": "True while the model has not read the item and has not failed on it.",
+            "title": "Unread",
+            "type": "boolean"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "title",
+          "summary",
+          "excerpt",
+          "published_at",
+          "sources",
+          "category",
+          "tags",
+          "priority",
+          "priority_label",
+          "priority_reason",
+          "action_needed",
+          "state",
+          "snoozed_until",
+          "starred",
+          "stack_matches",
+          "enrichment_failed",
+          "unread",
+          "score",
+          "boost"
+        ],
+        "title": "ItemOut",
+        "type": "object"
+      },
+      "ItemPage": {
+        "description": "A page of the inbox.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ItemPage",
+        "type": "object"
+      },
+      "RunOut": {
+        "description": "The current or last run.",
+        "properties": {
+          "enriched": {
+            "title": "Enriched",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRunOut"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "started": {
+            "description": "True when this request started the run.",
+            "title": "Started",
+            "type": "boolean"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "waiting": {
+            "title": "Waiting",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "running",
+          "started",
+          "started_at",
+          "finished_at",
+          "error",
+          "sources",
+          "enriched",
+          "failed",
+          "waiting"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "SeenBelowIn": {
+        "description": "Mark new items less urgent than this as seen.",
+        "properties": {
+          "priority": {
+            "pattern": "^P[0-3]$",
+            "title": "Priority",
+            "type": "string"
+          }
+        },
+        "required": [
+          "priority"
+        ],
+        "title": "SeenBelowIn",
+        "type": "object"
+      },
+      "SourceOut": {
+        "description": "A source and its health.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "items_seen": {
+            "title": "Items Seen",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_run": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "enabled",
+          "last_run",
+          "last_error",
+          "items_seen"
+        ],
+        "title": "SourceOut",
+        "type": "object"
+      },
+      "SourcePatch": {
+        "description": "Switch a source on or off.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "SourcePatch",
+        "type": "object"
+      },
+      "SourceRunOut": {
+        "description": "What a source did in the last run.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "fetched": {
+            "title": "Fetched",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "new": {
+            "title": "New",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "fetched",
+          "new",
+          "error",
+          "skipped"
+        ],
+        "title": "SourceRunOut",
+        "type": "object"
+      },
+      "State": {
+        "description": "Where an item stands in the user's inbox. Starring is independent of the state.",
+        "enum": [
+          "new",
+          "seen",
+          "done",
+          "snoozed",
+          "dismissed"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "UndoOut": {
+        "description": "What to send back to put an item as it was.",
+        "properties": {
+          "snoozed_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snoozed Until"
+          },
+          "starred": {
+            "title": "Starred",
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/State"
+          }
+        },
+        "required": [
+          "state",
+          "snoozed_until",
+          "starred"
+        ],
+        "title": "UndoOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Lookout",
+    "version": "0.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/items": {
+      "get": {
+        "operationId": "list_items_api_items_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "enum": [
+                      "P0",
+                      "P1",
+                      "P2",
+                      "P3"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Priority"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/State"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "starred",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Starred"
+            }
+          },
+          {
+            "in": "query",
+            "name": "text",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Items"
+      }
+    },
+    "/api/items/bulk": {
+      "post": {
+        "operationId": "bulk_api_items_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk"
+      }
+    },
+    "/api/items/seen-below": {
+      "post": {
+        "operationId": "seen_below_api_items_seen_below_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeenBelowIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Seen Below"
+      }
+    },
+    "/api/items/{item_id}": {
+      "get": {
+        "operationId": "get_item_api_items__item_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Item"
+      }
+    },
+    "/api/items/{item_id}/actions": {
+      "post": {
+        "operationId": "act_api_items__item_id__actions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Act"
+      }
+    },
+    "/api/items/{item_id}/restore": {
+      "post": {
+        "operationId": "restore_api_items__item_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UndoOut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore"
+      }
+    },
+    "/api/profile": {
+      "delete": {
+        "operationId": "forget_api_profile_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Forget"
+      }
+    },
+    "/api/run": {
+      "get": {
+        "operationId": "run_status_api_run_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run Status"
+      },
+      "post": {
+        "operationId": "run_now_api_run_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run Now"
+      }
+    },
+    "/api/sources": {
+      "get": {
+        "operationId": "sources_api_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceOut"
+                  },
+                  "title": "Response Sources Api Sources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sources"
+      }
+    },
+    "/api/sources/{name}": {
+      "patch": {
+        "operationId": "patch_source_api_sources__name__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourcePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Source"
+      }
+    }
+  }
+}

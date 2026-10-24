@@ -18,3 +18,9 @@ test-results/
 .vitepress/cache/
 .vitepress/dist/
 .import_linter_cache/
+frontend/e2e/.data/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/dist/
+frontend/node_modules/

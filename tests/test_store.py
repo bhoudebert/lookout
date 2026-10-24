@@ -1,6 +1,7 @@
 """The SQLite store: round trips, filters, ordering, migrations (openspec: triage inbox query, ADR 0004)."""
 
 import sqlite3
+import threading
 from datetime import timedelta
 from pathlib import Path
 
@@ -158,3 +159,29 @@ def test_failing_migration_leaves_the_database_unchanged(
     with sqlite3.connect(path) as db:
         assert db.execute("PRAGMA user_version").fetchone()[0] == 1
         assert "half_done" not in [row[1] for row in db.execute("PRAGMA table_info(items)")]
+
+
+def test_threads_can_share_one_database(tmp_path: Path) -> None:
+    """Requests arrive on several threads while a run writes; nothing may collide (a journey found this)."""
+    repo = repository(tmp_path / "shared.db")
+    items = [make_item(f"https://a.test/{n}", title=f"Item {n}") for n in range(20)]
+    for item in items:
+        repo.save(item)
+    errors: list[BaseException] = []
+
+    def work(offset: int) -> None:
+        try:
+            for round_ in range(60):
+                item = items[(offset + round_) % len(items)]
+                repo.save(item.star())
+                assert repo.get(item.id) is not None
+                repo.search(InboxQuery(text="item"))
+        except BaseException as error:
+            errors.append(error)
+
+    threads = [threading.Thread(target=work, args=(n,)) for n in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == []

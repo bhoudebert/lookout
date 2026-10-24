@@ -4,6 +4,7 @@ _: {
       pkgs,
       tools,
       libraryPath,
+      browsers,
       ...
     }:
     {
@@ -15,6 +16,10 @@ _: {
         UV_PYTHON_DOWNLOADS = "never";
         UV_PYTHON = "${pkgs.python313}/bin/python3.13";
         LD_LIBRARY_PATH = libraryPath;
+
+        # Browsers for the end-to-end journeys come from Nix; the npm package is pinned to the same version.
+        PLAYWRIGHT_BROWSERS_PATH = "${browsers}";
+        PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
 
         shellHook = ''
           if [ ! -d .venv ] || [ ! -d node_modules ]; then
