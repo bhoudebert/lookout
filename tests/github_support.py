@@ -46,8 +46,10 @@ class FakeGitHub:
     def __init__(self, via: str = "gh", error: Exception | None = None) -> None:
         self.via = via
         self.error = error
+        self.asked: list[str] = []
 
     def releases(self, repo: str) -> tuple[Release, ...]:
+        self.asked.append(repo)
         if self.error:
             raise self.error
         return parse.releases(fixture("releases.json"))

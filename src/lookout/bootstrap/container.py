@@ -15,7 +15,7 @@ from lookout.adapters.github.rest import RestGateway
 from lookout.adapters.github.unavailable import UnavailableGateway
 from lookout.adapters.llm.openai_compatible import OpenAiEnricher
 from lookout.adapters.sources.github import WATCHABLE as GITHUB_WATCHABLE
-from lookout.adapters.sources.github import GitHubFetcher
+from lookout.adapters.sources.github import GitHubFetcher, repo_path
 from lookout.adapters.sources.hackernews import FEEDS as HN_FEEDS
 from lookout.adapters.sources.hackernews import MAX_LIMIT as HN_MAX_LIMIT
 from lookout.adapters.sources.hackernews import HackerNewsFetcher
@@ -92,7 +92,8 @@ def _github(source: SourceDef, ways: Ways) -> SourceFetcher:
     ):
         msg = f"source '{source.name}' (github) needs 'repos': a list of owner/name"
         raise ConfigError(msg)
-    for repo in cast("list[str]", repos):
+    names = tuple(dict.fromkeys(repo_path(r) for r in cast("list[str]", repos)))
+    for repo in names:
         if not REPO.match(repo):
             msg = f"source '{source.name}' (github): '{repo}' is not of the form owner/name"
             raise ConfigError(msg)
@@ -104,9 +105,7 @@ def _github(source: SourceDef, ways: Ways) -> SourceFetcher:
     ):
         msg = f"source '{source.name}' (github): 'watch' must be a list of {', '.join(GITHUB_WATCHABLE)}"
         raise ConfigError(msg)
-    return GitHubFetcher(
-        source.name, tuple(cast("list[str]", repos)), tuple(cast("list[str]", watch)), ways.github
-    )
+    return GitHubFetcher(source.name, names, tuple(cast("list[str]", watch)), ways.github)
 
 
 def _osv(source: SourceDef, ways: Ways) -> SourceFetcher:
@@ -168,7 +167,13 @@ SOURCE_TYPES: dict[str, SourceTypeSpec] = {
             "GitHub repositories",
             "Releases, security advisories and Dependabot alerts, through your gh login or a token.",
             (
-                FieldInfo("repos", "Repositories", "list", required=True, help="owner/name, one per line"),
+                FieldInfo(
+                    "repos",
+                    "Repositories",
+                    "list",
+                    required=True,
+                    help="owner/name or the repository address, one per line",
+                ),
                 FieldInfo(
                     "watch",
                     "Watch",

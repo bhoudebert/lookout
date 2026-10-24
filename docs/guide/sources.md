@@ -48,7 +48,7 @@ The `rss` type reads RSS and Atom, keeps each entry's **author** and **tags**, a
 
 ## GitHub: releases, security advisories, Dependabot
 
-The `github` type reads repositories you name and gives advisories **structured data** (severity, package, identifiers), which is what the [priority rules](/priorities) need.
+The `github` type reads repositories you name and gives advisories **structured data** (severity, package, identifiers), which is what the [priority rules](/priorities) need. Write each repository as `owner/name`, or paste its address (`https://github.com/owner/name`, with or without a trailing slash or `.git`, or the SSH form); Lookout keeps `owner/name`.
 
 ```yaml
 sources:

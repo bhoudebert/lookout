@@ -6,6 +6,12 @@ Follow releases, security advisories and Dependabot alerts of declared repositor
 
 ## Requirements
 
+### Requirement: Repositories as people write them
+
+A repository MAY be written as `owner/name`, as its web address (with or without a trailing slash, `.git`, or a path
+after the name) or as its SSH address. It SHALL be reduced to `owner/name`, the same repository listed twice SHALL be read
+once, and anything that is not a GitHub repository SHALL be refused with the usual message.
+
 ### Requirement: Declared repositories
 
 Repositories SHALL be declared as `owner/name` under a source of kind `github`, with the kinds wanted (`releases`, `advisories`, `dependabot`; default `releases` and `advisories`, since Dependabot alerts need access to the repository). A malformed repository name SHALL fail loading with a message naming the source.
