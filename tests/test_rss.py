@@ -95,7 +95,9 @@ def test_malformed_markup_is_a_source_error() -> None:
 
 
 def test_json_where_a_feed_was_expected_is_a_source_error() -> None:
-    client = httpx.Client(transport=httpx.MockTransport(lambda _r: httpx.Response(200, json={"not": "a feed"})))
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda _r: httpx.Response(200, json={"not": "a feed"}))
+    )
     with pytest.raises(SourceError, match="not a readable feed"):
         RssFetcher("blog", "https://example.com/feed", client).fetch()
 
