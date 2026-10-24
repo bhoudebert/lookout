@@ -16,6 +16,9 @@ from lookout.adapters.github.unavailable import UnavailableGateway
 from lookout.adapters.llm.openai_compatible import OpenAiEnricher
 from lookout.adapters.sources.github import WATCHABLE as GITHUB_WATCHABLE
 from lookout.adapters.sources.github import GitHubFetcher
+from lookout.adapters.sources.hackernews import FEEDS as HN_FEEDS
+from lookout.adapters.sources.hackernews import MAX_LIMIT as HN_MAX_LIMIT
+from lookout.adapters.sources.hackernews import HackerNewsFetcher
 from lookout.adapters.sources.osv import OsvFetcher
 from lookout.adapters.sources.rss import RssFetcher
 from lookout.adapters.store.codec import encode
@@ -118,6 +121,29 @@ def _osv(source: SourceDef, ways: Ways) -> SourceFetcher:
     return OsvFetcher(source.name, ways.stack, ways.http, ways.now, kev=kev, since_days=days)
 
 
+def _hackernews(source: SourceDef, ways: Ways) -> SourceFetcher:
+    feed = source.settings.get("feed", "front_page")
+    points = source.settings.get("min_points", 0)
+    limit = source.settings.get("limit", 30)
+    if feed not in HN_FEEDS:
+        msg = f"source '{source.name}' (hackernews): 'feed' must be one of {', '.join(HN_FEEDS)}"
+        raise ConfigError(msg)
+    if isinstance(points, bool) or not isinstance(points, int) or points < 0:
+        msg = f"source '{source.name}' (hackernews): 'min_points' must be a whole number, 0 or more"
+        raise ConfigError(msg)
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= HN_MAX_LIMIT:
+        msg = f"source '{source.name}' (hackernews): 'limit' must be a whole number from 1 to {HN_MAX_LIMIT}"
+        raise ConfigError(msg)
+    return HackerNewsFetcher(
+        source.name,
+        ways.http,
+        feed=cast("str", feed),
+        min_points=points,
+        limit=limit,
+        keywords=source.keywords,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class SourceTypeSpec:
     """A type of source: what a form shows for it, and how to build its fetcher from a definition."""
@@ -153,6 +179,25 @@ SOURCE_TYPES: dict[str, SourceTypeSpec] = {
             ),
         ),
         _github,
+    ),
+    "hackernews": SourceTypeSpec(
+        SourceTypeInfo(
+            "hackernews",
+            "Hacker News",
+            "Stories of the front page, the newest, Ask HN or Show HN, with the points and comments.",
+            (
+                FieldInfo(
+                    "feed",
+                    "List",
+                    "text",
+                    default="front_page",
+                    help="front_page, newest, ask or show",
+                ),
+                FieldInfo("min_points", "Minimum points", "number", default=0),
+                FieldInfo("limit", "Stories per run (1 to 100)", "number", default=30),
+            ),
+        ),
+        _hackernews,
     ),
     "osv": SourceTypeSpec(
         SourceTypeInfo(

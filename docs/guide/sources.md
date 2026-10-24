@@ -88,9 +88,27 @@ Severity is a fact, never the model's opinion: the database's own rating, else c
 
 Without a `version`, every recent vulnerability of the package is shown. Entries of other ecosystems (such as a database) are skipped; a stack with none OSV can use fails the source with a message saying so.
 
+## Hacker News
+
+The `hackernews` type reads stories through [Hacker News's search API](https://hn.algolia.com/api), with their points and comments (the item carries the link to the discussion; an Ask HN, which has no address of its own, is the discussion itself).
+
+```yaml
+sources:
+  - name: hacker news
+    type: hackernews
+    feed: front_page # front_page (default), newest, ask or show
+    min_points: 100 # only stories with at least this many points (default 0)
+    limit: 30 # stories per run, 1 to 100 (default 30)
+    keywords: [rust, security] # optional, like any source
+```
+
+## Suggested sources
+
+The **Sources** page suggests sources to start with, each with an address that was checked: Hacker News and Lobsters, the official Rust blog, Inside Rust and This Week in Rust, Inside Java and the Spring blog, and some well-read AI blogs. One click adds the source and, if it does not exist yet, the category it files in (`Dev > Rust`, `Dev > Java`, `AI`).
+
 ## Coming
 
-Website-change watching, and dedicated Hacker News and Reddit adapters (scores, comment counts). See the [roadmap](https://github.com/bhoudebert/lookout/blob/main/ROADMAP.md).
+Website-change watching and a dedicated Reddit adapter (scores, comment counts). See the [roadmap](https://github.com/bhoudebert/lookout/blob/main/ROADMAP.md).
 
 ## Politeness and failures
 

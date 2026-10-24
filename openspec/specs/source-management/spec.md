@@ -42,6 +42,12 @@ The user SHALL be able to add a channel (name, description), change its descript
 be deleted while a source feeds it, and the refusal SHALL name those sources. `Other` SHALL always exist and SHALL NOT be
 deleted. A source SHALL only list channels that exist.
 
+### Requirement: Suggested sources
+
+The sources page SHALL suggest well-known sources that are not yet there (by name or by feed address), each added with
+one click. A suggestion that files in a category SHALL create that category first when it does not exist. A refusal
+SHALL be shown and leave the suggestion available.
+
 ### Requirement: Applies to the next run
 
 Changes to sources and channels SHALL apply to the next run; a run in progress is not affected.

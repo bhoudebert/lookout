@@ -305,6 +305,20 @@ test("a category can be moved inside another and back, its items following", asy
   await expect(panel.getByRole("button", { name: "Edit Security", exact: true })).toBeVisible();
 });
 
+test("a suggested source is added with its category in one click", async ({ page }) => {
+  await page.goto("/sources");
+  await page.getByRole("button", { name: "+ Inside Java" }).click();
+  const row = page.getByRole("row", { name: /Inside Java/ });
+  await expect(row).toContainText("Dev > Java");
+  await expect(page.getByRole("button", { name: "+ Inside Java" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Delete Inside Java" }).click();
+  await expect(row).toHaveCount(0);
+  await page.goto("/categories");
+  await page.getByRole("button", { name: "Delete Dev > Java", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Edit Dev > Java", exact: true })).toHaveCount(0);
+});
+
 test("the single-page app answers on any path, and the API still answers its own", async ({ page, request }) => {
   await page.goto("/sources");
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();

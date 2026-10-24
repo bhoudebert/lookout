@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { Source, SourceType } from "../api/types";
 import { useManage, useSetSource, useSourceTypes, useSources, useTaxonomy } from "../hooks";
 import { until } from "../format";
+import { PRESETS } from "../presets";
+import type { Preset } from "../presets";
 import { SourceForm } from "./SourceForm";
 import { StateView } from "./StateView";
 
@@ -15,7 +17,9 @@ export function SourcesView() {
   const types = useSourceTypes();
   const taxonomy = useTaxonomy();
   const setSource = useSetSource();
-  const { addSource, updateSource, deleteSource } = useManage();
+  const { addSource, updateSource, deleteSource, addChannel } = useManage();
+  const [adding, setAdding] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const [form, setForm] = useState<"none" | "add" | Source>("none");
 
   if (sources.isPending || types.isPending || taxonomy.isPending) return <StateView kind="loading" />;
@@ -37,6 +41,39 @@ export function SourcesView() {
     return <StateView kind="error" message="This Lookout knows no type of source." />;
   }
   const channelNames = taxonomy.data.channels.map((c) => c.name);
+  const urlOf = (settings: Record<string, unknown>) => settings.url;
+  const missing = PRESETS.filter(
+    (p) =>
+      !sources.data.some(
+        (s) => s.name === p.name || (urlOf(p.settings) !== undefined && urlOf(s.settings) === urlOf(p.settings)),
+      ),
+  );
+  /** Add a suggested source, and the category it files in when that does not exist yet. */
+  const addPreset = (preset: Preset) => {
+    setProblem(null);
+    setAdding(preset.name);
+    const category = preset.category;
+    const ready =
+      category && !channelNames.includes(category.name)
+        ? addChannel.mutateAsync({ name: category.name, description: category.description })
+        : Promise.resolve();
+    ready
+      .then(() =>
+        addSource.mutateAsync({
+          name: preset.name,
+          type: preset.type,
+          settings: preset.settings,
+          channels: category ? [category.name] : [],
+          enabled: true,
+        }),
+      )
+      .catch((error: unknown) => {
+        setProblem(message(error));
+      })
+      .finally(() => {
+        setAdding(null);
+      });
+  };
   const saving = addSource.isPending || updateSource.isPending;
   const failure = form === "add" ? addSource.error : updateSource.error;
   const close = () => {
@@ -56,6 +93,29 @@ export function SourcesView() {
           <p role="alert" className="form-error">
             {message(setSource.error ?? deleteSource.error)}
           </p>
+        )}
+        {problem && (
+          <p role="alert" className="form-error">
+            {problem}
+          </p>
+        )}
+        {missing.length > 0 && (
+          <div className="suggestions" role="group" aria-label="Suggested sources">
+            <span className="hint">Start with:</span>
+            {missing.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                title={p.blurb}
+                disabled={adding !== null}
+                onClick={() => {
+                  addPreset(p);
+                }}
+              >
+                + {p.name}
+              </button>
+            ))}
+          </div>
         )}
         {sources.data.length === 0 ? (
           <StateView kind="empty" message="No source yet. Add one to start filling the inbox." />

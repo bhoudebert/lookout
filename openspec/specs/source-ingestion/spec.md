@@ -27,6 +27,19 @@ Running a source SHALL produce items with a stable external id, URL, title, body
 - **WHEN** a feed entry has no publication date
 - **THEN** the item is stored with the fetch time as its publication time
 
+### Requirement: Hacker News
+
+A source of type `hackernews` SHALL read the stories of one list (`front_page`, `newest`, `ask` or `show`; default
+`front_page`) through Hacker News's search API, at most `limit` (1 to 100, default 30) with at least `min_points`
+(default 0). Each story SHALL be an item at its own address, or at its discussion page when it has none, whose text
+carries its points, its comments and the link to the discussion; its author is the poster. Ask HN and Show HN stories
+carry the tag `ask-hn` or `show-hn`. A service failure or an unreadable answer SHALL fail the source with a message.
+
+#### Scenario: An Ask HN
+
+- **WHEN** a story has no address
+- **THEN** its item is the discussion page, with the story's own text kept
+
 ### Requirement: Dedupe
 
 An item SHALL be stored once per (source, external id). The same URL arriving from two sources (after removing
