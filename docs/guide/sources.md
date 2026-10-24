@@ -1,14 +1,15 @@
 # Sources
 
-A source is declared in `lookout.yaml` with a unique name and a kind.
+A source is a river that flows into your inbox. It is declared in `lookout.yaml` with a unique name and a `type`, and says which [channels](/concepts) it may feed.
 
 ```yaml
 sources:
   - name: python-insider
-    kind: rss
+    type: rss
     url: https://pythoninsider.blogspot.com/feeds/posts/default
+    channels: [Languages]
   - name: lobsters
-    kind: rss
+    type: rss
     url: https://lobste.rs/rss
     keywords: [python, postgres, rust, security]
     enabled: true
@@ -16,9 +17,11 @@ sources:
 
 `keywords` keeps only entries whose title or text contains one of them. `enabled: false` turns a source off.
 
+`channels` lists the topics the source may feed: one means every item is filed there without asking the model, several (or none) lets the model choose among them. Each name must be declared under `channels`.
+
 ## What is supported today
 
-The `rss` kind reads RSS and Atom, which already covers a lot:
+The `rss` type reads RSS and Atom, keeps each entry's **author** and **tags**, and already covers a lot:
 
 | You want                          | Use this feed                                            |
 | --------------------------------- | -------------------------------------------------------- |
@@ -30,17 +33,17 @@ The `rss` kind reads RSS and Atom, which already covers a lot:
 
 ## GitHub: releases, security advisories, Dependabot
 
-The `github` kind reads repositories you name and gives advisories **structured data** (severity, package, identifiers), which is what the [priority rules](/priorities) need.
+The `github` type reads repositories you name and gives advisories **structured data** (severity, package, identifiers), which is what the [priority rules](/priorities) need.
 
 ```yaml
 sources:
   - name: my-repos
-    kind: github
+    type: github
     repos: [acme/api-service, acme/web]
-    kinds: [releases, advisories, dependabot] # default: releases and advisories
+    watch: [releases, advisories, dependabot] # default: releases and advisories
 ```
 
-| Kind         | Reads                                                    | Needs                                      |
+| Watch        | Reads                                                    | Needs                                      |
 | ------------ | -------------------------------------------------------- | ------------------------------------------ |
 | `releases`   | published releases (drafts skipped, pre-releases marked) | nothing special for public repositories    |
 | `advisories` | published security advisories of the repository          | nothing special for public repositories    |
@@ -52,7 +55,7 @@ Lookout reaches GitHub with your local `gh` login when you have one (no token to
 
 ## OSV: vulnerabilities for what you run
 
-The `osv` kind asks [OSV](https://osv.dev) about every entry of your `stack` whose ecosystem it covers (`pypi`, `npm`, `crates`, `go`), so advisories for packages you use arrive even from repositories you do not watch.
+The `osv` type asks [OSV](https://osv.dev) about every entry of your `stack` whose ecosystem it covers (`pypi`, `npm`, `crates`, `go`), so advisories for packages you use arrive even from repositories you do not watch.
 
 ```yaml
 stack:
@@ -61,7 +64,7 @@ stack:
     version: "5.1.0" # quote it; OSV then returns only what affects this version
 sources:
   - name: osv
-    kind: osv
+    type: osv
     since_days: 30 # only vulnerabilities published in the last 30 days (default)
     kev: true # mark those CISA lists as exploited (default)
 ```

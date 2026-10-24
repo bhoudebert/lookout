@@ -8,8 +8,8 @@ Have a model summarise, categorise and score each new item, safely and within bu
 
 ### Requirement: Structured enrichment
 
-For each new item the enricher SHALL return a summary (at most a configured length), one category from the configured
-list, up to five tags, a score from 0 to 100 for importance to the user, an `action_needed` flag and a one-sentence
+For each new item the enricher SHALL return a summary (at most a configured length), one kind from the configured list,
+one channel from those its source allows, up to five tags, a score from 0 to 100 for importance to the user, an `action_needed` flag and a one-sentence
 reason. The answer SHALL be validated against a schema; an invalid answer SHALL get one repair attempt, then the item
 SHALL be marked `enrichment_failed` and shown with a neutral score, never dropped.
 
@@ -20,7 +20,7 @@ SHALL be marked `enrichment_failed` and shown with a neutral score, never droppe
 
 ### Requirement: Profile in the prompt
 
-The prompt SHALL include the user's declared interests and stack, so scoring reflects them, and SHALL state that item
+The prompt SHALL include the user's declared interests and stack, the allowed channels with their descriptions, the kinds, so scoring reflects them, and SHALL state that item
 text is data and not instructions.
 
 ### Requirement: Budget

@@ -7,10 +7,23 @@ from typing import Any, cast
 import yaml
 
 from lookout.application.errors import ConfigError
+from lookout.domain.channel import OTHER, Channel
 from lookout.domain.policy import Thresholds
 from lookout.domain.stack import Stack, StackEntry
 
-DEFAULT_CATEGORIES = ("security", "release", "breaking-change", "tooling", "ai", "industry", "other")
+DEFAULT_KINDS = (
+    "release",
+    "security",
+    "api-change",
+    "deprecation",
+    "announcement",
+    "schedule",
+    "tutorial",
+    "research",
+    "outage",
+    "discussion",
+    "other",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,10 +64,11 @@ class SourceConfig:
     """One declared source."""
 
     name: str
-    kind: str
+    type: str
     settings: dict[str, Any] = field(default_factory=dict[str, Any])
     keywords: tuple[str, ...] = ()
     enabled: bool = True
+    channels: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +78,8 @@ class Config:
     database: Path = Path("data/lookout.db")
     llm: LlmConfig = field(default_factory=LlmConfig)
     interests: str = ""
-    categories: tuple[str, ...] = DEFAULT_CATEGORIES
+    kinds: tuple[str, ...] = DEFAULT_KINDS
+    channels: tuple[Channel, ...] = (Channel(OTHER),)
     stack: Stack = field(default_factory=Stack)
     thresholds: Thresholds = field(default_factory=Thresholds)
     sources: tuple[SourceConfig, ...] = ()
@@ -96,7 +111,8 @@ def load_config(
         database=Path(reader.text(root, "database", env.get("LOOKOUT_DATABASE", "data/lookout.db"))),
         llm=_llm(reader, reader.mapping(root.get("llm", {}), "llm"), env),
         interests=reader.text(root, "interests", ""),
-        categories=reader.strings(root, "categories", DEFAULT_CATEGORIES),
+        kinds=reader.strings(root, "kinds", DEFAULT_KINDS),
+        channels=_channels(reader, root.get("channels", [])),
         stack=_stack(reader, root.get("stack", [])),
         thresholds=_thresholds(reader, reader.mapping(root.get("thresholds", {}), "thresholds")),
         sources=_sources(reader, root.get("sources", []), supported_kinds),
@@ -188,6 +204,20 @@ def _stack(reader: _Reader, raw: object) -> Stack:
     return Stack(tuple(entries))
 
 
+def _channels(reader: _Reader, raw: object) -> tuple[Channel, ...]:
+    found: list[Channel] = []
+    for number, data in enumerate(reader.sequence(raw, "channels")):
+        name = data.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise reader.error(f"channels[{number}] needs a 'name'")
+        if any(c.name.lower() == name.strip().lower() for c in found):
+            raise reader.error(f"two channels are named '{name.strip()}'")
+        found.append(Channel(name.strip(), reader.text(data, "description", "")))
+    if not any(c.name.lower() == OTHER.lower() for c in found):
+        found.append(Channel(OTHER))
+    return tuple(found)
+
+
 def _personalization(reader: _Reader, data: dict[str, Any]) -> PersonalizationConfig:
     base = PersonalizationConfig()
     return PersonalizationConfig(
@@ -221,21 +251,26 @@ def _thresholds(reader: _Reader, data: dict[str, Any]) -> Thresholds:
 def _sources(reader: _Reader, raw: object, supported: tuple[str, ...]) -> tuple[SourceConfig, ...]:
     sources: list[SourceConfig] = []
     for number, data in enumerate(reader.sequence(raw, "sources")):
-        name, kind = data.get("name"), data.get("kind")
+        name, source_type = data.get("name"), data.get("type")
         if not isinstance(name, str) or not name.strip():
             raise reader.error(f"sources[{number}] needs a 'name'")
         if any(s.name == name for s in sources):
             raise reader.error(f"two sources are named '{name}'")
-        if kind not in supported:
-            raise reader.error(f"source '{name}' has kind {kind!r}; supported kinds: {', '.join(supported)}")
-        settings = {k: v for k, v in data.items() if k not in {"name", "kind", "keywords", "enabled"}}
+        if source_type not in supported:
+            raise reader.error(
+                f"source '{name}' has type {source_type!r}; supported types: {', '.join(supported)}"
+            )
+        settings = {
+            k: v for k, v in data.items() if k not in {"name", "type", "keywords", "enabled", "channels"}
+        }
         sources.append(
             SourceConfig(
                 name=name,
-                kind=str(kind),
+                type=str(source_type),
                 settings=settings,
                 keywords=reader.strings(data, "keywords", ()),
                 enabled=reader.boolean(data, "enabled", default=True),
+                channels=reader.strings(data, "channels", ()),
             )
         )
     return tuple(sources)

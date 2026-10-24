@@ -119,6 +119,25 @@
         "title": "BulkOut",
         "type": "object"
       },
+      "ChannelOut": {
+        "description": "A topic the user follows.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "ChannelOut",
+        "type": "object"
+      },
       "ContributionOut": {
         "description": "One line of \"why this rank\".",
         "properties": {
@@ -243,20 +262,17 @@
             "title": "Action Needed",
             "type": "boolean"
           },
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
           "boost": {
             "title": "Boost",
             "type": "integer"
           },
-          "category": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category"
+          "channel": {
+            "title": "Channel",
+            "type": "string"
           },
           "enrichment_failed": {
             "title": "Enrichment Failed",
@@ -266,9 +282,27 @@
             "title": "Excerpt",
             "type": "string"
           },
+          "feed_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Feed Tags",
+            "type": "array"
+          },
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
           },
           "priority": {
             "title": "Priority",
@@ -371,7 +405,10 @@
           "excerpt",
           "published_at",
           "sources",
-          "category",
+          "kind",
+          "channel",
+          "author",
+          "feed_tags",
           "tags",
           "priority",
           "priority_label",
@@ -518,10 +555,6 @@
             "title": "Items Seen",
             "type": "integer"
           },
-          "kind": {
-            "title": "Kind",
-            "type": "string"
-          },
           "last_error": {
             "anyOf": [
               {
@@ -548,11 +581,15 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
           }
         },
         "required": [
           "name",
-          "kind",
+          "type",
           "enabled",
           "last_run",
           "last_error",
@@ -627,6 +664,31 @@
         ],
         "title": "State",
         "type": "string"
+      },
+      "TaxonomyOut": {
+        "description": "What items can be filed under: the channels, and the kinds.",
+        "properties": {
+          "channels": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelOut"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "channels",
+          "kinds"
+        ],
+        "title": "TaxonomyOut",
+        "type": "object"
       },
       "UndoOut": {
         "description": "What to send back to put an item as it was.",
@@ -756,7 +818,7 @@
           },
           {
             "in": "query",
-            "name": "category",
+            "name": "kind",
             "required": false,
             "schema": {
               "anyOf": [
@@ -770,7 +832,26 @@
                   "type": "null"
                 }
               ],
-              "title": "Category"
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
             }
           },
           {
@@ -1213,6 +1294,24 @@
           }
         },
         "summary": "Patch Source"
+      }
+    },
+    "/api/taxonomy": {
+      "get": {
+        "operationId": "taxonomy_api_taxonomy_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxonomyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Taxonomy"
       }
     }
   }

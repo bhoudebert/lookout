@@ -1,4 +1,15 @@
-import type { Action, ActionResult, Filters, ItemDetail, ItemPage, RunStatus, Source, Undo, Item } from "./types";
+import type {
+  Action,
+  ActionResult,
+  Filters,
+  Item,
+  ItemDetail,
+  ItemPage,
+  RunStatus,
+  Source,
+  Taxonomy,
+  Undo,
+} from "./types";
 
 /** An answer the backend refused, with the message it gave. */
 export class ApiError extends Error {
@@ -39,7 +50,8 @@ const STATES: Record<Filters["view"], string[]> = {
 export function itemsQuery(filters: Filters, limit = 100): string {
   const params = new URLSearchParams();
   for (const priority of filters.priorities) params.append("priority", priority);
-  if (filters.category) params.set("category", filters.category);
+  if (filters.channel) params.set("channel", filters.channel);
+  if (filters.kind) params.set("kind", filters.kind);
   if (filters.source) params.set("source", filters.source);
   for (const state of STATES[filters.view]) params.append("state", state);
   if (filters.starred) params.set("starred", "true");
@@ -59,6 +71,7 @@ export const api = {
     call<{ changed: number }>("/api/items/bulk", { method: "POST", body: JSON.stringify({ ids, action, hours }) }),
   seenBelow: (priority: string) =>
     call<{ changed: number }>("/api/items/seen-below", { method: "POST", body: JSON.stringify({ priority }) }),
+  taxonomy: () => call<Taxonomy>("/api/taxonomy"),
   sources: () => call<Source[]>("/api/sources"),
   setSource: (name: string, enabled: boolean) =>
     call<Source>(`/api/sources/${encodeURIComponent(name)}`, { method: "PATCH", body: JSON.stringify({ enabled }) }),

@@ -21,7 +21,8 @@ class InboxQuery:
     """Filters of an item listing. ``None`` or empty means no filter."""
 
     priorities: frozenset[Priority] = frozenset()
-    categories: frozenset[str] = frozenset()
+    kinds: frozenset[str] = frozenset()
+    channels: frozenset[str] = frozenset()
     sources: frozenset[str] = frozenset()
     states: frozenset[State] = frozenset()
     starred: bool | None = None

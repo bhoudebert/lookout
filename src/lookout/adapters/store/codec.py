@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 from lookout.domain.advisory import Advisory
+from lookout.domain.channel import OTHER
 from lookout.domain.enrichment import Enrichment
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
@@ -32,6 +33,9 @@ def encode(item: Item) -> str:
             "snoozed_until": _dt(item.snoozed_until) if item.snoozed_until else None,
             "starred": item.starred,
             "boost": item.boost,
+            "author": item.author,
+            "channel": item.channel,
+            "feed_tags": list(item.feed_tags),
             "extra": item.extra,
         },
         separators=(",", ":"),
@@ -58,6 +62,9 @@ def decode(text: str) -> Item:
         snoozed_until=datetime.fromisoformat(raw["snoozed_until"]) if raw["snoozed_until"] else None,
         starred=raw["starred"],
         boost=raw["boost"],
+        author=raw.get("author", ""),
+        channel=raw.get("channel", OTHER),
+        feed_tags=tuple(raw.get("feed_tags", [])),
         extra=raw["extra"],
     )
 
@@ -97,7 +104,8 @@ def _enrichment(enrichment: Enrichment | None) -> dict[str, Any] | None:
         return None
     return {
         "summary": enrichment.summary,
-        "category": enrichment.category,
+        "kind": enrichment.kind,
+        "channel": enrichment.channel,
         "tags": list(enrichment.tags),
         "score": enrichment.score,
         "action_needed": enrichment.action_needed,
@@ -110,7 +118,8 @@ def _read_enrichment(raw: dict[str, Any] | None) -> Enrichment | None:
         return None
     return Enrichment(
         summary=raw["summary"],
-        category=raw["category"],
+        kind=raw.get("kind") or raw["category"],
+        channel=raw.get("channel", OTHER),
         tags=tuple(raw["tags"]),
         score=raw["score"],
         action_needed=raw["action_needed"],

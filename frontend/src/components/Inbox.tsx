@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Action, Filters, Item } from "../api/types";
-import { useAct, useBulk, useItems, useRestore, useSeenBelow, useSources } from "../hooks";
+import { useAct, useBulk, useItems, useRestore, useSeenBelow, useSources, useTaxonomy } from "../hooks";
 import { useShortcuts } from "../shortcuts";
 import { FilterBar } from "./FilterBar";
 import { ItemDetail } from "./ItemDetail";
@@ -35,6 +35,7 @@ interface Message {
 export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   const items = useItems(filters);
   const sources = useSources();
+  const taxonomy = useTaxonomy();
   const act = useAct();
   const bulk = useBulk();
   const restore = useRestore();
@@ -46,16 +47,6 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   const [message, setMessage] = useState<Message | null>(null);
 
   const list = useMemo(() => items.data?.items ?? [], [items.data]);
-  const categories = useMemo(
-    () =>
-      [
-        ...new Set([
-          ...list.flatMap((i) => (i.category ? [i.category] : [])),
-          ...(filters.category ? [filters.category] : []),
-        ]),
-      ].sort(),
-    [list, filters.category],
-  );
   const sourceNames = useMemo(
     () =>
       [...new Set([...(sources.data ?? []).map((s) => s.name), ...(filters.source ? [filters.source] : [])])].sort(),
@@ -212,7 +203,13 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
 
   return (
     <div className="inbox">
-      <FilterBar filters={filters} categories={categories} sources={sourceNames} onChange={onFilters} />
+      <FilterBar
+        filters={filters}
+        channels={(taxonomy.data?.channels ?? []).map((c) => c.name)}
+        kinds={taxonomy.data?.kinds ?? []}
+        sources={sourceNames}
+        onChange={onFilters}
+      />
       <div className="toolbar">
         <span>{items.data ? `${list.length} of ${items.data.total}` : ""}</span>
         <button

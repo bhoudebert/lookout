@@ -11,7 +11,18 @@ llm:
 # Told to the model so scores reflect you.
 interests: Backend engineering in Python, PostgreSQL, React, and the security of what I run.
 
-categories: [security, release, breaking-change, tooling, ai, industry, other]
+# What an item IS. The model picks one. Edit to fit you.
+kinds:
+  [release, security, api-change, deprecation, announcement, schedule, tutorial, research, outage, discussion, other]
+
+# The topics you look at ("Other" always exists). The description helps the model choose.
+channels:
+  - name: AI
+    description: Models, agents, and the tooling around them
+  - name: Languages
+    description: Python, Rust and other languages I write
+  - name: Security
+    description: Vulnerabilities and fixes in what I run
 
 # What you depend on: advisories and releases that mention these get rule-based priority floors.
 stack:
@@ -25,20 +36,23 @@ stack:
 
 sources:
   - name: python-insider
-    kind: rss
+    type: rss
     url: https://pythoninsider.blogspot.com/feeds/posts/default
+    channels: [Languages] # one channel: its items go straight there
   - name: lobsters
-    kind: rss
+    type: rss
     url: https://lobste.rs/rss
     keywords: [python, postgres, rust, security]
+    channels: [Languages, Security, AI, Other] # several: the model chooses
+
 
   # Releases, security advisories and (with access) Dependabot alerts of your repositories.
   # Uses your `gh` login if you have one, else LOOKOUT_GITHUB_TOKEN. Remove this block if you use neither.
   # - name: my-repos
-  #   kind: github
+  #   type: github
   #   repos: [owner/name]
-  #   kinds: [releases, advisories, dependabot]
+  #   watch: [releases, advisories, dependabot]
 
   # Vulnerabilities for the packages in your stack, with CISA's "known exploited" flag.
   # - name: osv
-  #   kind: osv
+  #   type: osv

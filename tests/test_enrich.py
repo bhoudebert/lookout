@@ -28,7 +28,7 @@ def test_reading_sets_category_summary_and_a_priority_from_the_score() -> None:
     assert stored is not None
     assert (report.enriched, stored.priority) == (1, Priority.P0)
     assert stored.enrichment is not None
-    assert (stored.enrichment.category, stored.enrichment.summary) == ("release", "Huge")
+    assert (stored.enrichment.kind, stored.enrichment.summary) == ("release", "Huge")
     assert "score 92" in stored.priority_reason
 
 

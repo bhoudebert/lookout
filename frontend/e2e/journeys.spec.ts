@@ -37,14 +37,42 @@ test("filters narrow the inbox, live in the URL and survive a reload", async ({ 
   await expect(items(page)).toHaveCount(2);
   await page.getByRole("button", { name: "P1", exact: true }).click();
 
-  await page.getByLabel("Category").selectOption("security");
+  await page.getByLabel("Kind").selectOption("security");
   await expect(items(page)).toHaveCount(2);
-  await page.getByLabel("Category").selectOption("");
+  await page.getByLabel("Kind").selectOption("");
 
-  await page.getByLabel("Search").fill("rust");
+  await page.getByLabel("Search", { exact: true }).fill("rust");
   await expect(items(page)).toHaveCount(1);
   await expect(items(page).first()).toContainText(RUST);
-  await page.getByLabel("Search").fill("");
+  await page.getByLabel("Search", { exact: true }).fill("");
+  await expect(items(page)).toHaveCount(6);
+});
+
+test("items are filed by channel and by kind, and the two filters combine", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByLabel("Channel").getByRole("option")).toHaveText([
+    "All",
+    "AI",
+    "Rust",
+    "Security",
+    "Web",
+    "Languages",
+    "Other",
+  ]);
+  await page.getByLabel("Channel").selectOption("Rust");
+  await expect(items(page)).toHaveCount(1);
+  await expect(items(page).first()).toContainText(RUST);
+  await expect(page).toHaveURL(/channel=Rust/);
+  await page.getByLabel("Channel").selectOption("Security");
+  await expect(items(page)).toHaveCount(2);
+
+  await page.getByLabel("Kind").selectOption("release");
+  await expect(items(page)).toHaveCount(0);
+  await page.getByLabel("Channel").selectOption("Web");
+  await expect(items(page)).toHaveCount(1);
+  await expect(items(page).first()).toContainText(REACT);
+  await page.getByLabel("Channel").selectOption("");
+  await page.getByLabel("Kind").selectOption("");
   await expect(items(page)).toHaveCount(6);
 });
 
@@ -55,6 +83,9 @@ test("an item explains its priority and what it touches", async ({ page }) => {
   await expect(detail).toContainText("rule: critical advisory CVE-2026-1234");
   await expect(detail).toContainText("Touches your stack: django");
   await expect(detail).toContainText("Action needed");
+  await expect(detail.locator(".channel")).toHaveText("Security");
+  await expect(detail).toContainText("by Django Security Team");
+  await expect(detail.getByRole("list", { name: "Tags" })).toContainText("sql-injection");
   await expect(detail.getByRole("link", { name: "Open the original" })).toHaveAttribute("href", /example\.test/);
   await detail.getByRole("button", { name: "Close" }).click();
   await expect(detail).toBeHidden();
@@ -134,9 +165,12 @@ test("a run fetches, reads and ranks new items without letting an injection rais
   const python = items(page).filter({ hasText: PYTHON });
   await expect(python).toContainText("P1");
   await expect(python).toContainText("Python 3.15 ships a faster interpreter.");
+  await expect(python.locator(".channel")).toHaveText("Languages");
+  await expect(python).toContainText("by Guido Fan");
   const injection = items(page).filter({ hasText: INJECTION });
   await expect(injection.locator(".badge")).toContainText("P3");
   await expect(injection.locator(".badge")).not.toContainText("P0");
+  await expect(injection.locator(".channel")).toHaveText("Other");
 });
 
 test("the model's reading is explained", async ({ page }) => {
@@ -146,6 +180,8 @@ test("the model's reading is explained", async ({ page }) => {
   await expect(detail).toContainText("model score 85: You write Python.");
   await expect(detail).toContainText("Model score 85");
   await expect(detail).toContainText("Your profile moves it");
+  await expect(detail.getByRole("list", { name: "Tags" })).toContainText("python");
+  await expect(detail.getByRole("list", { name: "Tags" })).toContainText("interpreter");
 });
 
 test("sources show their health and can be switched off for good", async ({ page }) => {
@@ -181,7 +217,12 @@ test("nothing is lost on a phone-sized screen", async ({ page }) => {
 test.describe("accessibility", () => {
   const scan = async (page: Page) => {
     const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
-    expect(result.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    expect(
+      result.violations.map(
+        (v) =>
+          `${v.id}: ${v.help} -> ${v.nodes.map((n) => `${n.target.join(" ")} (${n.any[0]?.message ?? ""})`).join("; ")}`,
+      ),
+    ).toEqual([]);
   };
 
   test("the inbox", async ({ page }) => {

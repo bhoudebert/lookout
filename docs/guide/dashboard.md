@@ -4,12 +4,12 @@ Start it with `lookout serve` and open `http://127.0.0.1:8899`.
 
 ## The inbox
 
-Items are ordered by priority, then by your profile, then by date. Each row shows its priority **in words** (colour is never the only signal), source, category and age.
+Items are ordered by priority, then by your profile, then by date. Each row shows its priority **in words** (colour is never the only signal), channel, kind, source, author and age.
 
 Filters are kept in the address, so a filtered inbox can be bookmarked:
 
 - priority chips, view (Inbox, Snoozed, Done, Dismissed, Everything)
-- category, source, starred, and free text over title, summary and tags
+- channel (the topic) and kind (what it is), source, starred, and free text over title, summary, tags and author
 
 **Mark P2 and P3 as seen** clears the quiet items in one click.
 

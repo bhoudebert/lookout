@@ -6,18 +6,18 @@ from lookout.domain.advisory import Advisory
 from lookout.domain.raw import RawItem
 from lookout.domain.severity import Severity
 
-KINDS = ("releases", "advisories", "dependabot")
+WATCHABLE = ("releases", "advisories", "dependabot")
 
 
 class GitHubFetcher:
     """One source covering several repositories."""
 
     def __init__(
-        self, name: str, repos: tuple[str, ...], kinds: tuple[str, ...], gateway: GitHubGateway
+        self, name: str, repos: tuple[str, ...], watch: tuple[str, ...], gateway: GitHubGateway
     ) -> None:
         self._name = name
         self._repos = repos
-        self._kinds = kinds
+        self._watch = watch
         self._gateway = gateway
 
     @property
@@ -25,21 +25,21 @@ class GitHubFetcher:
         return self._name
 
     def fetch(self) -> tuple[RawItem, ...]:
-        """Every wanted kind of every repository; the first read that fails fails the source, naming where."""
+        """Everything wanted of every repository; the first read that fails fails the source, naming where."""
         raws: list[RawItem] = []
         for repo in self._repos:
-            for kind in self._kinds:
+            for what in self._watch:
                 try:
-                    raws.extend(self._read(repo, kind))
+                    raws.extend(self._read(repo, what))
                 except GitHubError as error:
-                    msg = f"{repo} {kind}: {error}"
+                    msg = f"{repo} {what}: {error}"
                     raise SourceError(msg) from error
         return tuple(raws)
 
-    def _read(self, repo: str, kind: str) -> list[RawItem]:
-        if kind == "releases":
+    def _read(self, repo: str, what: str) -> list[RawItem]:
+        if what == "releases":
             return [self._release(repo, r) for r in self._gateway.releases(repo)]
-        if kind == "advisories":
+        if what == "advisories":
             return [self._advisory(repo, a, "Security advisory") for a in self._gateway.advisories(repo)]
         return [self._advisory(repo, a, "Dependabot alert") for a in self._gateway.dependabot_alerts(repo)]
 

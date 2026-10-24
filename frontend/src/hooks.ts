@@ -8,6 +8,8 @@ export const useItems = (filters: Filters) =>
 export const useItem = (id: string | null) =>
   useQuery({ queryKey: ["item", id], queryFn: () => api.item(id as string), enabled: id !== null });
 
+export const useTaxonomy = () => useQuery({ queryKey: ["taxonomy"], queryFn: api.taxonomy, staleTime: 60_000 });
+
 export const useSources = () => useQuery({ queryKey: ["sources"], queryFn: api.sources });
 
 export const useRunStatus = () =>

@@ -10,6 +10,7 @@ from lookout.application.reassess import Reassess
 from lookout.application.runs import RunCoordinator, RunReport
 from lookout.application.sources import SourceDirectory
 from lookout.application.triage import Inbox, Triage
+from lookout.domain.channel import Channel
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +38,8 @@ class Services:
     doctor: Callable[[], tuple[Check, ...]]
     seed_demo: Callable[[], int]
     export: Callable[[], Iterable[str]]
+    kinds: tuple[str, ...]
+    channels: tuple[Channel, ...]
     schedule_minutes: int
     dashboard_dir: Path
     close: Callable[[], None]

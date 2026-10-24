@@ -66,7 +66,7 @@ def test_filters_combine() -> None:
         title="Django 6 released",
         sources=("hn", "blog"),
         priority=Priority.P1,
-        category="release",
+        kind="release",
         score=70,
     )
     b = make_item(
@@ -74,7 +74,7 @@ def test_filters_combine() -> None:
         title="Rust news",
         sources=("reddit",),
         priority=Priority.P2,
-        category="tooling",
+        kind="tooling",
         score=70,
     ).star()
     c = make_item("https://a.test/c", title="Other", sources=("hn",), priority=Priority.P3).dismiss()
@@ -85,7 +85,7 @@ def test_filters_combine() -> None:
         return {i.id for i in repo.search(InboxQuery(**kw)).items}  # type: ignore[arg-type]
 
     assert ids(priorities=frozenset({Priority.P1})) == {a.id}
-    assert ids(categories=frozenset({"tooling"})) == {b.id}
+    assert ids(kinds=frozenset({"tooling"})) == {b.id}
     assert ids(sources=frozenset({"hn"})) == {a.id, c.id}
     assert ids(sources=frozenset({"reddit", "blog"})) == {a.id, b.id}
     assert ids(states=frozenset({State.DISMISSED})) == {c.id}
@@ -139,7 +139,7 @@ def test_pending_migration_runs_after_a_backup(tmp_path: Path, monkeypatch: pyte
     monkeypatch.setattr(store, "MIGRATIONS", (*store.MIGRATIONS, add_column))
     upgraded = repository(path)
     assert len(upgraded.all()) == 1
-    assert (tmp_path / "lookout.db.bak-v1").exists()
+    assert (tmp_path / f"lookout.db.bak-v{len(store.MIGRATIONS) - 1}").exists()
 
 
 def test_failing_migration_leaves_the_database_unchanged(
@@ -157,7 +157,7 @@ def test_failing_migration_leaves_the_database_unchanged(
     with pytest.raises(RuntimeError, match="boom"):
         repository(path)
     with sqlite3.connect(path) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert db.execute("PRAGMA user_version").fetchone()[0] == len(store.MIGRATIONS) - 1
         assert "half_done" not in [row[1] for row in db.execute("PRAGMA table_info(items)")]
 
 
@@ -185,3 +185,42 @@ def test_threads_can_share_one_database(tmp_path: Path) -> None:
     for thread in threads:
         thread.join()
     assert errors == []
+
+
+LEGACY_ITEM = (
+    '{"id": "legacy1", "url": "https://old.test/a", "title": "Old item", "body": "", '
+    '"published_at": "2026-10-20T08:00:00+00:00", "sources": ["blog"], "advisory": null, '
+    '"enrichment": {"summary": "s", "category": "release", "tags": ["x"], "score": 60, '
+    '"action_needed": false, "reason": "r"}, "enrichment_failed": false, "stack_matches": [], '
+    '"priority": 2, "priority_reason": "old", '
+    '"state": "seen", "snoozed_until": null, "starred": true, "boost": 3, "extra": {}}'
+)
+
+
+def test_a_database_from_before_channels_keeps_every_item(tmp_path: Path) -> None:
+    """Spec channels, "Existing data": the category becomes the kind, the channel is Other, no author."""
+    path = tmp_path / "lookout.db"
+    with sqlite3.connect(path) as db:
+        store.migrate_v1(db)
+        db.execute("PRAGMA user_version = 1")
+        db.execute(
+            "INSERT INTO items (id, priority, state, starred, category, sources, search, rank, pending, "
+            "published_at, snoozed_until, data) "
+            "VALUES ('legacy1', 2, 'seen', 1, 'release', '|blog|', 'old item', 63, 0, "
+            "'2026-10-20T08:00:00+00:00', NULL, ?)",
+            (LEGACY_ITEM,),
+        )
+    repo = repository(path)
+    (item,) = repo.all()
+    assert (item.id, item.channel, item.author, item.feed_tags) == ("legacy1", "Other", "", ())
+    assert item.enrichment is not None
+    assert (item.enrichment.kind, item.enrichment.channel, item.starred, item.boost) == (
+        "release",
+        "Other",
+        True,
+        3,
+    )
+    assert [i.id for i in repo.search(InboxQuery(kinds=frozenset({"release"}))).items] == ["legacy1"]
+    assert (tmp_path / "lookout.db.bak-v1").exists()
+    repo.save(item)
+    assert repo.get("legacy1") == item

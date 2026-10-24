@@ -24,7 +24,10 @@ class ItemOut(BaseModel):
     excerpt: str
     published_at: datetime
     sources: list[str]
-    category: str | None
+    kind: str | None
+    channel: str
+    author: str
+    feed_tags: list[str]
     tags: list[str]
     priority: str
     priority_label: str
@@ -50,7 +53,10 @@ class ItemOut(BaseModel):
             excerpt=item.body[:EXCERPT_CHARS],
             published_at=item.published_at,
             sources=list(item.sources),
-            category=reading.category if reading else None,
+            kind=reading.kind if reading else None,
+            channel=item.channel,
+            author=item.author,
+            feed_tags=list(item.feed_tags),
             tags=list(reading.tags) if reading else [],
             priority=item.priority.name,
             priority_label=item.priority.label,
@@ -154,7 +160,7 @@ class SourceOut(BaseModel):
     """A source and its health."""
 
     name: str
-    kind: str
+    type: str
     enabled: bool
     last_run: datetime | None
     last_error: str | None
@@ -164,7 +170,7 @@ class SourceOut(BaseModel):
     def of(cls, view: SourceView) -> "SourceOut":
         return cls(
             name=view.name,
-            kind=view.kind,
+            type=view.type,
             enabled=view.enabled,
             last_run=view.last_run,
             last_error=view.last_error,
@@ -225,3 +231,17 @@ class Health(BaseModel):
 
     status: str
     version: str
+
+
+class ChannelOut(BaseModel):
+    """A topic the user follows."""
+
+    name: str
+    description: str
+
+
+class TaxonomyOut(BaseModel):
+    """What items can be filed under: the channels, and the kinds."""
+
+    channels: list[ChannelOut]
+    kinds: list[str]

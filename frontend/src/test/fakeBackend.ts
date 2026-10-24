@@ -1,4 +1,4 @@
-import type { ActionResult, Item, ItemDetail, RunStatus, Source } from "../api/types";
+import type { ActionResult, Item, ItemDetail, RunStatus, Source, Taxonomy } from "../api/types";
 
 export function makeItem(overrides: Partial<Item> = {}): Item {
   return {
@@ -9,7 +9,10 @@ export function makeItem(overrides: Partial<Item> = {}): Item {
     excerpt: "Django 6.0 is out.",
     published_at: "2026-10-24T08:00:00Z",
     sources: ["blog"],
-    category: "release",
+    kind: "release",
+    channel: "Other",
+    author: "",
+    feed_tags: [],
     tags: ["django"],
     priority: "P1",
     priority_label: "this week",
@@ -30,7 +33,7 @@ export function makeItem(overrides: Partial<Item> = {}): Item {
 export function makeSource(overrides: Partial<Source> = {}): Source {
   return {
     name: "blog",
-    kind: "rss",
+    type: "rss",
     enabled: true,
     last_run: "2026-10-24T08:00:00Z",
     last_error: null,
@@ -61,6 +64,14 @@ interface Call {
 export class FakeBackend {
   items: Item[];
   sources: Source[];
+  taxonomy: Taxonomy = {
+    channels: [
+      { name: "AI", description: "Models" },
+      { name: "Rust", description: "" },
+      { name: "Other", description: "" },
+    ],
+    kinds: ["release", "security", "tooling"],
+  };
   run: RunStatus = IDLE;
   runPolls = 0;
   calls: Call[] = [];
@@ -101,6 +112,7 @@ export class FakeBackend {
     if (id && path.endsWith("/restore"))
       return this.restore(id, body as Pick<Item, "state" | "snoozed_until" | "starred">);
     if (id && method === "GET") return this.one(id);
+    if (path === "/api/taxonomy") return this.json(this.taxonomy);
     if (path === "/api/sources" && method === "GET") return this.json(this.sources);
     if (path.startsWith("/api/sources/"))
       return this.patchSource(decodeURIComponent(path.slice(13)), body as { enabled: boolean });
@@ -131,10 +143,11 @@ export class FakeBackend {
       (i) =>
         wanted.includes(i.state) &&
         (priorities.length === 0 || priorities.includes(i.priority)) &&
-        (!params.get("category") || i.category === params.get("category")) &&
+        (!params.get("channel") || i.channel === params.get("channel")) &&
+        (!params.get("kind") || i.kind === params.get("kind")) &&
         (!params.get("source") || i.sources.includes(params.get("source") as string)) &&
         (params.get("starred") !== "true" || i.starred) &&
-        (!text || i.title.toLowerCase().includes(text)),
+        (!text || `${i.title} ${i.author}`.toLowerCase().includes(text)),
     );
     return this.json({ items: matches, total: matches.length });
   }

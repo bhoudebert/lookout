@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // The journeys drive the real backend (SQLite, scheduler off) serving the built dashboard, with a fake feed and a
 // fake model on port 8902. One worker, in order: the journeys share one database, like a person using one inbox.
-const PORT = 8899;
+const PORT = 18899; // not the 8899 of a `lookout serve` you may have running
 const CONFIG = "frontend/e2e/lookout.yaml";
 
 export default defineConfig({

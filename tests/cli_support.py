@@ -30,7 +30,7 @@ runner = CliRunner()
 def reading(**overrides: Any) -> str:
     answer = {
         "summary": "A summary.",
-        "category": "release",
+        "kind": "release",
         "tags": ["python"],
         "score": 75,
         "action_needed": False,
@@ -90,7 +90,7 @@ class Lookout:
         self.config: dict[str, Any] = {
             "database": str(tmp_path / "lookout.db"),
             "stack": [{"name": "django", "ecosystem": "pypi"}],
-            "sources": [{"name": "blog", "kind": "rss", "url": FEED_URL}],
+            "sources": [{"name": "blog", "type": "rss", "url": FEED_URL}],
             **config,
         }
         self.write()

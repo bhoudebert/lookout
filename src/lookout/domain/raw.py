@@ -16,3 +16,5 @@ class RawItem:
     body: str
     published_at: datetime | None = None
     advisory: Advisory | None = None
+    author: str = ""
+    tags: tuple[str, ...] = ()

@@ -5,6 +5,16 @@ llm:
   base_url: http://127.0.0.1:8902/v1
   model: fake-model
 interests: Python and security.
+channels:
+  - name: AI
+    description: Models, agents and tooling around them
+  - name: Rust
+  - name: Security
+    description: Vulnerabilities and fixes in what I run
+  - name: Web
+  - name: Languages
+    description: Python and other languages I write
+
 stack:
   - name: django
     ecosystem: pypi
@@ -12,5 +22,6 @@ schedule:
   interval_minutes: 0
 sources:
   - name: fake-feed
-    kind: rss
+    type: rss
     url: http://127.0.0.1:8902/feed.xml
+    channels: [Languages, Other]

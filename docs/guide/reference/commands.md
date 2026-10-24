@@ -50,7 +50,8 @@ List items, most urgent first.
 | Option | |
 | --- | --- |
 | `--priority`, `-p` | P0 to P3, repeatable. |
-| `--category` |  |
+| `--kind` | What it is: release, security, ... |
+| `--channel` | The topic: AI, Rust, ... |
 | `--source` |  |
 | `--state` | Default: new and seen. One of: `new`, `seen`, `done`, `snoozed`, `dismissed`. |
 | `--starred` | Only starred items. |

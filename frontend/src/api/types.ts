@@ -10,6 +10,7 @@ export type Undo = Schemas["UndoOut"];
 export type Source = Schemas["SourceOut"];
 export type RunStatus = Schemas["RunOut"];
 export type Action = Schemas["ActionIn"]["action"];
+export type Taxonomy = Schemas["TaxonomyOut"];
 export type Priority = "P0" | "P1" | "P2" | "P3";
 export const PRIORITIES: readonly Priority[] = ["P0", "P1", "P2", "P3"];
 
@@ -18,7 +19,8 @@ export type View = "inbox" | "snoozed" | "done" | "dismissed" | "all";
 
 export interface Filters {
   priorities: Priority[];
-  category: string;
+  channel: string;
+  kind: string;
   source: string;
   view: View;
   starred: boolean;
@@ -27,7 +29,8 @@ export interface Filters {
 
 export const NO_FILTERS: Filters = {
   priorities: [],
-  category: "",
+  channel: "",
+  kind: "",
   source: "",
   view: "inbox",
   starred: false,

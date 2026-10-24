@@ -19,7 +19,7 @@ export function SourcesView() {
         <thead>
           <tr>
             <th>Name</th>
-            <th>Kind</th>
+            <th>Type</th>
             <th>Last run</th>
             <th>Items</th>
             <th>Last error</th>
@@ -30,7 +30,7 @@ export function SourcesView() {
           {sources.data.map((s) => (
             <tr key={s.name}>
               <th scope="row">{s.name}</th>
-              <td>{s.kind}</td>
+              <td>{s.type}</td>
               <td>{s.last_run ? until(s.last_run) : "never"}</td>
               <td>{s.items_seen}</td>
               <td>{s.last_error ?? "none"}</td>

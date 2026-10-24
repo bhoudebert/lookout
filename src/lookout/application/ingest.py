@@ -5,6 +5,7 @@ from datetime import timedelta
 
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.ports_sources import SourceError, SourceFetcher, SourceStatus, SourceStatusRepository
+from lookout.domain.channel import ChannelCatalogue
 from lookout.domain.item import Item, item_id
 from lookout.domain.policy import PriorityPolicy
 from lookout.domain.raw import RawItem
@@ -13,6 +14,7 @@ from lookout.domain.text import clean_text
 
 BACKOFF_BASE = timedelta(minutes=5)
 BACKOFF_MAX = timedelta(hours=6)
+MAX_FEED_TAGS = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,10 +51,12 @@ class Ingest:
         stack: Stack,
         *,
         body_limit: int = 4000,
+        catalogue: ChannelCatalogue | None = None,
     ) -> None:
         self._items = items
         self._statuses = statuses
         self._clock = clock
+        self._catalogue = catalogue or ChannelCatalogue()
         self._policy = policy
         self._stack = stack
         self._body_limit = body_limit
@@ -103,6 +107,11 @@ class Ingest:
             published_at=raw.published_at or self._clock.now(),
             sources=(raw.source,),
             advisory=raw.advisory,
+            author=clean_text(raw.author, 120),
+            channel=self._catalogue.initial((raw.source,)),
+            feed_tags=tuple(dict.fromkeys(t for t in (clean_text(x, 40).lower() for x in raw.tags) if t))[
+                :MAX_FEED_TAGS
+            ],
         ).assessed(decision.priority, decision.reason, matches)
         self._items.save(item)
         return 1

@@ -58,6 +58,8 @@ class RssFetcher:
             title=str(entry.get("title") or link),
             body=str(body),
             published_at=_moment(entry.get("published_parsed") or entry.get("updated_parsed")),
+            author=_author(entry),
+            tags=_tags(entry),
         )
 
     def _wanted(self, raw: RawItem) -> bool:
@@ -65,6 +67,26 @@ class RssFetcher:
             return True
         text = f"{raw.title}\n{raw.body}".lower()
         return any(k in text for k in self._keywords)
+
+
+def _author(entry: dict[str, Any]) -> str:
+    name = entry.get("author")
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    authors = entry.get("authors")
+    first = cast("list[object]", authors)[0] if isinstance(authors, list) and authors else None
+    found = cast("dict[str, Any]", first).get("name") if isinstance(first, dict) else None
+    return found.strip() if isinstance(found, str) else ""
+
+
+def _tags(entry: dict[str, Any]) -> tuple[str, ...]:
+    raw = entry.get("tags")
+    terms = (
+        (cast("dict[str, Any]", t).get("term") for t in cast("list[object]", raw) if isinstance(t, dict))
+        if isinstance(raw, list)
+        else ()
+    )
+    return tuple(t.strip() for t in terms if isinstance(t, str) and t.strip())
 
 
 def _moment(parsed: Any) -> datetime | None:  # noqa: ANN401

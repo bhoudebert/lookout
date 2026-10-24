@@ -5,6 +5,7 @@
   --line: #e2ddd6;
   --card: #ffffff;
   --accent: #d9480f;
+  --accent-text: #b13a08;
   --p0: #b42318;
   --p1: #b54708;
   --p2: #1d5fa8;
@@ -20,6 +21,7 @@
     --line: #34302b;
     --card: #1f1c19;
     --accent: #ff7a3d;
+    --accent-text: #ff9a66;
     --p0: #ff8a80;
     --p1: #ffb15c;
     --p2: #7fb2ee;
@@ -323,4 +325,26 @@ kbd {
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 0 0.35rem;
+}
+.channel {
+  font-weight: 700;
+  color: var(--accent-text);
+}
+.facets {
+  margin: 0.25rem 0;
+  color: var(--muted);
+}
+.tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0;
+  margin: 0.25rem 0;
+}
+.tags li {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  font-size: 0.85rem;
 }

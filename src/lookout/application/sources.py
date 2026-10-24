@@ -19,7 +19,7 @@ class DeclaredSource:
     """A source from the configuration."""
 
     name: str
-    kind: str
+    type: str
     enabled: bool
 
 
@@ -28,7 +28,7 @@ class SourceView:
     """A source and how it is doing."""
 
     name: str
-    kind: str
+    type: str
     enabled: bool
     last_run: datetime | None
     last_error: str | None
@@ -50,7 +50,7 @@ class SourceDirectory:
             enabled = source.enabled and not status.disabled
             views.append(
                 SourceView(
-                    source.name, source.kind, enabled, status.last_run, status.last_error, status.items_seen
+                    source.name, source.type, enabled, status.last_run, status.last_error, status.items_seen
                 )
             )
         return tuple(views)

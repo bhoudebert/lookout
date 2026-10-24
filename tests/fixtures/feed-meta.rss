@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Meta</title>
+<item><title>Rust 1.99 released</title><link>https://example.com/rust-199</link><description>Notes</description>
+<dc:creator>Ferris Crab</dc:creator><category>Rust</category><category>Release</category><category> </category>
+<pubDate>Fri, 23 Oct 2026 08:00:00 GMT</pubDate></item>
+<item><title>No metadata at all</title><link>https://example.com/plain</link><description>x</description></item>
+</channel></rss>

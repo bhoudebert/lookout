@@ -77,7 +77,7 @@ def test_a_dependabot_alert_without_a_vulnerability_has_no_package() -> None:
 # --- the gh executable ------------------------------------------------------------------------------------
 
 
-def test_gh_reads_every_kind(tmp_path: Path) -> None:
+def test_gh_reads_everything_wanted(tmp_path: Path) -> None:
     gateway = GhCliGateway(install_fake_gh(tmp_path))
     assert gateway.via == "gh"
     assert len(gateway.releases("o/r")) == 2
@@ -238,9 +238,9 @@ def test_the_way_to_reach_github(via: str, logged_in: bool, environ: dict[str, s
 
 
 def fetcher(
-    kinds: tuple[str, ...] = ("releases", "advisories", "dependabot"), gateway: object | None = None
+    watch: tuple[str, ...] = ("releases", "advisories", "dependabot"), gateway: object | None = None
 ) -> GitHubFetcher:
-    return GitHubFetcher("gh-watch", ("o/r",), kinds, gateway or FakeGitHub())  # type: ignore[arg-type]
+    return GitHubFetcher("gh-watch", ("o/r",), watch, gateway or FakeGitHub())  # type: ignore[arg-type]
 
 
 def test_releases_become_items_with_pre_releases_marked() -> None:
@@ -286,7 +286,7 @@ def test_dependabot_alerts_become_watched_advisories() -> None:
     )
 
 
-def test_a_failing_read_names_the_repository_and_the_kind() -> None:
+def test_a_failing_read_names_the_repository_and_what_was_read() -> None:
     broken = FakeGitHub(error=GitHubError("Resource not accessible"))
     with pytest.raises(SourceError, match="o/r dependabot: Resource not accessible"):
         fetcher(("dependabot",), broken).fetch()
