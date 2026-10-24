@@ -663,12 +663,15 @@ select {
   font-size: 1rem;
   line-height: 1.35;
 }
-.meta,
-.tags,
-.summary {
+.title:hover {
+  background: none;
+}
+.item-body .meta,
+.item-body .tags,
+.item-body .summary {
   margin-left: calc(var(--badge-col) + 0.75rem);
 }
-.summary {
+.item-body .summary {
   color: var(--muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -698,9 +701,9 @@ select {
   .item-head {
     flex-wrap: wrap;
   }
-  .meta,
-  .tags,
-  .summary {
+  .item-body .meta,
+  .item-body .tags,
+  .item-body .summary {
     margin-left: 0;
   }
 }
