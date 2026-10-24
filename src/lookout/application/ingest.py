@@ -97,13 +97,19 @@ class Ingest:
         title = clean_text(raw.title, 300)
         body = clean_text(raw.body, self._body_limit)
         matches = self._stack.match(f"{title}\n{body}", raw.advisory)
-        decision = self._policy.decide(advisory=raw.advisory, stack_matches=matches, enrichment=None)
+        now = self._clock.now()
+        decision = self._policy.decide(
+            advisory=raw.advisory,
+            stack_matches=matches,
+            enrichment=None,
+            age=None if raw.published_at is None else now - raw.published_at,
+        )
         item = Item(
             id=ident,
             url=raw.url,
             title=title,
             body=body,
-            published_at=raw.published_at or self._clock.now(),
+            published_at=raw.published_at or now,
             sources=(raw.source,),
             advisory=raw.advisory,
             author=clean_text(raw.author, 120),

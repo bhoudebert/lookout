@@ -11,6 +11,10 @@ The web inbox where the user works.
 The dashboard SHALL list the inbox with priority badge, title, source, channel, author, tags, summary and age, grouped or ordered by
 priority band, and filterable by priority, channel, source, state, star and text. Filters SHALL be reflected in the URL.
 
+The list SHALL offer two orders, Triage (priority, the default) and Latest (newest first, with a divider before what
+arrived since the user's last visit), kept in the URL. It SHALL load 50 items at a time with a "Load more" control and
+the real total, in both orders and in every view, including `expired`.
+
 #### Scenario: Filter by priority
 
 - **WHEN** the user selects P0 and P1

@@ -1,6 +1,7 @@
 """Priority policy: rule floors first, the model's score above them (ADR 0002)."""
 
 from dataclasses import dataclass
+from datetime import timedelta
 
 from lookout.domain.advisory import Advisory
 from lookout.domain.enrichment import Enrichment
@@ -30,6 +31,7 @@ class PriorityPolicy:
     """Decides the priority of an item from facts first, then from the model."""
 
     thresholds: Thresholds = Thresholds()
+    rules_window_days: int = 30
 
     def decide(
         self,
@@ -38,9 +40,15 @@ class PriorityPolicy:
         stack_matches: tuple[str, ...],
         enrichment: Enrichment | None,
         profile_boost: int = 0,
+        age: timedelta | None = None,
     ) -> Decision:
-        """Priority is the more urgent of the rule floor and the banded score."""
-        floor = _floor(advisory, stack_matches)
+        """Priority is the more urgent of the rule floor and the banded score.
+
+        The floors only bind items published within ``rules_window_days`` (an unknown ``age`` counts as
+        recent), so an old advisory cannot demand action today.
+        """
+        recent = age is None or self.rules_window_days == 0 or age <= timedelta(days=self.rules_window_days)
+        floor = _floor(advisory, stack_matches) if recent else None
         scored = self._banded(enrichment, profile_boost)
         if floor is not None and (scored is None or floor[0] <= scored[0]):
             return Decision(floor[0], floor[1])

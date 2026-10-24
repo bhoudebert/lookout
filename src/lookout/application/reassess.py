@@ -1,6 +1,6 @@
 """Recompute priorities of stored items without calling the model (openspec: priority, "Recompute")."""
 
-from lookout.application.ports import ItemRepository
+from lookout.application.ports import Clock, ItemRepository
 from lookout.domain.policy import PriorityPolicy
 from lookout.domain.stack import Stack
 
@@ -8,7 +8,8 @@ from lookout.domain.stack import Stack
 class Reassess:
     """Applies the current stack and policy to every stored item."""
 
-    def __init__(self, items: ItemRepository, policy: PriorityPolicy, stack: Stack) -> None:
+    def __init__(self, items: ItemRepository, policy: PriorityPolicy, stack: Stack, clock: Clock) -> None:
+        self._clock = clock
         self._items = items
         self._policy = policy
         self._stack = stack
@@ -16,10 +17,14 @@ class Reassess:
     def run(self) -> int:
         """Return the number of items whose priority or matches changed."""
         changed = 0
+        now = self._clock.now()
         for item in self._items.all():
             matches = self._stack.match(f"{item.title}\n{item.body}", item.advisory)
             decision = self._policy.decide(
-                advisory=item.advisory, stack_matches=matches, enrichment=item.enrichment
+                advisory=item.advisory,
+                stack_matches=matches,
+                enrichment=item.enrichment,
+                age=now - item.published_at,
             )
             updated = item.assessed(decision.priority, decision.reason, matches)
             if updated != item:

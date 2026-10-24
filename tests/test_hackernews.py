@@ -8,6 +8,7 @@ import httpx
 import pytest
 import yaml
 from tests.cli_support import FEED_URL, Lookout
+from tests.support import NOW
 
 from lookout.adapters.sources.hackernews import API, HackerNewsFetcher
 from lookout.application.errors import ConfigError
@@ -23,7 +24,7 @@ HITS = {
             "author": "steve",
             "points": 420,
             "num_comments": 87,
-            "created_at_i": 1_790_000_000,
+            "created_at_i": int(NOW.timestamp()) - 3600,
         },
         {
             "objectID": "2",
@@ -63,7 +64,7 @@ def test_stories_become_items_with_their_points_and_the_discussion_link() -> Non
         "Rust 1.99 released",
         "steve",
     )
-    assert first.published_at == datetime.fromtimestamp(1_790_000_000, UTC)
+    assert first.published_at == datetime.fromtimestamp(int(NOW.timestamp()) - 3600, UTC)
     assert "420 points and 87 comments on Hacker News: https://news.ycombinator.com/item?id=1" in first.body
     assert first.tags == ()
     # An Ask HN has no address of its own: the discussion is the item, and its text is kept.

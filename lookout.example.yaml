@@ -34,6 +34,12 @@ stack:
 
 # Sources and channels only seed the dashboard on the very first start; after that, manage them
 # on its Sources page.
+# How long things stay (see the guide, "Keeping the inbox small"). A source can set its own max_age_days.
+retention:
+  max_age_days: 30 # entries older than this are not stored; 0 keeps everything
+  rules_window_days: 30 # an advisory older than this gets no rule floor
+  expire_after_days: { p0: 0, p1: 30, p2: 14, p3: 7 } # untouched items move to Expired; 0 = never
+
 sources:
   - name: python-insider
     type: rss

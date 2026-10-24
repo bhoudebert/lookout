@@ -1,7 +1,7 @@
 """Triage use cases: act on items and read the inbox (openspec: triage)."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 
@@ -11,9 +11,20 @@ from lookout.domain.priority import Priority
 from lookout.domain.profile import SignalKind
 from lookout.domain.state import State
 
+MAX_SWEEP = 5000
+"""The most items one sweep may touch; a bigger filter must be narrowed first."""
+
 
 class ItemNotFoundError(Exception):
     """No item has this id."""
+
+
+class TooManyItemsError(Exception):
+    """A filter matches more items than one sweep may touch."""
+
+    def __init__(self, matched: int) -> None:
+        super().__init__(f"{matched} items match; narrow the filter to at most {MAX_SWEEP}")
+        self.matched = matched
 
 
 class Action(StrEnum):
@@ -36,6 +47,15 @@ class Outcome:
     after: Item
 
 
+@dataclass(frozen=True, slots=True)
+class Sweep:
+    """What an action on a whole filter matched, a few examples, and (unless it was a dry run) what it did."""
+
+    matched: int
+    sample: tuple[Item, ...]
+    outcomes: tuple[Outcome, ...] = ()
+
+
 class Triage:
     """Applies the user's actions to items."""
 
@@ -48,17 +68,47 @@ class Triage:
         return self.act_many((item_id,), action, until=until)[0]
 
     def act_many(
-        self, item_ids: tuple[str, ...], action: Action, *, until: datetime | None = None
+        self,
+        item_ids: tuple[str, ...],
+        action: Action,
+        *,
+        until: datetime | None = None,
+        learn: bool = True,
     ) -> tuple[Outcome, ...]:
-        """Apply one action to several items, all or none: a bad id or transition changes nothing."""
+        """Apply one action to several items, all or none: a bad id or transition changes nothing.
+
+        With ``learn`` false nothing is recorded for the profile: sweeping a backlog says nothing about taste.
+        """
         befores = [self._existing(item_id) for item_id in item_ids]
         outcomes = tuple(Outcome(before, _apply(before, action, until)) for before in befores)
         kind = _SIGNALS.get(action)
         for outcome in outcomes:
             self._items.save(outcome.after)
-            if kind is not None and (action is not Action.OPEN or outcome.before.state is State.NEW):
+            if (
+                learn
+                and kind is not None
+                and (action is not Action.OPEN or outcome.before.state is State.NEW)
+            ):
                 self._feedback.record(outcome.after, kind)
         return outcomes
+
+    def sweep(
+        self,
+        query: InboxQuery,
+        action: Action,
+        *,
+        until: datetime | None = None,
+        dry_run: bool = False,
+        sample: int = 5,
+    ) -> Sweep:
+        """Apply ``action`` to all ``query`` matches, learning nothing; a dry run only counts and samples."""
+        page = self._items.search(replace(query, limit=MAX_SWEEP + 1, offset=0))
+        if page.total > MAX_SWEEP:
+            raise TooManyItemsError(page.total)
+        if dry_run:
+            return Sweep(page.total, page.items[:sample])
+        outcomes = self.act_many(tuple(i.id for i in page.items), action, until=until, learn=False)
+        return Sweep(page.total, page.items[:sample], outcomes)
 
     def _existing(self, item_id: str) -> Item:
         item = self._items.get(item_id)

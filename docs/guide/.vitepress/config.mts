@@ -29,6 +29,7 @@ export default defineConfig({
           { text: "How priority is decided", link: "/priorities" },
           { text: "How it learns your taste", link: "/personalization" },
           { text: "Sources", link: "/sources" },
+          { text: "Keeping the inbox small", link: "/inbox-size" },
         ],
       },
       {

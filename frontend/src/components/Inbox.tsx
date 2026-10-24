@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
-import type { Action, Filters, Item } from "../api/types";
-import { useAct, useBulk, useItems, useRestore, useSeenBelow, useSources, useTaxonomy } from "../hooks";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Action, Filters, Item, Sweep } from "../api/types";
+import { useAct, useBulk, useItems, useRestore, useRestoreMany, useSeenBelow, useSources, useTaxonomy } from "../hooks";
+import { readLastVisit, rememberVisit } from "../lastVisit";
 import { useShortcuts } from "../shortcuts";
 import { CategoryTree } from "./CategoryTree";
 import { FilterBar } from "./FilterBar";
@@ -8,6 +9,7 @@ import { ItemDetail } from "./ItemDetail";
 import { ItemList } from "./ItemList";
 import { HelpDialog, SnoozeMenu, Toast } from "./Overlays";
 import { StateView } from "./StateView";
+import { SweepDialog } from "./SweepDialog";
 
 const DONE_TEXT: Record<Action, string> = {
   open: "Opened",
@@ -40,14 +42,33 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   const act = useAct();
   const bulk = useBulk();
   const restore = useRestore();
+  const restoreMany = useRestoreMany();
   const seenBelow = useSeenBelow();
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [picked, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [snoozing, setSnoozing] = useState<string[] | null>(null);
   const [help, setHelp] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
+  const [sweeping, setSweeping] = useState(false);
+  const [lastVisit] = useState(readLastVisit);
+  useEffect(() => {
+    const remember = () => {
+      rememberVisit(new Date());
+    };
+    window.addEventListener("pagehide", remember);
+    return () => {
+      window.removeEventListener("pagehide", remember);
+      remember();
+    };
+  }, []);
 
-  const list = useMemo(() => items.data?.items ?? [], [items.data]);
+  const list = useMemo(() => items.data?.pages.flatMap((page) => page.items) ?? [], [items.data]);
+  const total = items.data?.pages.at(-1)?.total ?? 0;
+  const earlierFrom = useMemo(() => {
+    if (filters.order !== "date" || lastVisit === null) return null;
+    const first = list.findIndex((i) => new Date(i.published_at) < lastVisit);
+    return first > 0 ? (list[first] as Item).id : null;
+  }, [filters.order, lastVisit, list]);
   const sourceNames = useMemo(
     () =>
       [...new Set([...(sources.data ?? []).map((s) => s.name), ...(filters.source ? [filters.source] : [])])].sort(),
@@ -92,6 +113,27 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
       }
     },
     [act, bulk, restore],
+  );
+
+  const swept = useCallback(
+    (result: Sweep, action: Action) => {
+      setSweeping(false);
+      setSelected(new Set());
+      setMessage({
+        text: `${DONE_TEXT[action]}: ${result.changed} items`,
+        undo: () => {
+          restoreMany.mutateAsync(result.undo).then(
+            () => {
+              setMessage(null);
+            },
+            (error: unknown) => {
+              setMessage({ text: errorText(error) });
+            },
+          );
+        },
+      });
+    },
+    [restoreMany],
   );
 
   const move = useCallback(
@@ -195,6 +237,7 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         focusedId={(focused as Item).id}
         selected={selected}
         now={new Date()}
+        earlierFrom={earlierFrom}
         onFocus={setFocusedId}
         onOpen={open}
         onToggle={toggle}
@@ -222,7 +265,17 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
           </p>
         )}
         <div className="toolbar">
-          <span>{items.data ? `${list.length} of ${items.data.total}` : ""}</span>
+          <span>{items.data ? `${list.length} of ${total}` : ""}</span>
+          {total > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setSweeping(true);
+              }}
+            >
+              Act on all {total}…
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -278,7 +331,22 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
           </div>
         )}
         <div className="columns">
-          <div className="list">{content}</div>
+          <div className="list">
+            {content}
+            {items.hasNextPage && (
+              <p className="more">
+                <button
+                  type="button"
+                  disabled={items.isFetchingNextPage}
+                  onClick={() => {
+                    void items.fetchNextPage();
+                  }}
+                >
+                  Load more ({list.length} of {total})
+                </button>
+              </p>
+            )}
+          </div>
           {openId && (
             <ItemDetail
               id={openId}
@@ -294,6 +362,15 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
             />
           )}
         </div>
+        {sweeping && (
+          <SweepDialog
+            filters={filters}
+            onClose={() => {
+              setSweeping(false);
+            }}
+            onDone={swept}
+          />
+        )}
         {snoozing && (
           <SnoozeMenu
             onPick={(hours) => {

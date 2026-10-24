@@ -61,7 +61,10 @@ class Enrich:
                 failed += 1
                 continue
             decision = self._policy.decide(
-                advisory=item.advisory, stack_matches=item.stack_matches, enrichment=reading
+                advisory=item.advisory,
+                stack_matches=item.stack_matches,
+                enrichment=reading,
+                age=self._clock.now() - item.published_at,
             )
             read = item.enriched(reading).assessed(decision.priority, decision.reason, item.stack_matches)
             self._items.save(read.ranked(profile.boost(read)))

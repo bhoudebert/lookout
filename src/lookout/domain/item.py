@@ -63,12 +63,16 @@ class Item:
         """The user does not want it."""
         return replace(self, state=State.DISMISSED, snoozed_until=None)
 
+    def expire(self) -> Self:
+        """The system's doing, not the user's: nobody looked at it in time. Reopening undoes it."""
+        return replace(self, state=State.EXPIRED, snoozed_until=None)
+
     def snooze(self, until: datetime) -> Self:
         """Hide the item until ``until``."""
         return replace(self, state=State.SNOOZED, snoozed_until=until)
 
     def reopen(self) -> Self:
-        """Bring a done, dismissed or snoozed item back as seen."""
+        """Bring a done, dismissed, snoozed or expired item back as seen."""
         if self.state in (State.NEW, State.SEEN):
             msg = f"item {self.id} is already in the inbox"
             raise InvalidTransitionError(msg)

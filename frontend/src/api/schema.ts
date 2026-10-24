@@ -107,6 +107,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/restore-many": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Many */
+        post: operations["restore_many_api_items_restore_many_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/items/seen-below": {
         parameters: {
             query?: never;
@@ -118,6 +135,23 @@ export interface paths {
         put?: never;
         /** Seen Below */
         post: operations["seen_below_api_items_seen_below_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/sweep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sweep */
+        post: operations["sweep_api_items_sweep_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -481,6 +515,31 @@ export interface components {
             item: components["schemas"]["ItemOut"];
         };
         /**
+         * ItemFilter
+         * @description What to select, as the inbox filters do. Empty means no filter; states default to new and seen.
+         */
+        ItemFilter: {
+            /** Channel */
+            channel?: string[];
+            /** Newer Than Days */
+            newer_than_days?: number | null;
+            /** Older Than Days */
+            older_than_days?: number | null;
+            /** Priority */
+            priority?: ("P0" | "P1" | "P2" | "P3")[];
+            /** Source */
+            source?: string[];
+            /** Starred */
+            starred?: boolean | null;
+            /** State */
+            state?: components["schemas"]["State"][];
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /**
          * ItemOut
          * @description An item as the inbox lists it.
          */
@@ -548,6 +607,12 @@ export interface components {
             total: number;
         };
         /**
+         * Order
+         * @description How a listing is ordered: by priority band (triage) or strictly newest first (latest), ADR 0016.
+         * @enum {string}
+         */
+        Order: "priority" | "date";
+        /**
          * RefileOut
          * @description What filing existing items again did.
          */
@@ -562,6 +627,14 @@ export interface components {
              * @description Items the model will read again at the next run.
              */
             queued: number;
+        };
+        /**
+         * RestoreIn
+         * @description Put several items back as they were.
+         */
+        RestoreIn: {
+            /** Entries */
+            entries: components["schemas"]["UndoEntry"][];
         };
         /**
          * RunOut
@@ -715,9 +788,46 @@ export interface components {
         /**
          * State
          * @description Where an item stands in the user's inbox. Starring is independent of the state.
+         *
+         *     ``EXPIRED`` is reached by the system only, when nobody looked at the item for too long (ADR 0016).
          * @enum {string}
          */
-        State: "new" | "seen" | "done" | "snoozed" | "dismissed";
+        State: "new" | "seen" | "done" | "snoozed" | "dismissed" | "expired";
+        /**
+         * SweepIn
+         * @description An action on everything a filter matches; with ``dry_run`` it only says what would change.
+         */
+        SweepIn: {
+            action: components["schemas"]["Action"];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            filter?: components["schemas"]["ItemFilter"];
+            /**
+             * Hours
+             * @description Snooze duration, used by `snooze` without `until`.
+             * @default 24
+             */
+            hours: number;
+            /** Until */
+            until?: string | null;
+        };
+        /**
+         * SweepOut
+         * @description What a sweep matched, a sample of it, and how to undo what it changed.
+         */
+        SweepOut: {
+            /** Changed */
+            changed: number;
+            /** Matched */
+            matched: number;
+            /** Sample */
+            sample: components["schemas"]["ItemOut"][];
+            /** Undo */
+            undo: components["schemas"]["UndoEntry"][];
+        };
         /**
          * TaxonomyOut
          * @description The categories items can be filed in.
@@ -725,6 +835,19 @@ export interface components {
         TaxonomyOut: {
             /** Channels */
             channels: components["schemas"]["ChannelOut"][];
+        };
+        /**
+         * UndoEntry
+         * @description One item's undo, with its id.
+         */
+        UndoEntry: {
+            /** Id */
+            id: string;
+            /** Snoozed Until */
+            snoozed_until: string | null;
+            /** Starred */
+            starred: boolean;
+            state: components["schemas"]["State"];
         };
         /**
          * UndoOut
@@ -920,6 +1043,9 @@ export interface operations {
                 state?: components["schemas"]["State"][] | null;
                 starred?: boolean | null;
                 text?: string;
+                older_than_days?: number | null;
+                newer_than_days?: number | null;
+                order?: components["schemas"]["Order"];
                 limit?: number;
                 offset?: number;
             };
@@ -982,6 +1108,39 @@ export interface operations {
             };
         };
     };
+    restore_many_api_items_restore_many_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     seen_below_api_items_seen_below_post: {
         parameters: {
             query?: never;
@@ -1002,6 +1161,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sweep_api_items_sweep_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SweepIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SweepOut"];
                 };
             };
             /** @description Validation Error */

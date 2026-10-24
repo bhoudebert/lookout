@@ -4,14 +4,16 @@ Start it with `lookout serve` and open `http://127.0.0.1:8899`.
 
 ## The inbox
 
-Items are ordered by priority, then by your profile, then by date. Each row shows its priority **in words** (colour is never the only signal), category, source, author, tags and age.
+By default (**Triage**) items are ordered by priority, then by your profile, then by date; **Latest** shows the newest first, whatever the priority, with a line before what arrived since your last visit. Each row shows its priority **in words** (colour is never the only signal), category, source, author, tags and age.
 
 Filters are kept in the address, so a filtered inbox can be bookmarked:
 
-- priority chips, view (Inbox, Snoozed, Done, Dismissed, Everything)
+- priority chips, order (Triage or Latest), view (Inbox, Snoozed, Done, Dismissed, **Expired**, Everything) and age (newer than a week, older than a week, two weeks, a month)
 - category (picked in the tree beside the list, subcategories included), source, starred, and free text over title, summary, tags and author
 
-**Mark P2 and P3 as seen** clears the quiet items in one click.
+The list loads 50 items at a time: **Load more** fetches the next 50, and the count always says the real total ("50 of 2329").
+
+**Mark P2 and P3 as seen** clears the quiet items in one click. **Act on all N…** acts on everything the current filters match, not only what is loaded: it counts first, shows a few examples, asks you to choose (done, dismissed or seen), and offers Undo. It teaches your profile nothing, and nothing is deleted. See [keeping the inbox small](/inbox-size).
 
 ## An item
 

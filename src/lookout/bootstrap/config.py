@@ -9,6 +9,8 @@ import yaml
 from lookout.application.errors import ConfigError
 from lookout.domain.channel import OTHER, Channel, InvalidCategoryError, ancestors, normalize
 from lookout.domain.policy import Thresholds
+from lookout.domain.priority import Priority
+from lookout.domain.retention import DEFAULT_EXPIRY, Retention
 from lookout.domain.source import SourceDef
 from lookout.domain.stack import Stack, StackEntry
 
@@ -56,6 +58,7 @@ class Config:
     channels: tuple[Channel, ...] = (Channel(OTHER),)
     stack: Stack = field(default_factory=Stack)
     thresholds: Thresholds = field(default_factory=Thresholds)
+    retention: Retention = field(default_factory=Retention)
     sources: tuple[SourceDef, ...] = ()
     personalization: PersonalizationConfig = field(default_factory=PersonalizationConfig)
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
@@ -88,6 +91,7 @@ def load_config(
         channels=_channels(reader, root.get("channels", [])),
         stack=_stack(reader, root.get("stack", [])),
         thresholds=_thresholds(reader, reader.mapping(root.get("thresholds", {}), "thresholds")),
+        retention=_retention(reader, reader.mapping(root.get("retention", {}), "retention")),
         sources=_sources(reader, root.get("sources", []), supported_types),
         personalization=_personalization(
             reader, reader.mapping(root.get("personalization", {}), "personalization")
@@ -228,6 +232,23 @@ def _thresholds(reader: _Reader, data: dict[str, Any]) -> Thresholds:
     if not found.p0 > found.p1 > found.p2:
         raise reader.error("thresholds must satisfy p0 > p1 > p2")
     return found
+
+
+def _retention(reader: _Reader, data: dict[str, Any]) -> Retention:
+    base = Retention()
+    after = reader.mapping(data.get("expire_after_days", {}), "expire_after_days")
+    unknown = sorted(set(after) - {p.name.lower() for p in Priority})
+    if unknown:
+        raise reader.error(f"expire_after_days has no level '{unknown[0]}': use p0, p1, p2 and p3")
+    expiry: dict[Priority, int | None] = {}
+    for level in Priority:
+        days = reader.integer(after, level.name.lower(), DEFAULT_EXPIRY[level] or 0)
+        expiry[level] = days or None  # 0 means never
+    return Retention(
+        max_age_days=reader.integer(data, "max_age_days", base.max_age_days),
+        rules_window_days=reader.integer(data, "rules_window_days", base.rules_window_days),
+        expire_after_days=expiry,
+    )
 
 
 def _sources(reader: _Reader, raw: object, supported: tuple[str, ...]) -> tuple[SourceDef, ...]:

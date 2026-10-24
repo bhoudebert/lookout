@@ -62,6 +62,17 @@ interface Call {
   body: unknown;
 }
 
+interface Filter {
+  state: string[];
+  priority: string[];
+  channel: string[];
+  source: string[];
+  starred: boolean | null;
+  text: string;
+  older_than_days: number | null;
+  newer_than_days: number | null;
+}
+
 /** An in-memory stand-in for the Lookout API, good enough to drive every screen. */
 export class FakeBackend {
   items: Item[];
@@ -156,6 +167,8 @@ export class FakeBackend {
     const path = url.pathname;
     const id = /^\/api\/items\/([^/]+)/.exec(path)?.[1];
     if (path === "/api/items" && method === "GET") return this.list(url.searchParams);
+    if (path === "/api/items/sweep") return this.sweep(body as Parameters<FakeBackend["sweep"]>[0]);
+    if (path === "/api/items/restore-many") return this.restoreMany(body as Parameters<FakeBackend["restoreMany"]>[0]);
     if (path === "/api/items/bulk") return this.bulk(body as { ids: string[]; action: string });
     if (path === "/api/items/seen-below") return this.seenBelow();
     if (id && path.endsWith("/actions")) return this.act(id, body as { action: string; hours?: number });
@@ -196,19 +209,73 @@ export class FakeBackend {
     const states = params.getAll("state");
     const wanted = states.length > 0 ? states : ["new", "seen"];
     const priorities = params.getAll("priority");
-    const text = (params.get("text") ?? "").toLowerCase();
-    const matches = this.items.filter(
-      (i) =>
-        wanted.includes(i.state) &&
-        (priorities.length === 0 || priorities.includes(i.priority)) &&
-        (!params.get("channel") ||
-          i.channel === params.get("channel") ||
-          i.channel.startsWith(`${params.get("channel")} > `)) &&
-        (!params.get("source") || i.sources.includes(params.get("source") as string)) &&
-        (params.get("starred") !== "true" || i.starred) &&
-        (!text || `${i.title} ${i.author}`.toLowerCase().includes(text)),
+    const channel = params.get("channel");
+    const source = params.get("source");
+    const older = params.get("older_than_days");
+    const newer = params.get("newer_than_days");
+    const matches = this.matching({
+      state: wanted,
+      priority: priorities,
+      channel: channel ? [channel] : [],
+      source: source ? [source] : [],
+      starred: params.get("starred") === "true" ? true : null,
+      text: params.get("text") ?? "",
+      older_than_days: older ? Number(older) : null,
+      newer_than_days: newer ? Number(newer) : null,
+    });
+    const newest = (a: Item, b: Item) => b.published_at.localeCompare(a.published_at);
+    matches.sort(
+      params.get("order") === "date" ? newest : (a, b) => a.priority.localeCompare(b.priority) || newest(a, b),
     );
-    return this.json({ items: matches, total: matches.length });
+    const offset = Number(params.get("offset") ?? 0);
+    const limit = Number(params.get("limit") ?? 50);
+    return this.json({ items: matches.slice(offset, offset + limit), total: matches.length });
+  }
+
+  /** What a filter selects, as the server reads it. Time is the fake clock, 2026-10-24 09:00 UTC. */
+  private matching(filter: Filter): Item[] {
+    const now = Date.parse("2026-10-24T09:00:00Z");
+    const day = 86_400_000;
+    const text = filter.text.toLowerCase();
+    const states = filter.state.length > 0 ? filter.state : ["new", "seen"];
+    return this.items.filter((i) => {
+      const age = now - Date.parse(i.published_at);
+      return (
+        states.includes(i.state) &&
+        (filter.priority.length === 0 || filter.priority.includes(i.priority)) &&
+        (filter.channel.length === 0 ||
+          filter.channel.some((c) => i.channel === c || i.channel.startsWith(`${c} > `))) &&
+        (filter.source.length === 0 || filter.source.some((s) => i.sources.includes(s))) &&
+        (filter.starred === null || i.starred) &&
+        (!text || `${i.title} ${i.author}`.toLowerCase().includes(text)) &&
+        (filter.older_than_days === null || age > filter.older_than_days * day) &&
+        (filter.newer_than_days === null || age <= filter.newer_than_days * day)
+      );
+    });
+  }
+
+  /** An action on everything a filter matches, like the server: a dry run only counts and samples. */
+  private sweep(body: { action: string; dry_run: boolean; filter: Filter }): Response {
+    const matches = this.matching(body.filter);
+    const state = { done: "done", dismiss: "dismissed", open: "seen", snooze: "snoozed" }[body.action] as Item["state"];
+    const undo = body.dry_run
+      ? []
+      : matches.map((i) => ({ id: i.id, state: i.state, snoozed_until: i.snoozed_until, starred: i.starred }));
+    if (!body.dry_run) for (const item of matches) item.state = state;
+    return this.json({
+      matched: matches.length,
+      changed: body.dry_run ? 0 : matches.length,
+      sample: matches.slice(0, 5),
+      undo,
+    });
+  }
+
+  private restoreMany(body: { entries: { id: string; state: Item["state"] }[] }): Response {
+    for (const entry of body.entries) {
+      const item = this.items.find((i) => i.id === entry.id);
+      if (item) item.state = entry.state;
+    }
+    return this.json({ changed: body.entries.length });
   }
 
   private one(id: string): Response {

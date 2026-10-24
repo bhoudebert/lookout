@@ -8,7 +8,7 @@
 
 ADR 0012 split an item's filing into a channel (topic) and a kind (type). In use the user found them to be the same
 notion: some categories are wider than others and some nest, like Dev > Rust. Two axes made the screen and the model's
-task harder, and the rating that is coming (ADR 0016) needs one clear thing to learn from.
+task harder, and the rating that is coming (ADR 0017) needs one clear thing to learn from.
 
 ## Decision
 

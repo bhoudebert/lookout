@@ -351,6 +351,87 @@
         "title": "ItemDetail",
         "type": "object"
       },
+      "ItemFilter": {
+        "description": "What to select, as the inbox filters do. Empty means no filter; states default to new and seen.",
+        "properties": {
+          "channel": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Channel",
+            "type": "array"
+          },
+          "newer_than_days": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Newer Than Days"
+          },
+          "older_than_days": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Older Than Days"
+          },
+          "priority": {
+            "items": {
+              "enum": [
+                "P0",
+                "P1",
+                "P2",
+                "P3"
+              ],
+              "type": "string"
+            },
+            "title": "Priority",
+            "type": "array"
+          },
+          "source": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source",
+            "type": "array"
+          },
+          "starred": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starred"
+          },
+          "state": {
+            "items": {
+              "$ref": "#/components/schemas/State"
+            },
+            "title": "State",
+            "type": "array"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "title": "ItemFilter",
+        "type": "object"
+      },
       "ItemOut": {
         "description": "An item as the inbox lists it.",
         "properties": {
@@ -532,6 +613,15 @@
         "title": "ItemPage",
         "type": "object"
       },
+      "Order": {
+        "description": "How a listing is ordered: by priority band (triage) or strictly newest first (latest), ADR 0016.",
+        "enum": [
+          "priority",
+          "date"
+        ],
+        "title": "Order",
+        "type": "string"
+      },
       "RefileOut": {
         "description": "What filing existing items again did.",
         "properties": {
@@ -551,6 +641,24 @@
           "queued"
         ],
         "title": "RefileOut",
+        "type": "object"
+      },
+      "RestoreIn": {
+        "description": "Put several items back as they were.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/UndoEntry"
+            },
+            "minItems": 1,
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "title": "RestoreIn",
         "type": "object"
       },
       "RunOut": {
@@ -896,16 +1004,92 @@
         "type": "object"
       },
       "State": {
-        "description": "Where an item stands in the user's inbox. Starring is independent of the state.",
+        "description": "Where an item stands in the user's inbox. Starring is independent of the state.\n\n``EXPIRED`` is reached by the system only, when nobody looked at the item for too long (ADR 0016).",
         "enum": [
           "new",
           "seen",
           "done",
           "snoozed",
-          "dismissed"
+          "dismissed",
+          "expired"
         ],
         "title": "State",
         "type": "string"
+      },
+      "SweepIn": {
+        "description": "An action on everything a filter matches; with ``dry_run`` it only says what would change.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/ItemFilter"
+          },
+          "hours": {
+            "default": 24.0,
+            "description": "Snooze duration, used by `snooze` without `until`.",
+            "exclusiveMinimum": 0.0,
+            "title": "Hours",
+            "type": "number"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "SweepIn",
+        "type": "object"
+      },
+      "SweepOut": {
+        "description": "What a sweep matched, a sample of it, and how to undo what it changed.",
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "integer"
+          },
+          "matched": {
+            "title": "Matched",
+            "type": "integer"
+          },
+          "sample": {
+            "items": {
+              "$ref": "#/components/schemas/ItemOut"
+            },
+            "title": "Sample",
+            "type": "array"
+          },
+          "undo": {
+            "items": {
+              "$ref": "#/components/schemas/UndoEntry"
+            },
+            "title": "Undo",
+            "type": "array"
+          }
+        },
+        "required": [
+          "matched",
+          "changed",
+          "sample",
+          "undo"
+        ],
+        "title": "SweepOut",
+        "type": "object"
       },
       "TaxonomyOut": {
         "description": "The categories items can be filed in.",
@@ -922,6 +1106,42 @@
           "channels"
         ],
         "title": "TaxonomyOut",
+        "type": "object"
+      },
+      "UndoEntry": {
+        "description": "One item's undo, with its id.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "snoozed_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snoozed Until"
+          },
+          "starred": {
+            "title": "Starred",
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/State"
+          }
+        },
+        "required": [
+          "state",
+          "snoozed_until",
+          "starred",
+          "id"
+        ],
+        "title": "UndoEntry",
         "type": "object"
       },
       "UndoOut": {
@@ -1301,6 +1521,49 @@
           },
           {
             "in": "query",
+            "name": "older_than_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Older Than Days"
+            }
+          },
+          {
+            "in": "query",
+            "name": "newer_than_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Newer Than Days"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Order",
+              "default": "priority"
+            }
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
@@ -1386,6 +1649,44 @@
         "summary": "Bulk"
       }
     },
+    "/api/items/restore-many": {
+      "post": {
+        "operationId": "restore_many_api_items_restore_many_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Many"
+      }
+    },
     "/api/items/seen-below": {
       "post": {
         "operationId": "seen_below_api_items_seen_below_post",
@@ -1422,6 +1723,44 @@
           }
         },
         "summary": "Seen Below"
+      }
+    },
+    "/api/items/sweep": {
+      "post": {
+        "operationId": "sweep_api_items_sweep_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SweepIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SweepOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sweep"
       }
     },
     "/api/items/{item_id}": {
