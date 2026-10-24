@@ -68,6 +68,11 @@ def migrate_v1(db: sqlite3.Connection) -> None:
 
 _ORDER = "priority, rank DESC, published_at DESC"
 _NEWEST_FIRST = "published_at DESC, id"
+# The same order as _ORDER, written out: a query built from parts looks like an injection to the linter.
+_PENDING = (
+    "SELECT data FROM items WHERE pending = 1 AND state IN ('new', 'seen', 'snoozed')"
+    " ORDER BY priority, rank DESC, published_at DESC"
+)
 
 
 def migrate_v2(db: sqlite3.Connection) -> None:
@@ -259,10 +264,12 @@ class SqliteItemRepository:
         return tuple(decode(r["data"]) for r in rows)
 
     def pending_enrichment(self) -> tuple[Item, ...]:
-        """Items the model has not read yet, most urgent first."""
-        rows = self._db.query(
-            f"SELECT data FROM items WHERE pending = 1 ORDER BY {_ORDER}"  # noqa: S608
-        )
+        """Items the model has not read yet, most urgent first.
+
+        Only those in the inbox or on their way back to it: the model is not asked about items that are done,
+        dismissed or expired, which nobody sees. Reopening one makes it eligible again.
+        """
+        rows = self._db.query(_PENDING)
         return tuple(decode(r["data"]) for r in rows)
 
     def all(self) -> tuple[Item, ...]:

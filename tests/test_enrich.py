@@ -1,6 +1,8 @@
 """Scenarios of openspec/specs/enrichment."""
 
-from tests.support import FixedClock, ScriptedEnricher, database, enrichment, make_item
+from datetime import timedelta
+
+from tests.support import NOW, FixedClock, ScriptedEnricher, database, enrichment, make_item
 
 from lookout.adapters.store.sqlite import SqliteItemRepository, SqliteUsageRepository
 from lookout.application.enrich import Enrich
@@ -85,3 +87,35 @@ def test_nothing_pending_does_nothing() -> None:
     enrich, _, usage, _ = build(ScriptedEnricher())
     assert enrich.run().enriched == 0
     assert usage.calls_on("2026-10-24") == 0
+
+
+def test_the_daily_budget_is_not_spent_on_items_nobody_will_see() -> None:
+    """Expired, dismissed and done items took most of the budget, so the ones in the inbox kept waiting."""
+    scripted = ScriptedEnricher({})
+    enrich, items, _, _ = build(scripted, limit=2)
+    gone = [
+        make_item("https://x/expired", title="Expired", published_at=NOW - timedelta(days=60)).expire(),
+        make_item("https://x/dismissed", title="Dismissed").dismiss(),
+        make_item("https://x/done", title="Done").mark_done(),
+    ]
+    visible = [
+        make_item("https://x/new", title="New"),
+        make_item("https://x/seen", title="Seen").open(),
+        make_item("https://x/snoozed", title="Snoozed").snooze(NOW + timedelta(days=1)),
+    ]
+    for item in [*gone, *visible]:
+        items.save(item)
+    assert {i.title for i in items.pending_enrichment()} == {"New", "Seen", "Snoozed"}
+    assert enrich.run().waiting == 1
+    assert set(scripted.asked).isdisjoint({"Expired", "Dismissed", "Done"})
+
+
+def test_an_expired_item_that_is_reopened_gets_read_then() -> None:
+    scripted = ScriptedEnricher({})
+    enrich, items, _, _ = build(scripted)
+    old = make_item("https://x/old", title="Old").expire()
+    items.save(old)
+    assert enrich.run().enriched == 0
+    items.save(old.reopen())
+    assert enrich.run().enriched == 1
+    assert scripted.asked == ["Old"]

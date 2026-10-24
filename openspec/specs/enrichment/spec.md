@@ -33,6 +33,17 @@ wait (state `pending_enrichment`) and the rule-based priority SHALL still apply 
 - **WHEN** the daily limit is reached while a critical advisory arrives
 - **THEN** the advisory is in the inbox as P1 or higher from its rule floor, flagged as not yet summarised
 
+### Requirement: Only what can be seen
+
+The model SHALL be asked only about items that are `new`, `seen` or `snoozed`. Items that are `done`, `dismissed` or
+`expired` SHALL NOT use the daily budget, and SHALL join the queue if they are reopened. The run summary SHALL say how
+many items are waiting for the model when the limit stopped a run.
+
+#### Scenario: A backlog that expired
+
+- **WHEN** thousands of unread items have expired and a few are in the inbox, with a small daily limit
+- **THEN** the budget is spent on the inbox items only
+
 ### Requirement: Provider independence
 
 The enricher SHALL speak the OpenAI-compatible chat protocol with a configurable base URL, model and key. `doctor` SHALL
