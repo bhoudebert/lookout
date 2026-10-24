@@ -210,6 +210,12 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         sources={sourceNames}
         onChange={onFilters}
       />
+      {list.length > 0 && list.every((i) => i.channel === "Other") && (
+        <p className="nudge" role="note">
+          Everything here is in <strong>Other</strong>. <a href="/categories">Define categories</a> (AI, Rust, ...) so
+          Lookout can file your items, then press Run now.
+        </p>
+      )}
       <div className="toolbar">
         <span>{items.data ? `${list.length} of ${items.data.total}` : ""}</span>
         <button

@@ -62,6 +62,10 @@ List items, most urgent first.
 
 Recompute priorities after changing the stack or the thresholds (no model call).
 
+## `lookout refile`
+
+File existing items again after changing categories (by rule, or queued for the model).
+
 ## `lookout run`
 
 Fetch every source, then have the model read the new items.

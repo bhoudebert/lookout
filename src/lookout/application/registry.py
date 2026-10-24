@@ -48,6 +48,16 @@ class ChannelDefinitions(Protocol):
     def delete(self, name: str) -> None: ...
 
 
+class KindDefinitions(Protocol):
+    """Where the kinds of item are kept."""
+
+    def all(self) -> tuple[str, ...]: ...
+
+    def save(self, name: str) -> None: ...
+
+    def delete(self, name: str) -> None: ...
+
+
 class Flags(Protocol):
     """Things that happened once."""
 
@@ -57,6 +67,9 @@ class Flags(Protocol):
 
 
 SEEDED = "seeded"
+KINDS_SEEDED = "kinds-seeded"
+FALLBACK_KIND = "other"
+MAX_KIND_CHARS = 40
 
 
 class Registry:
@@ -66,17 +79,21 @@ class Registry:
         self,
         sources: SourceDefinitions,
         channels: ChannelDefinitions,
+        kinds: KindDefinitions,
         flags: Flags,
         validate: Callable[[SourceDef], None],
     ) -> None:
         self._flags = flags
+        self._kinds = kinds
         self._sources = sources
         self._channels = channels
         self._validate = validate
 
     # Seeding
 
-    def seed(self, sources: tuple[SourceDef, ...], channels: tuple[Channel, ...]) -> None:
+    def seed(
+        self, sources: tuple[SourceDef, ...], channels: tuple[Channel, ...], kinds: tuple[str, ...] = ()
+    ) -> None:
         """On the very first start, store the file's channels and sources. Later starts change nothing.
 
         The marker is explicit, so deleting every source never brings them back. ``Other`` always exists.
@@ -90,8 +107,14 @@ class Registry:
                 self._validate(source)
                 self._sources.save(source)
             self._flags.set(SEEDED)
+        if not self._flags.is_set(KINDS_SEEDED):
+            for kind in kinds:
+                self._kinds.save(kind)
+            self._flags.set(KINDS_SEEDED)
         if not any(c.name.lower() == OTHER.lower() for c in self._channels.all()):
             self._channels.save(Channel(OTHER))
+        if FALLBACK_KIND not in (k.lower() for k in self._kinds.all()):
+            self._kinds.save(FALLBACK_KIND)
 
     # Sources
 
@@ -210,3 +233,31 @@ class Registry:
     def catalogue(self) -> ChannelCatalogue:
         """The channels and which of them each source feeds, as the pipeline needs them."""
         return ChannelCatalogue(self._channels.all(), {s.name: s.channels for s in self._sources.all()})
+
+    # Kinds
+
+    def kinds(self) -> tuple[str, ...]:
+        """Every kind, in the order they were added."""
+        return self._kinds.all()
+
+    def add_kind(self, name: str) -> str:
+        """Add a kind of item; it is stored lower-case."""
+        kind = " ".join(name.lower().split())
+        if not kind or len(kind) > MAX_KIND_CHARS:
+            msg = f"a kind needs a name of 1 to {MAX_KIND_CHARS} characters"
+            raise InvalidError(msg)
+        if kind in (k.lower() for k in self._kinds.all()):
+            msg = f"a kind named '{kind}' already exists"
+            raise DuplicateError(msg)
+        self._kinds.save(kind)
+        return kind
+
+    def remove_kind(self, name: str) -> None:
+        """Delete a kind; ``other`` stays, and items keep the kind they have."""
+        existing = next((k for k in self._kinds.all() if k.lower() == name.strip().lower()), None)
+        if existing is None:
+            raise NotFoundError(name)
+        if existing.lower() == FALLBACK_KIND:
+            msg = f"the kind {FALLBACK_KIND} always exists"
+            raise InUseError(msg)
+        self._kinds.delete(existing)

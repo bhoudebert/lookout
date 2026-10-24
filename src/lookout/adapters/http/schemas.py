@@ -310,10 +310,25 @@ class Health(BaseModel):
 
 
 class ChannelOut(BaseModel):
-    """A topic the user follows."""
+    """A category (channel) the user follows, with how much it holds and who feeds it."""
 
     name: str
     description: str
+    items: int = 0
+    sources: list[str] = Field(default_factory=list[str], description="The sources that name this category.")
+
+
+class KindIn(BaseModel):
+    """A new kind of item."""
+
+    name: str
+
+
+class RefileOut(BaseModel):
+    """What filing existing items again did."""
+
+    filed: int = Field(description="Items filed in a category by rule.")
+    queued: int = Field(description="Items the model will read again at the next run.")
 
 
 class TaxonomyOut(BaseModel):

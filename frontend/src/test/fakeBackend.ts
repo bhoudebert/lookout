@@ -69,11 +69,11 @@ export class FakeBackend {
   sources: Source[];
   taxonomy: Taxonomy = {
     channels: [
-      { name: "AI", description: "Models" },
-      { name: "Rust", description: "" },
-      { name: "Other", description: "" },
+      { name: "AI", description: "Models", items: 2, sources: ["blog"] },
+      { name: "Rust", description: "", items: 1, sources: [] },
+      { name: "Other", description: "", items: 0, sources: [] },
     ],
-    kinds: ["release", "security", "tooling"],
+    kinds: ["release", "security", "tooling", "other"],
   };
   sourceTypes: SourceType[] = [
     {
@@ -117,6 +117,7 @@ export class FakeBackend {
       ],
     },
   ];
+  refiled = { filed: 2, queued: 5 };
   run: RunStatus = IDLE;
   runPolls = 0;
   calls: Call[] = [];
@@ -169,6 +170,9 @@ export class FakeBackend {
     if (path.startsWith("/api/sources/"))
       return this.changeSource(method, decodeURIComponent(path.slice(13)), body as Partial<Source>);
     if (path === "/api/channels" && method === "POST") return this.addChannel(body as Channel);
+    if (path === "/api/kinds" && method === "POST") return this.addKind(body as { name: string });
+    if (path.startsWith("/api/kinds/")) return this.deleteKind(decodeURIComponent(path.slice(11)));
+    if (path === "/api/refile") return this.json(this.refiled);
     if (path.startsWith("/api/channels/"))
       return this.changeChannel(method, decodeURIComponent(path.slice(14)), body as Partial<Channel>);
     if (path === "/api/run" && method === "POST") {
@@ -283,8 +287,18 @@ export class FakeBackend {
     return this.json(source);
   }
 
+  private addKind(body: { name: string }): Response {
+    this.taxonomy.kinds.push(body.name.toLowerCase());
+    return this.json(body.name.toLowerCase(), 201);
+  }
+
+  private deleteKind(name: string): Response {
+    this.taxonomy.kinds.splice(this.taxonomy.kinds.indexOf(name), 1);
+    return new Response(null, { status: 204 });
+  }
+
   private addChannel(body: Channel): Response {
-    this.taxonomy.channels.push(body);
+    this.taxonomy.channels.push({ ...body, items: 0, sources: [] });
     return this.json(body, 201);
   }
 

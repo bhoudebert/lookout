@@ -418,3 +418,49 @@ td button + button {
   display: grid;
   gap: 0.2rem;
 }
+.nudge {
+  background: var(--card);
+  border: 1px solid var(--accent-text);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+.nudge a {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0 1rem;
+}
+.channels .count {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.channels .feeders {
+  flex-basis: 100%;
+  margin-left: 0;
+}
+.kinds {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0;
+}
+.kinds li {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 0.25rem 0 0.6rem;
+}
+.kinds button {
+  border: 0;
+  background: none;
+  padding: 0 0.35rem;
+}

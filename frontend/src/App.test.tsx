@@ -79,7 +79,7 @@ describe("the inbox", () => {
 });
 
 describe("filters", () => {
-  it("filters by priority, channel, kind, source, view, star and text, and keeps them in the URL", async () => {
+  it("filters by priority, category, kind, source, view, star and text, and keeps them in the URL", async () => {
     const hosts = [makeSource(), makeSource({ name: "hn" }), makeSource({ name: "react-blog" })];
     const { user } = mount(new FakeBackend(three(), hosts));
     await screen.findByRole("button", { name: "Django flaw" });
@@ -101,16 +101,16 @@ describe("filters", () => {
     expect(window.location.search).toBe("?kind=release");
     await user.selectOptions(screen.getByLabelText("Kind"), "");
 
-    await user.selectOptions(screen.getByLabelText("Channel"), "Rust");
+    await user.selectOptions(screen.getByLabelText("Category"), "Rust");
     await waitFor(() => {
       expect(titles()).toEqual(["Rust reader"]);
     });
     expect(window.location.search).toBe("?channel=Rust");
-    await user.selectOptions(screen.getByLabelText("Channel"), "AI");
+    await user.selectOptions(screen.getByLabelText("Category"), "AI");
     await waitFor(() => {
       expect(titles()).toEqual(["Django flaw", "React 20 RC"]);
     });
-    await user.selectOptions(screen.getByLabelText("Channel"), "");
+    await user.selectOptions(screen.getByLabelText("Category"), "");
 
     await user.selectOptions(screen.getByLabelText("Source"), "hn");
     await waitFor(() => {
@@ -147,7 +147,7 @@ describe("filters", () => {
     expect(screen.getByRole("button", { name: "P1" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("View")).toHaveValue("inbox");
     expect(screen.getByLabelText("Kind")).toHaveValue("release");
-    expect(screen.getByLabelText("Channel")).toHaveValue("AI");
+    expect(screen.getByLabelText("Category")).toHaveValue("AI");
   });
 
   it("does not submit the form", async () => {
@@ -192,9 +192,9 @@ describe("channels, kinds and authors", () => {
     });
   });
 
-  it("offers every declared channel and kind, even before any item uses them", async () => {
+  it("offers every declared category and kind, even before any item uses them", async () => {
     mount(new FakeBackend([]));
-    const channels = await screen.findByLabelText("Channel");
+    const channels = await screen.findByLabelText("Category");
     await waitFor(() => {
       expect(
         within(channels)
@@ -202,7 +202,7 @@ describe("channels, kinds and authors", () => {
           .map((o) => o.textContent),
       ).toEqual(["All", "AI", "Rust", "Other"]);
     });
-    expect(within(screen.getByLabelText("Kind")).getAllByRole("option")).toHaveLength(4);
+    expect(within(screen.getByLabelText("Kind")).getAllByRole("option")).toHaveLength(5);
   });
 
   it("shows in the detail where the item is filed, who wrote it and its tags without repeats", async () => {

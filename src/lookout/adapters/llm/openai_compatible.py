@@ -1,12 +1,13 @@
 """``Enricher`` over the OpenAI-compatible chat protocol: Ollama, OpenRouter, vLLM, hosted (ADR 0005)."""
 
 import json
+from collections.abc import Callable
 from typing import Any, cast
 
 import httpx
 
 from lookout.application.ports_sources import EnrichmentError
-from lookout.domain.channel import Channel
+from lookout.domain.channel import OTHER, Channel
 from lookout.domain.enrichment import MAX_SCORE, MAX_TAGS, Enrichment
 from lookout.domain.item import Item
 
@@ -34,11 +35,23 @@ def _channel_text(channels: tuple[Channel, ...]) -> tuple[str, str]:
     """The prompt's lines about channels, and the JSON field to ask for (none when the channel is fixed)."""
     if len(channels) == 1:
         return f"The channel is already decided: {channels[0].name}. Do not answer a channel.\n", ""
-    lines = "\n".join(f"- {c.name}: {c.description}" if c.description else f"- {c.name}" for c in channels)
+    lines = "\n".join(_line(c) for c in channels)
     return (
-        f"Channels, the topics they follow (choose the best one):\n{lines}\n",
+        "Channels, the topics they follow. Choose the most specific one that fits, using the item's title, "
+        "tags and text; pick Other only when none of the others fits at all:\n"
+        f"{lines}\n",
         ' "channel": one of the channels above,\n',
     )
+
+
+def _line(channel: Channel) -> str:
+    """One channel for the prompt: Other says what it is for, since models reach for it when unsure."""
+    description = channel.description or (
+        "everything that fits none of the other channels, a last resort"
+        if channel.name.lower() == OTHER.lower()
+        else ""
+    )
+    return f"- {channel.name}: {description}" if description else f"- {channel.name}"
 
 
 class OpenAiEnricher:
@@ -51,7 +64,7 @@ class OpenAiEnricher:
         base_url: str,
         model: str,
         api_key: str = "",
-        kinds: tuple[str, ...],
+        kinds: Callable[[], tuple[str, ...]],
         interests: str = "",
         stack: tuple[str, ...] = (),
         summary_chars: int = 400,
@@ -67,11 +80,12 @@ class OpenAiEnricher:
 
     def enrich(self, item: Item, channels: tuple[Channel, ...]) -> Enrichment:
         """Read ``item``; raise ``EnrichmentError`` when the model gives no valid answer twice."""
+        kinds = self._kinds()
         channel_lines, channel_field = _channel_text(channels)
         system = SYSTEM_PROMPT.format(
             interests=self._interests,
             stack=self._stack,
-            kinds=json.dumps(list(self._kinds)),
+            kinds=json.dumps(list(kinds)),
             channels=channel_lines,
             channel_field=channel_field,
             summary_chars=self._summary_chars,
@@ -89,7 +103,7 @@ class OpenAiEnricher:
         ]
         answer = self._ask(messages)
         try:
-            return self._parse(answer, channels)
+            return self._parse(answer, channels, kinds)
         except ValueError as problem:
             messages += [
                 {"role": "assistant", "content": answer},
@@ -99,7 +113,7 @@ class OpenAiEnricher:
                 },
             ]
         try:
-            return self._parse(self._ask(messages), channels)
+            return self._parse(self._ask(messages), channels, kinds)
         except ValueError as problem:
             msg = f"the model gave no valid answer twice: {problem}"
             raise EnrichmentError(msg) from problem
@@ -121,7 +135,7 @@ class OpenAiEnricher:
             msg = f"{self._url}: {error}"
             raise EnrichmentError(msg) from error
 
-    def _parse(self, answer: str, channels: tuple[Channel, ...]) -> Enrichment:
+    def _parse(self, answer: str, channels: tuple[Channel, ...], kinds: tuple[str, ...]) -> Enrichment:
         try:
             raw = json.loads(answer)
         except json.JSONDecodeError as error:
@@ -132,8 +146,9 @@ class OpenAiEnricher:
             raise ValueError(msg)
         data = cast("dict[str, Any]", raw)
         kind = data.get("kind")
-        if kind not in self._kinds:
-            msg = f"kind must be one of {list(self._kinds)}"
+        chosen = next((k for k in kinds if isinstance(kind, str) and k.lower() == kind.strip().lower()), None)
+        if chosen is None:
+            msg = f"kind must be one of {list(kinds)}"
             raise ValueError(msg)
         channel = _channel(data.get("channel"), channels)
         score = data.get("score")
@@ -153,7 +168,7 @@ class OpenAiEnricher:
             raise ValueError(msg)
         return Enrichment(
             summary=summary.strip()[: self._summary_chars],
-            kind=str(kind),
+            kind=chosen,
             channel=channel,
             tags=tuple(str(t).lower() for t in cast("list[str]", tags)[:MAX_TAGS]),
             score=score,

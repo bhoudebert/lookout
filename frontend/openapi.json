@@ -139,15 +139,28 @@
         "type": "object"
       },
       "ChannelOut": {
-        "description": "A topic the user follows.",
+        "description": "A category (channel) the user follows, with how much it holds and who feeds it.",
         "properties": {
           "description": {
             "title": "Description",
             "type": "string"
           },
+          "items": {
+            "default": 0,
+            "title": "Items",
+            "type": "integer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "sources": {
+            "description": "The sources that name this category.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
           }
         },
         "required": [
@@ -517,6 +530,41 @@
           "total"
         ],
         "title": "ItemPage",
+        "type": "object"
+      },
+      "KindIn": {
+        "description": "A new kind of item.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "KindIn",
+        "type": "object"
+      },
+      "RefileOut": {
+        "description": "What filing existing items again did.",
+        "properties": {
+          "filed": {
+            "description": "Items filed in a category by rule.",
+            "title": "Filed",
+            "type": "integer"
+          },
+          "queued": {
+            "description": "Items the model will read again at the next run.",
+            "title": "Queued",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "filed",
+          "queued"
+        ],
+        "title": "RefileOut",
         "type": "object"
       },
       "RunOut": {
@@ -1505,6 +1553,77 @@
         "summary": "Restore"
       }
     },
+    "/api/kinds": {
+      "post": {
+        "operationId": "add_kind_api_kinds_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KindIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Add Kind Api Kinds Post",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Kind"
+      }
+    },
+    "/api/kinds/{name}": {
+      "delete": {
+        "operationId": "delete_kind_api_kinds__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Kind"
+      }
+    },
     "/api/profile": {
       "delete": {
         "operationId": "forget_api_profile_delete",
@@ -1514,6 +1633,24 @@
           }
         },
         "summary": "Forget"
+      }
+    },
+    "/api/refile": {
+      "post": {
+        "operationId": "refile_api_refile_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Refile"
       }
     },
     "/api/run": {

@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { Source, SourceType } from "../api/types";
 import { useManage, useSetSource, useSourceTypes, useSources, useTaxonomy } from "../hooks";
 import { until } from "../format";
-import { ChannelsPanel } from "./ChannelsPanel";
 import { SourceForm } from "./SourceForm";
 import { StateView } from "./StateView";
 
@@ -10,7 +9,7 @@ const message = (error: unknown): string => (error as Error).message;
 
 const hasType = (types: SourceType[]): types is [SourceType, ...SourceType[]] => types.length > 0;
 
-/** Rivers and the channels they flow to: everything is managed here (ADR 0013). */
+/** The rivers that flow into the inbox (ADR 0013). Categories are managed on their own page. */
 export function SourcesView() {
   const sources = useSources();
   const types = useSourceTypes();
@@ -50,7 +49,9 @@ export function SourcesView() {
     <>
       <section aria-label="Sources">
         <h2>Sources</h2>
-        <p className="hint">The rivers that flow into your inbox.</p>
+        <p className="hint">
+          The rivers that flow into your inbox. Each says which <a href="/categories">categories</a> it may feed.
+        </p>
         {(setSource.isError || deleteSource.isError) && (
           <p role="alert" className="form-error">
             {message(setSource.error ?? deleteSource.error)}
@@ -64,7 +65,7 @@ export function SourcesView() {
               <tr>
                 <th>Name</th>
                 <th>Type</th>
-                <th>Channels</th>
+                <th>Categories</th>
                 <th>Last run</th>
                 <th>Items</th>
                 <th>Last error</th>
@@ -77,7 +78,7 @@ export function SourcesView() {
                 <tr key={s.name}>
                   <th scope="row">{s.name}</th>
                   <td>{s.type}</td>
-                  <td>{s.channels.length > 0 ? s.channels.join(", ") : "any"}</td>
+                  <td>{s.channels.length > 0 ? s.channels.join(", ") : "model decides"}</td>
                   <td>{s.last_run ? until(s.last_run) : "never"}</td>
                   <td>{s.items_seen}</td>
                   <td>{s.last_error ?? "none"}</td>
@@ -144,7 +145,6 @@ export function SourcesView() {
           />
         )}
       </section>
-      <ChannelsPanel channels={taxonomy.data.channels} />
     </>
   );
 }

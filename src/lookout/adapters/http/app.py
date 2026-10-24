@@ -23,6 +23,8 @@ from lookout.adapters.http.schemas import (
     ItemDetail,
     ItemOut,
     ItemPage,
+    KindIn,
+    RefileOut,
     RunOut,
     SeenBelowIn,
     SourceBody,
@@ -136,12 +138,33 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
 
     @app.get("/api/taxonomy")
     def taxonomy() -> TaxonomyOut:
+        counts = services.items.count_by_channel()
+        feeders = services.registry.sources()
         return TaxonomyOut(
             channels=[
-                ChannelOut(name=c.name, description=c.description) for c in services.registry.channels()
+                ChannelOut(
+                    name=c.name,
+                    description=c.description,
+                    items=counts.get(c.name, 0),
+                    sources=[s.name for s in feeders if c.name.lower() in (n.lower() for n in s.channels)],
+                )
+                for c in services.registry.channels()
             ],
-            kinds=list(services.kinds),
+            kinds=list(services.registry.kinds()),
         )
+
+    @app.post("/api/kinds", status_code=201)
+    def add_kind(body: KindIn) -> str:
+        return _guard(lambda: services.registry.add_kind(body.name))
+
+    @app.delete("/api/kinds/{name}", status_code=204)
+    def delete_kind(name: str) -> None:
+        _guard(lambda: services.registry.remove_kind(name))
+
+    @app.post("/api/refile")
+    def refile() -> RefileOut:
+        report = services.refile.run()
+        return RefileOut(filed=report.filed, queued=report.queued)
 
     @app.get("/api/source-types")
     def source_types() -> list[SourceTypeOut]:

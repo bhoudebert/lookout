@@ -7,6 +7,7 @@ from pathlib import Path
 from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.reassess import Reassess
+from lookout.application.refile import Refile
 from lookout.application.registry import Registry
 from lookout.application.runs import RunCoordinator, RunReport
 from lookout.application.source_types import SourceTypeInfo
@@ -41,7 +42,7 @@ class Services:
     doctor: Callable[[], tuple[Check, ...]]
     seed_demo: Callable[[], int]
     export: Callable[[], Iterable[str]]
-    kinds: tuple[str, ...]
+    refile: Refile
     schedule_minutes: int
     dashboard_dir: Path
     close: Callable[[], None]

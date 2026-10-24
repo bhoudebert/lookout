@@ -158,6 +158,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/kinds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Kind */
+        post: operations["add_kind_api_kinds_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kinds/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Kind */
+        delete: operations["delete_kind_api_kinds__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/profile": {
         parameters: {
             query?: never;
@@ -170,6 +204,23 @@ export interface paths {
         post?: never;
         /** Forget */
         delete: operations["forget_api_profile_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refile */
+        post: operations["refile_api_refile_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -337,13 +388,23 @@ export interface components {
         };
         /**
          * ChannelOut
-         * @description A topic the user follows.
+         * @description A category (channel) the user follows, with how much it holds and who feeds it.
          */
         ChannelOut: {
             /** Description */
             description: string;
+            /**
+             * Items
+             * @default 0
+             */
+            items: number;
             /** Name */
             name: string;
+            /**
+             * Sources
+             * @description The sources that name this category.
+             */
+            sources?: string[];
         };
         /**
          * ChannelPatch
@@ -493,6 +554,30 @@ export interface components {
             items: components["schemas"]["ItemOut"][];
             /** Total */
             total: number;
+        };
+        /**
+         * KindIn
+         * @description A new kind of item.
+         */
+        KindIn: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * RefileOut
+         * @description What filing existing items again did.
+         */
+        RefileOut: {
+            /**
+             * Filed
+             * @description Items filed in a category by rule.
+             */
+            filed: number;
+            /**
+             * Queued
+             * @description Items the model will read again at the next run.
+             */
+            queued: number;
         };
         /**
          * RunOut
@@ -1015,6 +1100,68 @@ export interface operations {
             };
         };
     };
+    add_kind_api_kinds_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KindIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_kind_api_kinds__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     forget_api_profile_delete: {
         parameters: {
             query?: never;
@@ -1030,6 +1177,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    refile_api_refile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefileOut"];
+                };
             };
         };
     };

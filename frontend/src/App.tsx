@@ -1,3 +1,4 @@
+import { CategoriesView } from "./components/CategoriesView";
 import { Inbox } from "./components/Inbox";
 import { RunButton } from "./components/RunButton";
 import { SourcesView } from "./components/SourcesView";
@@ -23,6 +24,7 @@ export function App() {
         <h1>Lookout</h1>
         <nav aria-label="Main">
           {link("/", "Inbox")}
+          {link("/categories", "Categories")}
           {link("/sources", "Sources")}
         </nav>
         <RunButton />
@@ -30,6 +32,8 @@ export function App() {
       <main>
         {location.path === "/sources" ? (
           <SourcesView />
+        ) : location.path === "/categories" ? (
+          <CategoriesView />
         ) : (
           <Inbox
             filters={location.filters}

@@ -103,7 +103,17 @@ def migrate_v3(db: sqlite3.Connection) -> None:
     )
 
 
-MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (migrate_v1, migrate_v2, migrate_v3)
+def migrate_v4(db: sqlite3.Connection) -> None:
+    """Kinds the user manages (ADR 0014)."""
+    db.execute("CREATE TABLE kind_defs (name TEXT PRIMARY KEY COLLATE NOCASE, position INTEGER NOT NULL)")
+
+
+MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
+    migrate_v1,
+    migrate_v2,
+    migrate_v3,
+    migrate_v4,
+)
 
 
 class Database:
@@ -254,6 +264,11 @@ class SqliteItemRepository:
             f"SELECT data FROM items WHERE pending = 1 ORDER BY {_ORDER}"  # noqa: S608
         )
         return tuple(decode(r["data"]) for r in rows)
+
+    def count_by_channel(self) -> dict[str, int]:
+        """How many items each channel holds."""
+        rows = self._db.query("SELECT channel, count(*) AS n FROM items GROUP BY channel")
+        return {r["channel"]: int(r["n"]) for r in rows}
 
     def all(self) -> tuple[Item, ...]:
         """Every stored item."""
@@ -444,3 +459,26 @@ class SqliteFlags:
     def set(self, name: str) -> None:
         """Remember that ``name`` happened."""
         self._db.run("INSERT OR IGNORE INTO flags (name) VALUES (?)", (name,))
+
+
+class SqliteKindDefinitions:
+    """The kinds of item the user manages, in the order they were added."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database
+
+    def all(self) -> tuple[str, ...]:
+        """Every kind."""
+        return tuple(r["name"] for r in self._db.query("SELECT name FROM kind_defs ORDER BY position"))
+
+    def save(self, name: str) -> None:
+        """Add a kind; one that exists is left as it is."""
+        self._db.run(
+            "INSERT OR IGNORE INTO kind_defs (name, position) "
+            "VALUES (?, (SELECT COALESCE(MAX(position), 0) + 1 FROM kind_defs))",
+            (name,),
+        )
+
+    def delete(self, name: str) -> None:
+        """Forget a kind; items already of that kind keep it."""
+        self._db.run("DELETE FROM kind_defs WHERE name = ?", (name,))

@@ -36,3 +36,8 @@ migration machinery.
 One taxonomy with both topics and types mixed: the user's own example (AI, Rust next to LLM, API, Schedule) shows they
 are different questions. Letting the model invent channels: unreviewable and unstable between runs. Tags only: no way to
 say "Rust is a place I look".
+
+## Amendment (ADR 0014)
+
+The user calls channels **categories**, and that is the word the dashboard and the guide use. The code, the API and
+the database keep `channel`. Kinds become editable in the dashboard too, and existing items can be filed again.
