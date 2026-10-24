@@ -1,0 +1,32 @@
+# Copy to lookout.yaml and edit. Secrets never go here: set LOOKOUT_LLM_API_KEY in the environment.
+
+database: data/lookout.db
+
+# Any OpenAI-compatible endpoint. Ollama is the default and costs nothing.
+llm:
+  base_url: http://localhost:11434/v1
+  model: llama3.1
+  daily_limit: 200
+
+# Told to the model so scores reflect you.
+interests: Backend engineering in Python, PostgreSQL, React, and the security of what I run.
+
+categories: [security, release, breaking-change, tooling, ai, industry, other]
+
+# What you depend on: advisories and releases that mention these get rule-based priority floors.
+stack:
+  - name: django
+    ecosystem: pypi
+  - name: postgresql
+    aliases: [postgres]
+  - name: react
+    ecosystem: npm
+
+sources:
+  - name: python-insider
+    kind: rss
+    url: https://pythoninsider.blogspot.com/feeds/posts/default
+  - name: lobsters
+    kind: rss
+    url: https://lobste.rs/rss
+    keywords: [python, postgres, rust, security]
