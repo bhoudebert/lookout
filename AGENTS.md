@@ -53,7 +53,7 @@ The full path every feature follows is in `docs/EVOLVING.md`. Short form:
 ## Useful commands
 
 ```
-nix develop              # the shell: Python, uv, Node, gh, just
+nix develop              # the shell: Python, uv, Node, gh, just (`direnv allow` loads it on cd)
 nix run .#quality        # the gate
 just test                # Python tests with the coverage gate
 just ui-test             # dashboard component tests, 100% coverage
