@@ -30,7 +30,6 @@ runner = CliRunner()
 def reading(**overrides: Any) -> str:
     answer = {
         "summary": "A summary.",
-        "kind": "release",
         "tags": ["python"],
         "score": 75,
         "action_needed": False,

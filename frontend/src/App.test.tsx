@@ -14,7 +14,6 @@ const three = () => [
     title: "Django flaw",
     priority: "P0",
     priority_label: "act today",
-    kind: "security",
     channel: "AI",
     author: "Jane Doe",
     feed_tags: ["django"],
@@ -27,7 +26,6 @@ const three = () => [
     id: "b",
     title: "React 20 RC",
     priority: "P1",
-    kind: "release",
     channel: "AI",
     sources: ["react-blog", "hn"],
   }),
@@ -36,8 +34,7 @@ const three = () => [
     title: "Rust reader",
     priority: "P3",
     priority_label: "background",
-    kind: null,
-    channel: "Rust",
+    channel: "Dev > Rust",
     state: "seen",
     unread: true,
     summary: null,
@@ -79,7 +76,7 @@ describe("the inbox", () => {
 });
 
 describe("filters", () => {
-  it("filters by priority, category, kind, source, view, star and text, and keeps them in the URL", async () => {
+  it("filters by priority, category, source, view, star and text, and keeps them in the URL", async () => {
     const hosts = [makeSource(), makeSource({ name: "hn" }), makeSource({ name: "react-blog" })];
     const { user } = mount(new FakeBackend(three(), hosts));
     await screen.findByRole("button", { name: "Django flaw" });
@@ -94,23 +91,26 @@ describe("filters", () => {
       expect(titles()).toHaveLength(3);
     });
 
-    await user.selectOptions(screen.getByLabelText("Kind"), "release");
-    await waitFor(() => {
-      expect(titles()).toEqual(["React 20 RC"]);
-    });
-    expect(window.location.search).toBe("?kind=release");
-    await user.selectOptions(screen.getByLabelText("Kind"), "");
-
-    await user.selectOptions(screen.getByLabelText("Category"), "Rust");
+    const tree = within(screen.getByRole("navigation", { name: "Categories" }));
+    await user.click(tree.getByRole("button", { name: /^Rust/ }));
     await waitFor(() => {
       expect(titles()).toEqual(["Rust reader"]);
     });
-    expect(window.location.search).toBe("?channel=Rust");
-    await user.selectOptions(screen.getByLabelText("Category"), "AI");
+    expect(window.location.search).toBe("?category=Dev+%3E+Rust");
+    await user.click(tree.getByRole("button", { name: /^Dev/ }));
+    await waitFor(() => {
+      expect(titles()).toEqual(["Rust reader"]);
+    });
+    await user.click(tree.getByRole("button", { name: /^AI/ }));
     await waitFor(() => {
       expect(titles()).toEqual(["Django flaw", "React 20 RC"]);
     });
-    await user.selectOptions(screen.getByLabelText("Category"), "");
+    expect(tree.getByRole("button", { name: /^AI/ })).toHaveAttribute("aria-current", "true");
+    await user.click(tree.getByRole("button", { name: /^All/ }));
+    await waitFor(() => {
+      expect(titles()).toHaveLength(3);
+    });
+    expect(window.location.search).toBe("");
 
     await user.selectOptions(screen.getByLabelText("Source"), "hn");
     await waitFor(() => {
@@ -139,15 +139,14 @@ describe("filters", () => {
   it("starts from the filters in the URL and ignores nonsense in it", async () => {
     mount(
       new FakeBackend(three()),
-      "/?priority=P1&priority=P9&view=nowhere&channel=AI&kind=release&source=hn&starred=true&q=react",
+      "/?priority=P1&priority=P9&view=nowhere&category=AI&source=hn&starred=true&q=react",
     );
     await waitFor(() => {
       expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "P1" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("View")).toHaveValue("inbox");
-    expect(screen.getByLabelText("Kind")).toHaveValue("release");
-    expect(screen.getByLabelText("Category")).toHaveValue("AI");
+    expect(await screen.findByRole("button", { name: /^AI/ })).toHaveAttribute("aria-current", "true");
   });
 
   it("does not submit the form", async () => {
@@ -179,12 +178,12 @@ describe("views", () => {
   });
 });
 
-describe("channels, kinds and authors", () => {
-  it("shows the channel, the kind and the author of every item, and searches the author", async () => {
+describe("categories, tags and authors", () => {
+  it("shows the category, the tags and the author of every item, and searches the author", async () => {
     const { user } = mount(new FakeBackend(three()));
     const row = (await screen.findByRole("button", { name: "Django flaw" })).closest("li") as HTMLElement;
     expect(within(row).getByText("AI")).toHaveClass("channel");
-    expect(row).toHaveTextContent("security");
+    expect(row).toHaveTextContent("#sql");
     expect(row).toHaveTextContent("by Jane Doe");
     await user.type(screen.getByLabelText("Search"), "jane");
     await waitFor(() => {
@@ -192,17 +191,12 @@ describe("channels, kinds and authors", () => {
     });
   });
 
-  it("offers every declared category and kind, even before any item uses them", async () => {
+  it("shows every declared category as a tree with counts that include what is under it", async () => {
     mount(new FakeBackend([]));
-    const channels = await screen.findByLabelText("Category");
-    await waitFor(() => {
-      expect(
-        within(channels)
-          .getAllByRole("option")
-          .map((o) => o.textContent),
-      ).toEqual(["All", "AI", "Rust", "Other"]);
-    });
-    expect(within(screen.getByLabelText("Kind")).getAllByRole("option")).toHaveLength(5);
+    const tree = within(await screen.findByRole("navigation", { name: "Categories" }));
+    const rows = tree.getAllByRole("listitem").map((li) => li.textContent);
+    expect(rows).toEqual(["All3", "AI2", "Dev1", "Rust1", "Other0"]);
+    expect(tree.getByRole("button", { name: /^All/ })).toHaveAttribute("aria-current", "true");
   });
 
   it("shows in the detail where the item is filed, who wrote it and its tags without repeats", async () => {
@@ -210,7 +204,6 @@ describe("channels, kinds and authors", () => {
     await user.click(await screen.findByRole("button", { name: "Django flaw" }));
     const detail = await screen.findByRole("complementary", { name: "Item detail" });
     expect(within(detail).getByText("AI")).toHaveClass("channel");
-    expect(detail).toHaveTextContent("security");
     expect(detail).toHaveTextContent("by Jane Doe");
     const tags = within(within(detail).getByRole("list", { name: "Tags" })).getAllByRole("listitem");
     expect(tags.map((t) => t.textContent)).toEqual(["django", "sql"]);
@@ -218,7 +211,7 @@ describe("channels, kinds and authors", () => {
 
   it("says when an item has not been read, has no author and no tags", async () => {
     const { user } = mount(
-      new FakeBackend([makeItem({ id: "z", title: "Odd", kind: null, tags: [], state: "seen", unread: true })]),
+      new FakeBackend([makeItem({ id: "z", title: "Odd", tags: [], state: "seen", unread: true })]),
     );
     await user.click(await screen.findByRole("button", { name: "Odd" }));
     const detail = await screen.findByRole("complementary", { name: "Item detail" });

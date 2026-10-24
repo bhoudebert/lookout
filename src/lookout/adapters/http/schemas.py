@@ -26,7 +26,6 @@ class ItemOut(BaseModel):
     excerpt: str
     published_at: datetime
     sources: list[str]
-    kind: str | None
     channel: str
     author: str
     feed_tags: list[str]
@@ -55,7 +54,6 @@ class ItemOut(BaseModel):
             excerpt=item.body[:EXCERPT_CHARS],
             published_at=item.published_at,
             sources=list(item.sources),
-            kind=reading.kind if reading else None,
             channel=item.channel,
             author=item.author,
             feed_tags=list(item.feed_tags),
@@ -318,12 +316,6 @@ class ChannelOut(BaseModel):
     sources: list[str] = Field(default_factory=list[str], description="The sources that name this category.")
 
 
-class KindIn(BaseModel):
-    """A new kind of item."""
-
-    name: str
-
-
 class RefileOut(BaseModel):
     """What filing existing items again did."""
 
@@ -332,7 +324,6 @@ class RefileOut(BaseModel):
 
 
 class TaxonomyOut(BaseModel):
-    """What items can be filed under: the channels, and the kinds."""
+    """The categories items can be filed in."""
 
     channels: list[ChannelOut]
-    kinds: list[str]

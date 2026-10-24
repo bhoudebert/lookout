@@ -66,7 +66,7 @@ def test_filters_combine() -> None:
         title="Django 6 released",
         sources=("hn", "blog"),
         priority=Priority.P1,
-        kind="release",
+        channel="Dev > Web",
         score=70,
     )
     b = make_item(
@@ -74,7 +74,7 @@ def test_filters_combine() -> None:
         title="Rust news",
         sources=("reddit",),
         priority=Priority.P2,
-        kind="tooling",
+        channel="Dev > Rust",
         score=70,
     ).star()
     c = make_item("https://a.test/c", title="Other", sources=("hn",), priority=Priority.P3).dismiss()
@@ -85,7 +85,11 @@ def test_filters_combine() -> None:
         return {i.id for i in repo.search(InboxQuery(**kw)).items}  # type: ignore[arg-type]
 
     assert ids(priorities=frozenset({Priority.P1})) == {a.id}
-    assert ids(kinds=frozenset({"tooling"})) == {b.id}
+    assert ids(channels=frozenset({"Dev > Rust"})) == {b.id}
+    assert ids(channels=frozenset({"Dev"})) == {a.id, b.id}
+    assert ids(channels=frozenset({"Dev > Web", "Other"})) == {a.id, c.id}
+    assert ids(channels=frozenset({"Dev > Rus"})) == set()
+    assert ids(channels=frozenset({"Developers"})) == set()
     assert ids(sources=frozenset({"hn"})) == {a.id, c.id}
     assert ids(sources=frozenset({"reddit", "blog"})) == {a.id, b.id}
     assert ids(states=frozenset({State.DISMISSED})) == {c.id}
@@ -198,7 +202,7 @@ LEGACY_ITEM = (
 
 
 def test_a_database_from_before_channels_keeps_every_item(tmp_path: Path) -> None:
-    """Spec channels, "Existing data": the category becomes the kind, the channel is Other, no author."""
+    """Existing data: the old category is kept as a tag, the channel is Other, no author."""
     path = tmp_path / "lookout.db"
     with sqlite3.connect(path) as db:
         store.migrate_v1(db)
@@ -214,13 +218,13 @@ def test_a_database_from_before_channels_keeps_every_item(tmp_path: Path) -> Non
     (item,) = repo.all()
     assert (item.id, item.channel, item.author, item.feed_tags) == ("legacy1", "Other", "", ())
     assert item.enrichment is not None
-    assert (item.enrichment.kind, item.enrichment.channel, item.starred, item.boost) == (
-        "release",
+    assert (item.enrichment.tags, item.enrichment.channel, item.starred, item.boost) == (
+        ("x", "release"),
         "Other",
         True,
         3,
     )
-    assert [i.id for i in repo.search(InboxQuery(kinds=frozenset({"release"}))).items] == ["legacy1"]
+    assert [i.id for i in repo.search(InboxQuery(text="old")).items] == ["legacy1"]
     assert (tmp_path / "lookout.db.bak-v1").exists()
     repo.save(item)
     assert repo.get("legacy1") == item

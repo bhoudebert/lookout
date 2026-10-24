@@ -97,8 +97,7 @@ export function useManage() {
       ...options,
     }),
     deleteChannel: useMutation({ mutationFn: api.deleteChannel, ...options }),
-    addKind: useMutation({ mutationFn: api.addKind, ...options }),
-    deleteKind: useMutation({ mutationFn: api.deleteKind, ...options }),
-    refile: useMutation({ mutationFn: api.refile, ...options }),
+    refile: useMutation({ mutationFn: () => api.refile(false), ...options }),
+    previewRefile: useMutation({ mutationFn: () => api.refile(true) }),
   };
 }

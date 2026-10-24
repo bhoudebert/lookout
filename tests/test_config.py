@@ -8,7 +8,6 @@ import pytest
 import yaml
 
 from lookout.application.errors import ConfigError
-from lookout.bootstrap.config import DEFAULT_KINDS
 from lookout.bootstrap.container import SOURCE_TYPES, build, load
 from lookout.domain.policy import Thresholds
 
@@ -21,7 +20,6 @@ def write(tmp_path: Path, data: object) -> Path:
 
 def test_empty_file_gives_the_defaults(tmp_path: Path) -> None:
     config = load(write(tmp_path, ""))
-    assert config.kinds == DEFAULT_KINDS
     assert config.thresholds == Thresholds()
     assert config.llm.base_url == "http://localhost:11434/v1"
     assert (config.sources, config.stack.entries) == ((), ())
@@ -34,7 +32,6 @@ def test_full_file_is_read(tmp_path: Path) -> None:
             {
                 "database": "x/y.db",
                 "interests": "rust",
-                "kinds": ["a", "b"],
                 "body_limit": 500,
                 "llm": {"base_url": "http://h/v1", "model": "m", "daily_limit": 5, "summary_chars": 100},
                 "thresholds": {"p0": 95, "p1": 80, "p2": 50},
@@ -47,10 +44,9 @@ def test_full_file_is_read(tmp_path: Path) -> None:
         ),
         {"LOOKOUT_LLM_API_KEY": "secret"},
     )
-    assert (config.database, config.interests, config.kinds, config.body_limit) == (
+    assert (config.database, config.interests, config.body_limit) == (
         Path("x/y.db"),
         "rust",
-        ("a", "b"),
         500,
     )
     assert (config.llm.model, config.llm.api_key, config.llm.daily_limit) == ("m", "secret", 5)
@@ -91,8 +87,6 @@ def test_invalid_yaml_is_reported(tmp_path: Path) -> None:
         ({"llm": {"daily_limit": "many"}}, "'daily_limit' must be a whole number"),
         ({"llm": {"daily_limit": True}}, "'daily_limit' must be a whole number"),
         ({"llm": {"summary_chars": 5}}, "'summary_chars' must be a whole number of at least 50"),
-        ({"kinds": "security"}, "'kinds' must be a list of text"),
-        ({"kinds": [1]}, "'kinds' must be a list of text"),
         ({"stack": {"name": "x"}}, "'stack' must be a list"),
         ({"stack": ["django"]}, "'stack[0]' must be a mapping"),
         ({"stack": [{"ecosystem": "pypi"}]}, "stack[0] needs a 'name'"),
@@ -129,19 +123,17 @@ def test_paths_can_come_from_the_environment_and_the_file_wins(tmp_path: Path) -
     assert (explicit.database, explicit.dashboard_dir) == (Path("mine.db"), Path("mine"))
 
 
-def test_channels_and_kinds_are_read_and_other_always_exists(tmp_path: Path) -> None:
+def test_categories_are_read_and_other_always_exists(tmp_path: Path) -> None:
     config = load(
         write(
             tmp_path,
             {
-                "kinds": ["release", "schedule"],
                 "channels": [{"name": "AI", "description": "Models"}, {"name": " Rust "}],
                 "sources": [{"name": "a", "type": "rss", "url": "https://a", "channels": ["AI"]}],
             },
         ),
         {},
     )
-    assert config.kinds == ("release", "schedule")
     assert [(c.name, c.description) for c in config.channels] == [
         ("AI", "Models"),
         ("Rust", ""),
@@ -150,10 +142,9 @@ def test_channels_and_kinds_are_read_and_other_always_exists(tmp_path: Path) -> 
     assert config.sources[0].channels == ("AI",)
 
 
-def test_the_defaults_have_the_kinds_and_only_other(tmp_path: Path) -> None:
+def test_the_default_is_only_other(tmp_path: Path) -> None:
     config = load(write(tmp_path, ""), {})
     assert [c.name for c in config.channels] == ["Other"]
-    assert {"release", "security", "api-change", "schedule", "other"} <= set(config.kinds)
 
 
 @pytest.mark.parametrize(
@@ -162,11 +153,15 @@ def test_the_defaults_have_the_kinds_and_only_other(tmp_path: Path) -> None:
         ({"channels": [{"description": "x"}]}, "channels[0] needs a 'name'"),
         ({"channels": [{"name": "AI"}, {"name": "ai"}]}, "two channels are named 'ai'"),
         ({"channels": "AI"}, "'channels' must be a list"),
+        (
+            {"sources": [{"name": "a", "type": "rss", "keywords": "rust"}]},
+            "'keywords' must be a list of text",
+        ),
+        ({"stack": [{"name": "a", "aliases": [1]}]}, "'aliases' must be a list of text"),
         ({"channels": [{"name": "AI", "description": 3}]}, "'description' must be text"),
-        ({"kinds": "release"}, "'kinds' must be a list of text"),
     ],
 )
-def test_bad_channels_and_kinds_are_refused(tmp_path: Path, data: Any, message: str) -> None:
+def test_bad_categories_are_refused(tmp_path: Path, data: Any, message: str) -> None:
     with pytest.raises(ConfigError, match=re.escape(message)):
         load(write(tmp_path, data), {})
 
@@ -179,6 +174,26 @@ def test_a_source_feeding_an_undeclared_channel_is_refused_when_wiring(tmp_path:
     }
     with pytest.raises(ConfigError, match="source 'a' feeds the channel 'Gardening', which is not declared"):
         build(load(write(tmp_path, data), {}))
+
+
+def test_a_nested_category_brings_its_parents_and_spacing_is_normalised(tmp_path: Path) -> None:
+    config = load(
+        write(
+            tmp_path, {"channels": [{"name": "Dev>  Rust ", "description": "The language"}, {"name": "Dev"}]}
+        ),
+        {},
+    )
+    assert [(c.name, c.description) for c in config.channels] == [
+        ("Dev", ""),
+        ("Dev > Rust", "The language"),
+        ("Other", ""),
+    ]
+
+
+@pytest.mark.parametrize("name", ["Dev >", "> Rust", "A > B > C > D > E", "x" * 41])
+def test_a_malformed_category_path_is_refused(tmp_path: Path, name: str) -> None:
+    with pytest.raises(ConfigError, match="channels"):
+        load(write(tmp_path, {"channels": [{"name": name}]}), {})
 
 
 def test_a_declared_other_channel_keeps_its_description_and_is_not_added_twice(tmp_path: Path) -> None:

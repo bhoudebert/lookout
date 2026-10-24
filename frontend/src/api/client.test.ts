@@ -13,16 +13,23 @@ describe("itemsQuery", () => {
   it("writes every filter", () => {
     const query = itemsQuery({
       priorities: ["P0", "P1"],
-      channel: "Rust",
-      kind: "security",
+      channel: "Dev > Rust",
       source: "hn",
       view: "done",
       starred: true,
       text: "django",
     });
     expect(query).toBe(
-      "priority=P0&priority=P1&channel=Rust&kind=security&source=hn&state=done&starred=true&text=django&limit=100",
+      "priority=P0&priority=P1&channel=Dev+%3E+Rust&source=hn&state=done&starred=true&text=django&limit=100",
     );
+  });
+  it("asks for a dry run when only previewing the filing", async () => {
+    const fetch = answer(200, { filed: 0, queued: 0 });
+    vi.stubGlobal("fetch", fetch);
+    await api.refile(true);
+    await api.refile();
+    const urls = fetch.mock.calls.map((c) => (c as unknown as [string])[0]);
+    expect(urls).toEqual(["/api/refile?dry_run=true", "/api/refile?dry_run=false"]);
   });
   it("writes nothing for the defaults", () => {
     expect(itemsQuery(NO_FILTERS, 10)).toBe("limit=10");

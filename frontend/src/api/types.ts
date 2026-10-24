@@ -26,7 +26,6 @@ export type View = "inbox" | "snoozed" | "done" | "dismissed" | "all";
 export interface Filters {
   priorities: Priority[];
   channel: string;
-  kind: string;
   source: string;
   view: View;
   starred: boolean;
@@ -36,7 +35,6 @@ export interface Filters {
 export const NO_FILTERS: Filters = {
   priorities: [],
   channel: "",
-  kind: "",
   source: "",
   view: "inbox",
   starred: false,

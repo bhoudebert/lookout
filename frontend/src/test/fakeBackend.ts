@@ -9,7 +9,6 @@ export function makeItem(overrides: Partial<Item> = {}): Item {
     excerpt: "Django 6.0 is out.",
     published_at: "2026-10-24T08:00:00Z",
     sources: ["blog"],
-    kind: "release",
     channel: "Other",
     author: "",
     feed_tags: [],
@@ -70,10 +69,10 @@ export class FakeBackend {
   taxonomy: Taxonomy = {
     channels: [
       { name: "AI", description: "Models", items: 2, sources: ["blog"] },
-      { name: "Rust", description: "", items: 1, sources: [] },
+      { name: "Dev", description: "", items: 0, sources: [] },
+      { name: "Dev > Rust", description: "", items: 1, sources: [] },
       { name: "Other", description: "", items: 0, sources: [] },
     ],
-    kinds: ["release", "security", "tooling", "other"],
   };
   sourceTypes: SourceType[] = [
     {
@@ -170,8 +169,6 @@ export class FakeBackend {
     if (path.startsWith("/api/sources/"))
       return this.changeSource(method, decodeURIComponent(path.slice(13)), body as Partial<Source>);
     if (path === "/api/channels" && method === "POST") return this.addChannel(body as Channel);
-    if (path === "/api/kinds" && method === "POST") return this.addKind(body as { name: string });
-    if (path.startsWith("/api/kinds/")) return this.deleteKind(decodeURIComponent(path.slice(11)));
     if (path === "/api/refile") return this.json(this.refiled);
     if (path.startsWith("/api/channels/"))
       return this.changeChannel(method, decodeURIComponent(path.slice(14)), body as Partial<Channel>);
@@ -202,8 +199,9 @@ export class FakeBackend {
       (i) =>
         wanted.includes(i.state) &&
         (priorities.length === 0 || priorities.includes(i.priority)) &&
-        (!params.get("channel") || i.channel === params.get("channel")) &&
-        (!params.get("kind") || i.kind === params.get("kind")) &&
+        (!params.get("channel") ||
+          i.channel === params.get("channel") ||
+          i.channel.startsWith(`${params.get("channel")} > `)) &&
         (!params.get("source") || i.sources.includes(params.get("source") as string)) &&
         (params.get("starred") !== "true" || i.starred) &&
         (!text || `${i.title} ${i.author}`.toLowerCase().includes(text)),
@@ -285,16 +283,6 @@ export class FakeBackend {
     const source = this.sources[index] as Source;
     Object.assign(source, body);
     return this.json(source);
-  }
-
-  private addKind(body: { name: string }): Response {
-    this.taxonomy.kinds.push(body.name.toLowerCase());
-    return this.json(body.name.toLowerCase(), 201);
-  }
-
-  private deleteKind(name: string): Response {
-    this.taxonomy.kinds.splice(this.taxonomy.kinds.indexOf(name), 1);
-    return new Response(null, { status: 204 });
   }
 
   private addChannel(body: Channel): Response {

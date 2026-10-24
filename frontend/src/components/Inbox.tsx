@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { Action, Filters, Item } from "../api/types";
 import { useAct, useBulk, useItems, useRestore, useSeenBelow, useSources, useTaxonomy } from "../hooks";
 import { useShortcuts } from "../shortcuts";
+import { CategoryTree } from "./CategoryTree";
 import { FilterBar } from "./FilterBar";
 import { ItemDetail } from "./ItemDetail";
 import { ItemList } from "./ItemList";
@@ -202,112 +203,117 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   }
 
   return (
-    <div className="inbox">
-      <FilterBar
-        filters={filters}
-        channels={(taxonomy.data?.channels ?? []).map((c) => c.name)}
-        kinds={taxonomy.data?.kinds ?? []}
-        sources={sourceNames}
-        onChange={onFilters}
-      />
-      {list.length > 0 && list.every((i) => i.channel === "Other") && (
-        <p className="nudge" role="note">
-          Everything here is in <strong>Other</strong>. <a href="/categories">Define categories</a> (AI, Rust, ...) so
-          Lookout can file your items, then press Run now.
-        </p>
+    <div className="inbox with-tree">
+      {taxonomy.data && (
+        <CategoryTree
+          channels={taxonomy.data.channels}
+          selected={filters.channel}
+          onSelect={(path) => {
+            onFilters({ ...filters, channel: path });
+          }}
+        />
       )}
-      <div className="toolbar">
-        <span>{items.data ? `${list.length} of ${items.data.total}` : ""}</span>
-        <button
-          type="button"
-          onClick={() => {
-            seenBelow.mutate("P1");
-          }}
-        >
-          Mark P2 and P3 as seen
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setHelp(true);
-          }}
-        >
-          Shortcuts
-        </button>
-      </div>
-      {selected.size > 0 && (
-        <div className="bulk" role="group" aria-label="Bulk actions">
-          <span>{selected.size} selected</span>
+      <div className="inbox-main">
+        <FilterBar filters={filters} sources={sourceNames} onChange={onFilters} />
+        {list.length > 0 && list.every((i) => i.channel === "Other") && (
+          <p className="nudge" role="note">
+            Everything here is in <strong>Other</strong>. <a href="/categories">Define categories</a> (AI, Dev &gt;
+            Rust, ...) so Lookout can file your items.
+          </p>
+        )}
+        <div className="toolbar">
+          <span>{items.data ? `${list.length} of ${items.data.total}` : ""}</span>
           <button
             type="button"
             onClick={() => {
-              void perform("done", [...selected]);
+              seenBelow.mutate("P1");
             }}
           >
-            Done
+            Mark P2 and P3 as seen
           </button>
           <button
             type="button"
             onClick={() => {
-              void perform("dismiss", [...selected]);
+              setHelp(true);
             }}
           >
-            Dismiss
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSnoozing([...selected]);
-            }}
-          >
-            Snooze…
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSelected(new Set());
-            }}
-          >
-            Clear
+            Shortcuts
           </button>
         </div>
-      )}
-      <div className="columns">
-        <div className="list">{content}</div>
-        {openId && (
-          <ItemDetail
-            id={openId}
-            onAction={(action) => {
-              void perform(action, [openId]);
-            }}
-            onSnooze={() => {
-              setSnoozing([openId]);
+        {selected.size > 0 && (
+          <div className="bulk" role="group" aria-label="Bulk actions">
+            <span>{selected.size} selected</span>
+            <button
+              type="button"
+              onClick={() => {
+                void perform("done", [...selected]);
+              }}
+            >
+              Done
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void perform("dismiss", [...selected]);
+              }}
+            >
+              Dismiss
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSnoozing([...selected]);
+              }}
+            >
+              Snooze…
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelected(new Set());
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        <div className="columns">
+          <div className="list">{content}</div>
+          {openId && (
+            <ItemDetail
+              id={openId}
+              onAction={(action) => {
+                void perform(action, [openId]);
+              }}
+              onSnooze={() => {
+                setSnoozing([openId]);
+              }}
+              onClose={() => {
+                onOpen(null);
+              }}
+            />
+          )}
+        </div>
+        {snoozing && (
+          <SnoozeMenu
+            onPick={(hours) => {
+              void perform("snooze", snoozing, hours);
+              setSnoozing(null);
             }}
             onClose={() => {
-              onOpen(null);
+              setSnoozing(null);
             }}
           />
         )}
+        {help && (
+          <HelpDialog
+            onClose={() => {
+              setHelp(false);
+            }}
+          />
+        )}
+        {message && <Toast message={message.text} onUndo={message.undo} onDismiss={dismissMessage} />}
       </div>
-      {snoozing && (
-        <SnoozeMenu
-          onPick={(hours) => {
-            void perform("snooze", snoozing, hours);
-            setSnoozing(null);
-          }}
-          onClose={() => {
-            setSnoozing(null);
-          }}
-        />
-      )}
-      {help && (
-        <HelpDialog
-          onClose={() => {
-            setHelp(false);
-          }}
-        />
-      )}
-      {message && <Toast message={message.text} onUndo={message.undo} onDismiss={dismissMessage} />}
     </div>
   );
 }

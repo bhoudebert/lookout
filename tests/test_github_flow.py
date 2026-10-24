@@ -16,7 +16,7 @@ GITHUB = {"name": "gh-watch", "type": "github", "repos": ["o/r"], "watch": ["adv
 
 def watching(tmp_path: Path, github: FakeGitHub | None = None) -> Lookout:
     lookout = Lookout(tmp_path, github=github, sources=[GITHUB])
-    lookout.network.chat = lambda _request: reading(score=5, kind="security")
+    lookout.network.chat = lambda _request: reading(score=5)
     return lookout
 
 

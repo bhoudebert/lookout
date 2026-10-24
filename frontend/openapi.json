@@ -377,17 +377,6 @@
             "title": "Id",
             "type": "string"
           },
-          "kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind"
-          },
           "priority": {
             "title": "Priority",
             "type": "string"
@@ -489,7 +478,6 @@
           "excerpt",
           "published_at",
           "sources",
-          "kind",
           "channel",
           "author",
           "feed_tags",
@@ -530,20 +518,6 @@
           "total"
         ],
         "title": "ItemPage",
-        "type": "object"
-      },
-      "KindIn": {
-        "description": "A new kind of item.",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "KindIn",
         "type": "object"
       },
       "RefileOut": {
@@ -922,7 +896,7 @@
         "type": "string"
       },
       "TaxonomyOut": {
-        "description": "What items can be filed under: the channels, and the kinds.",
+        "description": "The categories items can be filed in.",
         "properties": {
           "channels": {
             "items": {
@@ -930,18 +904,10 @@
             },
             "title": "Channels",
             "type": "array"
-          },
-          "kinds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Kinds",
-            "type": "array"
           }
         },
         "required": [
-          "channels",
-          "kinds"
+          "channels"
         ],
         "title": "TaxonomyOut",
         "type": "object"
@@ -1187,25 +1153,6 @@
                 }
               ],
               "title": "Priority"
-            }
-          },
-          {
-            "in": "query",
-            "name": "kind",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Kind"
             }
           },
           {
@@ -1553,77 +1500,6 @@
         "summary": "Restore"
       }
     },
-    "/api/kinds": {
-      "post": {
-        "operationId": "add_kind_api_kinds_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/KindIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "title": "Response Add Kind Api Kinds Post",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Add Kind"
-      }
-    },
-    "/api/kinds/{name}": {
-      "delete": {
-        "operationId": "delete_kind_api_kinds__name__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "title": "Name",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Kind"
-      }
-    },
     "/api/profile": {
       "delete": {
         "operationId": "forget_api_profile_delete",
@@ -1638,6 +1514,18 @@
     "/api/refile": {
       "post": {
         "operationId": "refile_api_refile_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1648,6 +1536,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Refile"

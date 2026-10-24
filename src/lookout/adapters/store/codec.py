@@ -6,7 +6,7 @@ from typing import Any, cast
 
 from lookout.domain.advisory import Advisory
 from lookout.domain.channel import OTHER
-from lookout.domain.enrichment import Enrichment
+from lookout.domain.enrichment import MAX_TAGS, Enrichment
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
 from lookout.domain.severity import Severity
@@ -104,7 +104,6 @@ def _enrichment(enrichment: Enrichment | None) -> dict[str, Any] | None:
         return None
     return {
         "summary": enrichment.summary,
-        "kind": enrichment.kind,
         "channel": enrichment.channel,
         "tags": list(enrichment.tags),
         "score": enrichment.score,
@@ -116,11 +115,14 @@ def _enrichment(enrichment: Enrichment | None) -> dict[str, Any] | None:
 def _read_enrichment(raw: dict[str, Any] | None) -> Enrichment | None:
     if raw is None:
         return None
+    # Items read before categories were one thing carry a kind (or a category): it is kept as a tag.
+    legacy = raw.get("kind") or raw.get("category")
+    wanted: list[str] = [*raw["tags"], *([legacy] if legacy else [])]
+    tags = tuple(dict.fromkeys(wanted))[:MAX_TAGS]
     return Enrichment(
         summary=raw["summary"],
-        kind=raw.get("kind") or raw["category"],
         channel=raw.get("channel", OTHER),
-        tags=tuple(raw["tags"]),
+        tags=tags,
         score=raw["score"],
         action_needed=raw["action_needed"],
         reason=raw["reason"],

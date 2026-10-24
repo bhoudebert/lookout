@@ -4,7 +4,15 @@ from collections.abc import Callable
 from dataclasses import replace
 from typing import Protocol
 
-from lookout.domain.channel import OTHER, Channel, ChannelCatalogue
+from lookout.domain.channel import (
+    OTHER,
+    Channel,
+    ChannelCatalogue,
+    InvalidCategoryError,
+    ancestors,
+    is_within,
+    normalize,
+)
 from lookout.domain.source import SourceDef
 
 
@@ -48,16 +56,6 @@ class ChannelDefinitions(Protocol):
     def delete(self, name: str) -> None: ...
 
 
-class KindDefinitions(Protocol):
-    """Where the kinds of item are kept."""
-
-    def all(self) -> tuple[str, ...]: ...
-
-    def save(self, name: str) -> None: ...
-
-    def delete(self, name: str) -> None: ...
-
-
 class Flags(Protocol):
     """Things that happened once."""
 
@@ -67,9 +65,6 @@ class Flags(Protocol):
 
 
 SEEDED = "seeded"
-KINDS_SEEDED = "kinds-seeded"
-FALLBACK_KIND = "other"
-MAX_KIND_CHARS = 40
 
 
 class Registry:
@@ -79,21 +74,17 @@ class Registry:
         self,
         sources: SourceDefinitions,
         channels: ChannelDefinitions,
-        kinds: KindDefinitions,
         flags: Flags,
         validate: Callable[[SourceDef], None],
     ) -> None:
         self._flags = flags
-        self._kinds = kinds
         self._sources = sources
         self._channels = channels
         self._validate = validate
 
     # Seeding
 
-    def seed(
-        self, sources: tuple[SourceDef, ...], channels: tuple[Channel, ...], kinds: tuple[str, ...] = ()
-    ) -> None:
+    def seed(self, sources: tuple[SourceDef, ...], channels: tuple[Channel, ...]) -> None:
         """On the very first start, store the file's channels and sources. Later starts change nothing.
 
         The marker is explicit, so deleting every source never brings them back. ``Other`` always exists.
@@ -107,14 +98,8 @@ class Registry:
                 self._validate(source)
                 self._sources.save(source)
             self._flags.set(SEEDED)
-        if not self._flags.is_set(KINDS_SEEDED):
-            for kind in kinds:
-                self._kinds.save(kind)
-            self._flags.set(KINDS_SEEDED)
         if not any(c.name.lower() == OTHER.lower() for c in self._channels.all()):
             self._channels.save(Channel(OTHER))
-        if FALLBACK_KIND not in (k.lower() for k in self._kinds.all()):
-            self._kinds.save(FALLBACK_KIND)
 
     # Sources
 
@@ -171,7 +156,7 @@ class Registry:
         by_name = {c.name.lower(): c.name for c in self._channels.all()}
         channels: list[str] = []
         for channel in source.channels:
-            canonical = by_name.get(channel.strip().lower())
+            canonical = by_name.get(" > ".join(part.strip() for part in channel.split(">")).lower())
             if canonical is None:
                 msg = f"source '{source.name}' feeds the channel '{channel}', which does not exist"
                 raise InvalidError(msg)
@@ -183,27 +168,30 @@ class Registry:
         self._validate(checked)
         return checked
 
-    # Channels
+    # Categories (channels in the code)
 
     def channels(self) -> tuple[Channel, ...]:
-        """Every channel, in the order they were added."""
+        """Every category, in the order they were added."""
         return self._channels.all()
 
     def add_channel(self, channel: Channel) -> Channel:
-        """Store a new channel."""
-        name = channel.name.strip()
-        if not name:
-            msg = "a channel needs a name"
-            raise InvalidError(msg)
-        if self._channel(name) is not None:
-            msg = f"a channel named '{name}' already exists"
+        """Store a new category. A path like ``Dev > Rust`` also creates ``Dev`` when it is missing."""
+        try:
+            path = normalize(channel.name)
+        except InvalidCategoryError as error:
+            raise InvalidError(str(error)) from error
+        if self._channel(path) is not None:
+            msg = f"a category named '{path}' already exists"
             raise DuplicateError(msg)
-        stored = Channel(name, channel.description.strip())
+        for parent in ancestors(path):
+            if self._channel(parent) is None:
+                self._channels.save(Channel(parent))
+        stored = Channel(path, channel.description.strip())
         self._channels.save(stored)
         return stored
 
     def update_channel(self, name: str, description: str) -> Channel:
-        """Change a channel's description."""
+        """Change a category's description."""
         existing = self._channel(name)
         if existing is None:
             raise NotFoundError(name)
@@ -212,52 +200,33 @@ class Registry:
         return stored
 
     def remove_channel(self, name: str) -> None:
-        """Delete a channel no source feeds; ``Other`` stays."""
+        """Delete a category that has no subcategory and that no source feeds; ``Other`` stays."""
         existing = self._channel(name)
         if existing is None:
             raise NotFoundError(name)
         if existing.name.lower() == OTHER.lower():
-            msg = f"the channel {OTHER} always exists"
+            msg = f"the category {OTHER} always exists"
+            raise InUseError(msg)
+        below = [
+            c.name
+            for c in self._channels.all()
+            if c.name != existing.name and is_within(c.name, existing.name)
+        ]
+        if below:
+            msg = f"the category '{existing.name}' has subcategories ({', '.join(below)}): delete those first"
             raise InUseError(msg)
         feeders = [
-            s.name for s in self._sources.all() if existing.name.lower() in (c.lower() for c in s.channels)
+            s.name for s in self._sources.all() if any(c.lower() == existing.name.lower() for c in s.channels)
         ]
         if feeders:
-            msg = f"the channel '{existing.name}' is fed by {', '.join(feeders)}: change those sources first"
+            msg = f"the category '{existing.name}' is fed by {', '.join(feeders)}: change those sources first"
             raise InUseError(msg)
         self._channels.delete(existing.name)
 
     def _channel(self, name: str) -> Channel | None:
-        return next((c for c in self._channels.all() if c.name.lower() == name.strip().lower()), None)
+        wanted = " > ".join(part.strip() for part in name.split(">")).lower()
+        return next((c for c in self._channels.all() if c.name.lower() == wanted), None)
 
     def catalogue(self) -> ChannelCatalogue:
-        """The channels and which of them each source feeds, as the pipeline needs them."""
+        """The categories and which of them each source feeds, as the pipeline needs them."""
         return ChannelCatalogue(self._channels.all(), {s.name: s.channels for s in self._sources.all()})
-
-    # Kinds
-
-    def kinds(self) -> tuple[str, ...]:
-        """Every kind, in the order they were added."""
-        return self._kinds.all()
-
-    def add_kind(self, name: str) -> str:
-        """Add a kind of item; it is stored lower-case."""
-        kind = " ".join(name.lower().split())
-        if not kind or len(kind) > MAX_KIND_CHARS:
-            msg = f"a kind needs a name of 1 to {MAX_KIND_CHARS} characters"
-            raise InvalidError(msg)
-        if kind in (k.lower() for k in self._kinds.all()):
-            msg = f"a kind named '{kind}' already exists"
-            raise DuplicateError(msg)
-        self._kinds.save(kind)
-        return kind
-
-    def remove_kind(self, name: str) -> None:
-        """Delete a kind; ``other`` stays, and items keep the kind they have."""
-        existing = next((k for k in self._kinds.all() if k.lower() == name.strip().lower()), None)
-        if existing is None:
-            raise NotFoundError(name)
-        if existing.lower() == FALLBACK_KIND:
-            msg = f"the kind {FALLBACK_KIND} always exists"
-            raise InUseError(msg)
-        self._kinds.delete(existing)

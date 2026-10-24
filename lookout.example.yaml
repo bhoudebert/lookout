@@ -11,16 +11,14 @@ llm:
 # Told to the model so scores reflect you.
 interests: Backend engineering in Python, PostgreSQL, React, and the security of what I run.
 
-# What an item IS. The model picks one. Edit to fit you.
-kinds:
-  [release, security, api-change, deprecation, announcement, schedule, tutorial, research, outage, discussion, other]
-
-# The topics you look at ("Other" always exists). The description helps the model choose.
+# The categories you look at, from broad to specific ("Dev > Rust" sits inside "Dev"). "Other" always exists.
+# The description helps the model choose.
 channels:
   - name: AI
     description: Models, agents, and the tooling around them
-  - name: Languages
-    description: Python, Rust and other languages I write
+  - name: Dev > Python
+    description: Python and its ecosystem
+  - name: Dev > Rust
   - name: Security
     description: Vulnerabilities and fixes in what I run
 
@@ -40,12 +38,12 @@ sources:
   - name: python-insider
     type: rss
     url: https://pythoninsider.blogspot.com/feeds/posts/default
-    channels: [Languages] # one channel: its items go straight there
+    channels: [Dev > Python] # one channel: its items go straight there
   - name: lobsters
     type: rss
     url: https://lobste.rs/rss
     keywords: [python, postgres, rust, security]
-    channels: [Languages, Security, AI, Other] # several: the model chooses
+    channels: [Dev > Python, Security, AI, Other] # several: the model chooses
 
 
   # Releases, security advisories and (with access) Dependabot alerts of your repositories.

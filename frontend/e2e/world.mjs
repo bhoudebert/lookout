@@ -26,7 +26,7 @@ function reading(prompt) {
         ? "Rust 1.99 stabilises async closures."
         : "Gardening tips.",
     kind: python || rust ? "release" : "other",
-    channel: python ? "Languages" : "Other",
+    channel: python ? "Dev > Python" : "Other",
     tags: python ? ["python", "interpreter"] : rust ? ["async"] : [],
     score: python ? 85 : rust ? 60 : 20,
     action_needed: false,

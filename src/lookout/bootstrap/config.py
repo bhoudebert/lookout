@@ -7,24 +7,10 @@ from typing import Any, cast
 import yaml
 
 from lookout.application.errors import ConfigError
-from lookout.domain.channel import OTHER, Channel
+from lookout.domain.channel import OTHER, Channel, InvalidCategoryError, ancestors, normalize
 from lookout.domain.policy import Thresholds
 from lookout.domain.source import SourceDef
 from lookout.domain.stack import Stack, StackEntry
-
-DEFAULT_KINDS = (
-    "release",
-    "security",
-    "api-change",
-    "deprecation",
-    "announcement",
-    "schedule",
-    "tutorial",
-    "research",
-    "outage",
-    "discussion",
-    "other",
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +53,6 @@ class Config:
     database: Path = Path("data/lookout.db")
     llm: LlmConfig = field(default_factory=LlmConfig)
     interests: str = ""
-    kinds: tuple[str, ...] = DEFAULT_KINDS
     channels: tuple[Channel, ...] = (Channel(OTHER),)
     stack: Stack = field(default_factory=Stack)
     thresholds: Thresholds = field(default_factory=Thresholds)
@@ -80,7 +65,7 @@ class Config:
 
 
 def load_config(
-    path: Path, supported_kinds: tuple[str, ...], environ: dict[str, str] | None = None
+    path: Path, supported_types: tuple[str, ...], environ: dict[str, str] | None = None
 ) -> Config:
     """Read and validate a configuration file. Secrets come from ``environ`` (``LOOKOUT_LLM_API_KEY``)."""
     env = environ or {}
@@ -100,11 +85,10 @@ def load_config(
         database=Path(reader.text(root, "database", env.get("LOOKOUT_DATABASE", "data/lookout.db"))),
         llm=_llm(reader, reader.mapping(root.get("llm", {}), "llm"), env),
         interests=reader.text(root, "interests", ""),
-        kinds=reader.strings(root, "kinds", DEFAULT_KINDS),
         channels=_channels(reader, root.get("channels", [])),
         stack=_stack(reader, root.get("stack", [])),
         thresholds=_thresholds(reader, reader.mapping(root.get("thresholds", {}), "thresholds")),
-        sources=_sources(reader, root.get("sources", []), supported_kinds),
+        sources=_sources(reader, root.get("sources", []), supported_types),
         personalization=_personalization(
             reader, reader.mapping(root.get("personalization", {}), "personalization")
         ),
@@ -194,17 +178,26 @@ def _stack(reader: _Reader, raw: object) -> Stack:
 
 
 def _channels(reader: _Reader, raw: object) -> tuple[Channel, ...]:
-    found: list[Channel] = []
+    declared: dict[str, Channel] = {}
     for number, data in enumerate(reader.sequence(raw, "channels")):
         name = data.get("name")
         if not isinstance(name, str) or not name.strip():
             raise reader.error(f"channels[{number}] needs a 'name'")
-        if any(c.name.lower() == name.strip().lower() for c in found):
-            raise reader.error(f"two channels are named '{name.strip()}'")
-        found.append(Channel(name.strip(), reader.text(data, "description", "")))
-    if not any(c.name.lower() == OTHER.lower() for c in found):
-        found.append(Channel(OTHER))
-    return tuple(found)
+        try:
+            path = normalize(name)
+        except InvalidCategoryError as error:
+            raise reader.error(f"channels[{number}]: {error}") from error
+        if path.lower() in declared:
+            raise reader.error(f"two channels are named '{path}'")
+        declared[path.lower()] = Channel(path, reader.text(data, "description", ""))
+    found: dict[str, Channel] = {}
+    for channel in declared.values():
+        for parent in ancestors(channel.name):
+            found.setdefault(parent.lower(), declared.get(parent.lower(), Channel(parent)))
+        found[channel.name.lower()] = channel
+    if OTHER.lower() not in found:
+        found[OTHER.lower()] = Channel(OTHER)
+    return tuple(found.values())
 
 
 def _personalization(reader: _Reader, data: dict[str, Any]) -> PersonalizationConfig:

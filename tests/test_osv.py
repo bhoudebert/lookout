@@ -213,7 +213,7 @@ def run_osv(tmp_path: Path, osv: Osv | None = None) -> Lookout:
     source = osv or django_pages()
     lookout.network.osv = source
     lookout.network.kev = fixture("kev.json")
-    lookout.network.chat = lambda _request: reading(score=5, kind="security")
+    lookout.network.chat = lambda _request: reading(score=5)
     lookout("run")
     return lookout
 

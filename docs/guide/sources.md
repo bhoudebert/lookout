@@ -11,7 +11,7 @@ Sources are the **rivers** that flow into your inbox; [categories](/concepts) ar
 
 ### The file only seeds
 
-`lookout.yaml` is read for its `sources`, `channels` (your categories) and `kinds` **once**, on the very first start, to fill the dashboard. After that the dashboard is the truth, and changing those lists in the file does nothing (deleting every source does not bring them back either). The rest of the file (the model, your stack, thresholds, kinds) is still read at every start.
+`lookout.yaml` is read for its `sources`, `channels` (your categories) **once**, on the very first start, to fill the dashboard. After that the dashboard is the truth, and changing those lists in the file does nothing (deleting every source does not bring them back either). The rest of the file (the model, your stack, thresholds) is still read at every start.
 
 The examples below are what the file and the dashboard both accept.
 
@@ -22,7 +22,7 @@ sources:
   - name: python-insider
     type: rss
     url: https://pythoninsider.blogspot.com/feeds/posts/default
-    channels: [Languages]
+    channels: [Dev > Python]
   - name: lobsters
     type: rss
     url: https://lobste.rs/rss

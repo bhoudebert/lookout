@@ -14,7 +14,6 @@ from lookout.adapters.store import sqlite as store
 from lookout.adapters.store.sqlite import (
     SqliteChannelDefinitions,
     SqliteFlags,
-    SqliteKindDefinitions,
     SqliteSourceDefinitions,
     SqliteSourceStatusRepository,
 )
@@ -310,7 +309,6 @@ def test_other_is_added_when_the_file_declares_channels_without_it() -> None:
     registry = Registry(
         SqliteSourceDefinitions(db),
         SqliteChannelDefinitions(db),
-        SqliteKindDefinitions(db),
         SqliteFlags(db),
         lambda _s: None,
     )

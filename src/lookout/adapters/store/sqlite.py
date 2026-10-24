@@ -11,7 +11,7 @@ from pathlib import Path
 from lookout.adapters.store.codec import decode, encode
 from lookout.application.ports import InboxQuery, Page
 from lookout.application.ports_sources import SourceStatus
-from lookout.domain.channel import Channel
+from lookout.domain.channel import SEP, Channel
 from lookout.domain.item import Item
 from lookout.domain.profile import Signal, SignalKind
 from lookout.domain.source import SourceDef
@@ -104,8 +104,14 @@ def migrate_v3(db: sqlite3.Connection) -> None:
 
 
 def migrate_v4(db: sqlite3.Connection) -> None:
-    """Kinds the user manages (ADR 0014)."""
+    """Kinds the user manages (ADR 0014); replaced by tags in the next step."""
     db.execute("CREATE TABLE kind_defs (name TEXT PRIMARY KEY COLLATE NOCASE, position INTEGER NOT NULL)")
+
+
+def migrate_v5(db: sqlite3.Connection) -> None:
+    """One hierarchical category (ADR 0015): kinds are gone; items keep theirs as tags (see the codec)."""
+    db.execute("DROP TABLE kind_defs")
+    db.execute("ALTER TABLE items DROP COLUMN kind")
 
 
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
@@ -113,6 +119,7 @@ MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     migrate_v2,
     migrate_v3,
     migrate_v4,
+    migrate_v5,
 )
 
 
@@ -183,18 +190,17 @@ class SqliteItemRepository:
         """Insert or replace an item."""
         enrichment = item.enrichment
         rank = (enrichment.score if enrichment else 0) + item.boost
-        kind = enrichment.kind if enrichment else ""
         tags = " ".join((*item.feed_tags, *(enrichment.tags if enrichment else ())))
         summary = enrichment.summary if enrichment else ""
         pending = enrichment is None and not item.enrichment_failed
         self._db.run(
             """
-            INSERT INTO items (id, priority, state, starred, kind, channel, author, sources, search, rank,
+            INSERT INTO items (id, priority, state, starred, channel, author, sources, search, rank,
                                pending, published_at, snoozed_until, data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 priority = excluded.priority, state = excluded.state, starred = excluded.starred,
-                kind = excluded.kind, channel = excluded.channel, author = excluded.author,
+                channel = excluded.channel, author = excluded.author,
                 sources = excluded.sources, search = excluded.search,
                 rank = excluded.rank, pending = excluded.pending, published_at = excluded.published_at,
                 snoozed_until = excluded.snoozed_until, data = excluded.data
@@ -204,7 +210,6 @@ class SqliteItemRepository:
                 int(item.priority),
                 item.state.value,
                 int(item.starred),
-                kind,
                 item.channel,
                 item.author,
                 "|" + "|".join(item.sources) + "|",
@@ -224,12 +229,13 @@ class SqliteItemRepository:
         if query.priorities:
             clauses.append(f"priority IN ({_marks(query.priorities)})")
             args.extend(int(p) for p in query.priorities)
-        if query.kinds:
-            clauses.append(f"kind IN ({_marks(query.kinds)})")
-            args.extend(query.kinds)
         if query.channels:
-            clauses.append(f"channel IN ({_marks(query.channels)})")
-            args.extend(query.channels)
+            clauses.append(
+                "(" + " OR ".join("channel = ? OR substr(channel, 1, ?) = ?" for _ in query.channels) + ")"
+            )
+            for path in query.channels:
+                prefix = path + SEP
+                args.extend((path, len(prefix), prefix))
         if query.states:
             clauses.append(f"state IN ({_marks(query.states)})")
             args.extend(s.value for s in query.states)
@@ -459,26 +465,3 @@ class SqliteFlags:
     def set(self, name: str) -> None:
         """Remember that ``name`` happened."""
         self._db.run("INSERT OR IGNORE INTO flags (name) VALUES (?)", (name,))
-
-
-class SqliteKindDefinitions:
-    """The kinds of item the user manages, in the order they were added."""
-
-    def __init__(self, database: Database) -> None:
-        self._db = database
-
-    def all(self) -> tuple[str, ...]:
-        """Every kind."""
-        return tuple(r["name"] for r in self._db.query("SELECT name FROM kind_defs ORDER BY position"))
-
-    def save(self, name: str) -> None:
-        """Add a kind; one that exists is left as it is."""
-        self._db.run(
-            "INSERT OR IGNORE INTO kind_defs (name, position) "
-            "VALUES (?, (SELECT COALESCE(MAX(position), 0) + 1 FROM kind_defs))",
-            (name,),
-        )
-
-    def delete(self, name: str) -> None:
-        """Forget a kind; items already of that kind keep it."""
-        self._db.run("DELETE FROM kind_defs WHERE name = ?", (name,))

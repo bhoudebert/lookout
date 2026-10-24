@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from lookout.domain.channel import ancestors
 from lookout.domain.item import Item
 
 MAX_BOOST = 20
@@ -49,13 +50,11 @@ class Contribution:
 
 
 def features(item: Item) -> tuple[str, ...]:
-    """What an item is made of, as far as taste goes: source, author, channel, kind and tags."""
+    """What an item is made of, as far as taste goes: source, author, category (and its parents) and tags."""
     found = [f"source:{s}" for s in item.sources]
     if item.author:
         found.append(f"author:{item.author.lower()}")
-    found.append(f"channel:{item.channel}")
-    if item.enrichment is not None:
-        found.append(f"kind:{item.enrichment.kind}")
+    found.extend(f"category:{path}" for path in (*ancestors(item.channel), item.channel))
     found.extend(
         f"tag:{t}"
         for t in dict.fromkeys((*item.feed_tags, *(item.enrichment.tags if item.enrichment else ())))

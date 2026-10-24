@@ -1,0 +1,35 @@
+import type { Channel } from "./api/types";
+
+export const SEP = " > ";
+
+export interface CategoryRow {
+  path: string;
+  /** The last name of the path. */
+  name: string;
+  depth: number;
+  description: string;
+  /** Items filed exactly here. */
+  items: number;
+  /** Items filed here or anywhere under it. */
+  total: number;
+  sources: string[];
+}
+
+const within = (path: string, ancestor: string) => path === ancestor || path.startsWith(ancestor + SEP);
+
+/** The categories as the rows of a tree, parents before their children, Other last, with totals that include children. */
+export function categoryRows(channels: Channel[]): CategoryRow[] {
+  const ordered = [...channels].sort((a, b) => Number(a.name === "Other") - Number(b.name === "Other"));
+  return ordered.map((channel) => {
+    const parts = channel.name.split(SEP);
+    return {
+      path: channel.name,
+      name: parts[parts.length - 1] as string,
+      depth: parts.length - 1,
+      description: channel.description,
+      items: channel.items,
+      total: channels.filter((c) => within(c.name, channel.name)).reduce((sum, c) => sum + c.items, 0),
+      sources: channel.sources ?? [],
+    };
+  });
+}

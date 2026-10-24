@@ -56,7 +56,6 @@ export function itemsQuery(filters: Filters, limit = 100): string {
   const params = new URLSearchParams();
   for (const priority of filters.priorities) params.append("priority", priority);
   if (filters.channel) params.set("channel", filters.channel);
-  if (filters.kind) params.set("kind", filters.kind);
   if (filters.source) params.set("source", filters.source);
   for (const state of STATES[filters.view]) params.append("state", state);
   if (filters.starred) params.set("starred", "true");
@@ -89,9 +88,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ description }),
     }),
-  addKind: (name: string) => call<string>("/api/kinds", { method: "POST", body: JSON.stringify({ name }) }),
-  deleteKind: (name: string) => call<undefined>(`/api/kinds/${encodeURIComponent(name)}`, { method: "DELETE" }),
-  refile: () => call<RefileResult>("/api/refile", { method: "POST" }),
+  refile: (dryRun = false) => call<RefileResult>(`/api/refile?dry_run=${String(dryRun)}`, { method: "POST" }),
   deleteChannel: (name: string) => call<undefined>(`/api/channels/${encodeURIComponent(name)}`, { method: "DELETE" }),
   sources: () => call<Source[]>("/api/sources"),
   setSource: (name: string, enabled: boolean) =>

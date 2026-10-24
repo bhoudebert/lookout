@@ -57,12 +57,11 @@ def test_inbox_filters(tmp_path: Path) -> None:
     lookout = Lookout(tmp_path)
     lookout.network.chat = lambda request: reading(
         score=95 if "Django" in request.content.decode() else 10,
-        kind="security" if "Django" in request.content.decode() else "other",
     )
     lookout("run")
     assert "1 of 1" in lookout("inbox", "--priority", "p0")
     assert "Django" in lookout("inbox", "-p", "P0", "-p", "P3")
-    assert "1 of 1" in lookout("inbox", "--kind", "security")
+    assert "3 of 3" in lookout("inbox", "--channel", "Other")
     assert "3 of 3" in lookout("inbox", "--source", "blog")
     assert "0 of 0" in lookout("inbox", "--source", "elsewhere")
     assert "1 of 1" in lookout("inbox", "--text", "django")
@@ -255,12 +254,16 @@ def test_feed_url_constant_matches_the_fixture_network(tmp_path: Path) -> None:
     assert isinstance(lookout.network.requests[0], httpx.Request)
 
 
-def test_the_inbox_shows_and_filters_by_channel_and_kind(tmp_path: Path) -> None:
-    lookout = Lookout(tmp_path, channels=[{"name": "Rust"}, {"name": "Security"}])
+def test_the_inbox_shows_and_filters_by_category_including_what_is_under_it(tmp_path: Path) -> None:
+    lookout = Lookout(
+        tmp_path, channels=[{"name": "Dev > Rust"}, {"name": "Dev > Web"}, {"name": "Security"}]
+    )
     lookout("demo")
     everything = lookout("inbox", "--limit", "20")
-    assert "osv, Security, security" in everything
-    assert "hn, Rust, announcement" in everything
-    assert "1 of 1" in lookout("inbox", "--channel", "Rust")
-    assert "2 of 2" in lookout("inbox", "--kind", "security")
-    assert "0 of 0" in lookout("inbox", "--kind", "security", "--channel", "Rust")
+    assert "osv, Security" in everything
+    assert "hn, Dev > Rust" in everything
+    assert "1 of 1" in lookout("inbox", "--channel", "Dev > Rust")
+    assert "2 of 2" in lookout("inbox", "--channel", "Dev")
+    assert "2 of 2" in lookout("inbox", "--channel", "Security")
+    assert "1 of 1" in lookout("inbox", "--channel", "Dev > Rust", "--channel", "Nope")
+    assert "0 of 0" in lookout("inbox", "--channel", "Nope")

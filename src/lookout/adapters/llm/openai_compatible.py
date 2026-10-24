@@ -1,13 +1,12 @@
 """``Enricher`` over the OpenAI-compatible chat protocol: Ollama, OpenRouter, vLLM, hosted (ADR 0005)."""
 
 import json
-from collections.abc import Callable
 from typing import Any, cast
 
 import httpx
 
 from lookout.application.ports_sources import EnrichmentError
-from lookout.domain.channel import OTHER, Channel
+from lookout.domain.channel import OTHER, Channel, leaf
 from lookout.domain.enrichment import MAX_SCORE, MAX_TAGS, Enrichment
 from lookout.domain.item import Item
 
@@ -19,12 +18,11 @@ About the person:
 - Interests: {interests}
 - Stack they depend on: {stack}
 
-Kinds of item: {kinds}
 {channels}
 Answer with ONE JSON object and nothing else:
 {{"summary": string (at most {summary_chars} characters, plain text),
- "kind": one of the kinds above, what the item is,
-{channel_field} "tags": array of at most {max_tags} short lowercase strings,
+{channel_field} "tags": array of at most {max_tags} short lowercase strings, including what the item is
+   (release, security, tutorial, outage, announcement, discussion, research...),
  "score": integer 0-{max_score}, how much this matters to THIS person
    (90+ act today, 70+ this week, 40+ worth reading),
  "action_needed": boolean, true only if the person must do something (upgrade, patch, migrate, decide),
@@ -32,15 +30,16 @@ Answer with ONE JSON object and nothing else:
 
 
 def _channel_text(channels: tuple[Channel, ...]) -> tuple[str, str]:
-    """The prompt's lines about channels, and the JSON field to ask for (none when the channel is fixed)."""
+    """The prompt's lines about categories, and the JSON field to ask for (none when it is fixed)."""
     if len(channels) == 1:
-        return f"The channel is already decided: {channels[0].name}. Do not answer a channel.\n", ""
+        return f"The category is already decided: {channels[0].name}. Do not answer a category.\n", ""
     lines = "\n".join(_line(c) for c in channels)
     return (
-        "Channels, the topics they follow. Choose the most specific one that fits, using the item's title, "
-        "tags and text; pick Other only when none of the others fits at all:\n"
+        "Categories, the topics they follow, written as paths (a more specific one is under a broader one). "
+        "Answer the full path of the most specific category that fits, using the title, tags and text; "
+        "pick Other only when none of the others fits at all:\n"
         f"{lines}\n",
-        ' "channel": one of the channels above,\n',
+        ' "channel": the full path of one of the categories above,\n',
     )
 
 
@@ -64,7 +63,6 @@ class OpenAiEnricher:
         base_url: str,
         model: str,
         api_key: str = "",
-        kinds: Callable[[], tuple[str, ...]],
         interests: str = "",
         stack: tuple[str, ...] = (),
         summary_chars: int = 400,
@@ -73,19 +71,16 @@ class OpenAiEnricher:
         self._url = base_url.rstrip("/") + "/chat/completions"
         self._model = model
         self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        self._kinds = kinds
         self._summary_chars = summary_chars
         self._interests = interests or "not stated"
         self._stack = ", ".join(stack) or "not stated"
 
     def enrich(self, item: Item, channels: tuple[Channel, ...]) -> Enrichment:
         """Read ``item``; raise ``EnrichmentError`` when the model gives no valid answer twice."""
-        kinds = self._kinds()
         channel_lines, channel_field = _channel_text(channels)
         system = SYSTEM_PROMPT.format(
             interests=self._interests,
             stack=self._stack,
-            kinds=json.dumps(list(kinds)),
             channels=channel_lines,
             channel_field=channel_field,
             summary_chars=self._summary_chars,
@@ -103,7 +98,7 @@ class OpenAiEnricher:
         ]
         answer = self._ask(messages)
         try:
-            return self._parse(answer, channels, kinds)
+            return self._parse(answer, channels)
         except ValueError as problem:
             messages += [
                 {"role": "assistant", "content": answer},
@@ -113,7 +108,7 @@ class OpenAiEnricher:
                 },
             ]
         try:
-            return self._parse(self._ask(messages), channels, kinds)
+            return self._parse(self._ask(messages), channels)
         except ValueError as problem:
             msg = f"the model gave no valid answer twice: {problem}"
             raise EnrichmentError(msg) from problem
@@ -135,7 +130,7 @@ class OpenAiEnricher:
             msg = f"{self._url}: {error}"
             raise EnrichmentError(msg) from error
 
-    def _parse(self, answer: str, channels: tuple[Channel, ...], kinds: tuple[str, ...]) -> Enrichment:
+    def _parse(self, answer: str, channels: tuple[Channel, ...]) -> Enrichment:
         try:
             raw = json.loads(answer)
         except json.JSONDecodeError as error:
@@ -145,11 +140,6 @@ class OpenAiEnricher:
             msg = "not a JSON object"
             raise ValueError(msg)
         data = cast("dict[str, Any]", raw)
-        kind = data.get("kind")
-        chosen = next((k for k in kinds if isinstance(kind, str) and k.lower() == kind.strip().lower()), None)
-        if chosen is None:
-            msg = f"kind must be one of {list(kinds)}"
-            raise ValueError(msg)
         channel = _channel(data.get("channel"), channels)
         score = data.get("score")
         if isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= MAX_SCORE:
@@ -168,7 +158,6 @@ class OpenAiEnricher:
             raise ValueError(msg)
         return Enrichment(
             summary=summary.strip()[: self._summary_chars],
-            kind=chosen,
             channel=channel,
             tags=tuple(str(t).lower() for t in cast("list[str]", tags)[:MAX_TAGS]),
             score=score,
@@ -178,14 +167,18 @@ class OpenAiEnricher:
 
 
 def _channel(answer: object, channels: tuple[Channel, ...]) -> str:
-    """The chosen channel, matched ignoring case; the only one when it was decided in advance."""
+    """The chosen category, matched ignoring case and spacing around ``>``; the only one if decided already.
+
+    A bare last name is accepted when exactly one allowed category ends with it, since models drop the path.
+    """
     if len(channels) == 1:
         return channels[0].name
-    chosen = next(
-        (c.name for c in channels if isinstance(answer, str) and c.name.lower() == answer.strip().lower()),
-        None,
-    )
-    if chosen is None:
-        msg = f"channel must be one of {[c.name for c in channels]}"
-        raise ValueError(msg)
-    return chosen
+    if isinstance(answer, str):
+        wanted = " > ".join(part.strip() for part in answer.split(">")).lower()
+        exact = [c.name for c in channels if c.name.lower() == wanted]
+        by_leaf = [c.name for c in channels if leaf(c.name).lower() == wanted]
+        found = exact or (by_leaf if len(by_leaf) == 1 else [])
+        if found:
+            return found[0]
+    msg = f"channel must be one of {[c.name for c in channels]}"
+    raise ValueError(msg)

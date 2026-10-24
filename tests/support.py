@@ -33,14 +33,12 @@ class FixedClock:
 
 def enrichment(
     score: int = 50,
-    kind: str = "tooling",
     tags: tuple[str, ...] = (),
     summary: str = "s",
     channel: str = "Other",
 ) -> Enrichment:
     return Enrichment(
         summary=summary,
-        kind=kind,
         channel=channel,
         tags=tags,
         score=score,
@@ -58,7 +56,6 @@ def make_item(
     priority: Priority = Priority.P2,
     advisory: Advisory | None = None,
     score: int | None = None,
-    kind: str = "tooling",
     channel: str = "Other",
     author: str = "",
     feed_tags: tuple[str, ...] = (),
@@ -77,7 +74,7 @@ def make_item(
         channel=channel,
         feed_tags=feed_tags,
     )
-    return item.enriched(enrichment(score, kind, channel=channel)) if score is not None else item
+    return item.enriched(enrichment(score, channel=channel)) if score is not None else item
 
 
 _OPENED: list[Database] = []

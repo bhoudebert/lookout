@@ -11,13 +11,11 @@ const VIEWS: { value: View; label: string }[] = [
 
 interface Props {
   filters: Filters;
-  channels: string[];
-  kinds: string[];
   sources: string[];
   onChange: (filters: Filters) => void;
 }
 
-export function FilterBar({ filters, channels, kinds, sources, onChange }: Props) {
+export function FilterBar({ filters, sources, onChange }: Props) {
   const togglePriority = (priority: Priority) => {
     const next = filters.priorities.includes(priority)
       ? filters.priorities.filter((p) => p !== priority)
@@ -59,38 +57,6 @@ export function FilterBar({ filters, channels, kinds, sources, onChange }: Props
           {VIEWS.map((v) => (
             <option key={v.value} value={v.value}>
               {v.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Category
-        <select
-          value={filters.channel}
-          onChange={(e) => {
-            onChange({ ...filters, channel: e.target.value });
-          }}
-        >
-          <option value="">All</option>
-          {channels.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Kind
-        <select
-          value={filters.kind}
-          onChange={(e) => {
-            onChange({ ...filters, kind: e.target.value });
-          }}
-        >
-          <option value="">All</option>
-          {kinds.map((k) => (
-            <option key={k} value={k}>
-              {k}
             </option>
           ))}
         </select>

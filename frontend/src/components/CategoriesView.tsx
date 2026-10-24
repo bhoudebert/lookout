@@ -1,41 +1,42 @@
 import { useState } from "react";
-import type { Channel } from "../api/types";
+import type { RefileResult } from "../api/types";
+import { categoryRows, SEP } from "../categories";
+import type { CategoryRow } from "../categories";
 import { useManage, useTaxonomy } from "../hooks";
 import { StateView } from "./StateView";
 
 const message = (error: unknown): string => (error as Error).message;
 
-/** Starting points for someone whose only category is Other. One click adds one. */
-const SUGGESTIONS: { name: string; description: string }[] = [
-  { name: "AI", description: "Models, agents and the tooling around them" },
-  { name: "Rust", description: "The Rust language and its ecosystem" },
-  { name: "Security", description: "Vulnerabilities, advisories and fixes in what I run" },
-  { name: "Web", description: "Browsers, frontend frameworks and the web platform" },
-  { name: "Languages", description: "Python and other languages I write" },
-  { name: "Cloud", description: "Infrastructure, containers and hosting" },
-  { name: "Data", description: "Databases, data engineering and analytics" },
+/** Starting points for someone whose only category is Other. One click adds one (with its parent). */
+const SUGGESTIONS: { path: string; description: string }[] = [
+  { path: "AI", description: "Models, agents and the tooling around them" },
+  { path: "Dev > Rust", description: "The Rust language and its ecosystem" },
+  { path: "Dev > Python", description: "Python and its ecosystem" },
+  { path: "Dev > Web", description: "Browsers, frontend frameworks and the web platform" },
+  { path: "Security", description: "Vulnerabilities, advisories and fixes in what I run" },
+  { path: "Cloud", description: "Infrastructure, containers and hosting" },
+  { path: "Data", description: "Databases, data engineering and analytics" },
 ];
 
 function Category({
-  channel,
+  row,
   onSave,
   onDelete,
 }: {
-  channel: Channel;
+  row: CategoryRow;
   onSave: (description: string) => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(channel.description);
-  const feeders = channel.sources ?? [];
+  const [draft, setDraft] = useState(row.description);
   return (
-    <li>
-      <strong>{channel.name}</strong>
-      <span className="count">{channel.items} items</span>
+    <li style={{ paddingLeft: `${row.depth * 1.5}rem` }}>
+      <strong title={row.path}>{row.name}</strong>
+      <span className="count">{row.total} items</span>
       {editing ? (
         <>
           <input
-            aria-label={`Description of ${channel.name}`}
+            aria-label={`Description of ${row.path}`}
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);
@@ -61,37 +62,38 @@ function Category({
         </>
       ) : (
         <>
-          <span className="hint">{channel.description || "no description: it helps the model choose"}</span>
+          <span className="hint">{row.description || "no description: it helps the model choose"}</span>
           <button
             type="button"
-            aria-label={`Edit ${channel.name}`}
+            aria-label={`Edit ${row.path}`}
             onClick={() => {
-              setDraft(channel.description);
+              setDraft(row.description);
               setEditing(true);
             }}
           >
             Edit
           </button>
-          <button type="button" aria-label={`Delete ${channel.name}`} onClick={onDelete}>
+          <button type="button" aria-label={`Delete ${row.path}`} onClick={onDelete}>
             Delete
           </button>
         </>
       )}
       <span className="hint feeders">
-        {feeders.length > 0 ? `fed by ${feeders.join(", ")}` : "any source may file items here"}
+        {row.sources.length > 0 ? `fed by ${row.sources.join(", ")}` : "any source may file items here"}
       </span>
     </li>
   );
 }
 
-/** Categories (channels) and kinds: what you look at, and what an item is. ADR 0012 and 0014. */
+/** Categories, as one tree (ADR 0015): what you look at, from broad to specific. */
 export function CategoriesView() {
   const taxonomy = useTaxonomy();
-  const { addChannel, updateChannel, deleteChannel, addKind, deleteKind, refile } = useManage();
+  const { addChannel, updateChannel, deleteChannel, refile, previewRefile } = useManage();
   const [name, setName] = useState("");
+  const [parent, setParent] = useState("");
   const [description, setDescription] = useState("");
-  const [kind, setKind] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+  const [offer, setOffer] = useState<RefileResult | null>(null);
 
   if (taxonomy.isPending) return <StateView kind="loading" />;
   if (taxonomy.isError) {
@@ -105,8 +107,9 @@ export function CategoriesView() {
       />
     );
   }
-  const { channels, kinds } = taxonomy.data;
-  const missing = SUGGESTIONS.filter((s) => !channels.some((c) => c.name.toLowerCase() === s.name.toLowerCase()));
+  const channels = taxonomy.data.channels;
+  const rows = categoryRows(channels);
+  const missing = SUGGESTIONS.filter((s) => !channels.some((c) => c.name.toLowerCase() === s.path.toLowerCase()));
 
   /** Run one action; only the latest outcome is shown, so an old refusal never lingers. */
   const attempt = (action: Promise<unknown>, then?: () => void) => {
@@ -115,47 +118,85 @@ export function CategoriesView() {
       setProblem(message(error));
     });
   };
+  /** After a category appears, say how many items could move and let the user decide (ADR 0015). */
+  const created = (add: Promise<unknown>, after?: () => void) => {
+    attempt(
+      add
+        .then(() => previewRefile.mutateAsync())
+        .then((preview) => {
+          setOffer(preview.filed + preview.queued > 0 ? preview : null);
+          after?.();
+        }),
+    );
+  };
 
   return (
     <>
       <section aria-label="Categories">
         <h2>Categories</h2>
         <p className="hint">
-          The topics you look at. A source files its items in the categories you tick for it, or lets the model choose;
-          the model picks the most specific category that fits and uses Other only as a last resort.
+          What you look at, from broad to specific: <em>Dev</em> contains <em>Dev &gt; Rust</em>. A source files its
+          items in the categories you tick for it, or lets the model choose the most specific one that fits; the model
+          uses Other only as a last resort.
         </p>
         {problem && (
           <p role="alert" className="form-error">
             {problem}
           </p>
         )}
+        {offer && (
+          <div className="nudge" role="note">
+            <p>
+              {offer.filed + offer.queued} items you already have could move: {offer.filed} by rule, {offer.queued} to
+              be read again by the model at the next run.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                attempt(refile.mutateAsync(), () => {
+                  setOffer(null);
+                });
+              }}
+            >
+              File them now
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOffer(null);
+              }}
+            >
+              Not now
+            </button>
+          </div>
+        )}
         {missing.length > 0 && (
           <div className="suggestions" role="group" aria-label="Suggested categories">
             <span className="hint">Start with:</span>
             {missing.map((s) => (
               <button
-                key={s.name}
+                key={s.path}
                 type="button"
                 title={s.description}
                 onClick={() => {
-                  attempt(addChannel.mutateAsync({ name: s.name, description: s.description }));
+                  created(addChannel.mutateAsync({ name: s.path, description: s.description }));
                 }}
               >
-                + {s.name}
+                + {s.path}
               </button>
             ))}
           </div>
         )}
         <ul className="channels">
-          {channels.map((channel) => (
+          {rows.map((row) => (
             <Category
-              key={channel.name}
-              channel={channel}
+              key={row.path}
+              row={row}
               onSave={(text) => {
-                attempt(updateChannel.mutateAsync({ name: channel.name, description: text }));
+                attempt(updateChannel.mutateAsync({ name: row.path, description: text }));
               }}
               onDelete={() => {
-                attempt(deleteChannel.mutateAsync(channel.name));
+                attempt(deleteChannel.mutateAsync(row.path));
               }}
             />
           ))}
@@ -165,12 +206,31 @@ export function CategoriesView() {
           aria-label="Add a category"
           onSubmit={(e) => {
             e.preventDefault();
-            attempt(addChannel.mutateAsync({ name, description }), () => {
+            const path = parent ? `${parent}${SEP}${name}` : name;
+            created(addChannel.mutateAsync({ name: path, description }), () => {
               setName("");
               setDescription("");
             });
           }}
         >
+          <label>
+            Inside
+            <select
+              value={parent}
+              onChange={(e) => {
+                setParent(e.target.value);
+              }}
+            >
+              <option value="">(top level)</option>
+              {rows
+                .filter((r) => r.path !== "Other" && r.depth < 3)
+                .map((r) => (
+                  <option key={r.path} value={r.path}>
+                    {r.path}
+                  </option>
+                ))}
+            </select>
+          </label>
           <label>
             New category
             <input
@@ -198,7 +258,8 @@ export function CategoriesView() {
         <h2>Items already in your inbox</h2>
         <p className="hint">
           Categories apply to new items. To move what you already have: items from a source that feeds exactly one
-          category go there at once; items the model left in Other are read again at the next run.
+          category go there at once; items the model left in Other, or in a category that now has subcategories, are
+          read again at the next run.
         </p>
         <button
           type="button"
@@ -214,50 +275,6 @@ export function CategoriesView() {
             press Run now to do it.
           </p>
         )}
-      </section>
-
-      <section aria-label="Kinds">
-        <h2>Kinds</h2>
-        <p className="hint">What an item is. The model picks exactly one for each.</p>
-        <ul className="kinds">
-          {kinds.map((k) => (
-            <li key={k}>
-              {k}
-              {k !== "other" && (
-                <button
-                  type="button"
-                  aria-label={`Delete kind ${k}`}
-                  onClick={() => {
-                    attempt(deleteKind.mutateAsync(k));
-                  }}
-                >
-                  ×
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-        <form
-          className="manage-form inline"
-          aria-label="Add a kind"
-          onSubmit={(e) => {
-            e.preventDefault();
-            attempt(addKind.mutateAsync(kind), () => {
-              setKind("");
-            });
-          }}
-        >
-          <label>
-            New kind
-            <input
-              value={kind}
-              onChange={(e) => {
-                setKind(e.target.value);
-              }}
-            />
-          </label>
-          <button type="submit">Add kind</button>
-        </form>
       </section>
     </>
   );
