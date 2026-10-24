@@ -11,6 +11,11 @@ export type Source = Schemas["SourceOut"];
 export type RunStatus = Schemas["RunOut"];
 export type Action = Schemas["ActionIn"]["action"];
 export type Taxonomy = Schemas["TaxonomyOut"];
+export type SourceType = Schemas["SourceTypeOut"];
+export type SourceField = Schemas["FieldOut"];
+export type SourceBody = Schemas["SourceBody"];
+export type SourceCreate = Schemas["SourceCreate"];
+export type Channel = Schemas["ChannelOut"];
 export type Priority = "P0" | "P1" | "P2" | "P3";
 export const PRIORITIES: readonly Priority[] = ["P0", "P1", "P2", "P3"];
 

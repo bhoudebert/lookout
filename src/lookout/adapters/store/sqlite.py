@@ -1,5 +1,6 @@
 """SQLite item repository with versioned migrations (ADR 0004)."""
 
+import json
 import shutil
 import sqlite3
 import threading
@@ -10,8 +11,10 @@ from pathlib import Path
 from lookout.adapters.store.codec import decode, encode
 from lookout.application.ports import InboxQuery, Page
 from lookout.application.ports_sources import SourceStatus
+from lookout.domain.channel import Channel
 from lookout.domain.item import Item
 from lookout.domain.profile import Signal, SignalKind
+from lookout.domain.source import SourceDef
 
 
 class SchemaTooNewError(Exception):
@@ -73,7 +76,34 @@ def migrate_v2(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX items_channel ON items (channel)")
 
 
-MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (migrate_v1, migrate_v2)
+def migrate_v3(db: sqlite3.Connection) -> None:
+    """Sources and channels the user manages (ADR 0013)."""
+    db.execute(
+        """
+        CREATE TABLE source_defs (
+            name TEXT PRIMARY KEY COLLATE NOCASE,
+            type TEXT NOT NULL,
+            settings TEXT NOT NULL,
+            keywords TEXT NOT NULL,
+            channels TEXT NOT NULL,
+            enabled INTEGER NOT NULL,
+            position INTEGER NOT NULL
+        )
+        """
+    )
+    db.execute("CREATE TABLE flags (name TEXT PRIMARY KEY)")
+    db.execute(
+        """
+        CREATE TABLE channel_defs (
+            name TEXT PRIMARY KEY COLLATE NOCASE,
+            description TEXT NOT NULL,
+            position INTEGER NOT NULL
+        )
+        """
+    )
+
+
+MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (migrate_v1, migrate_v2, migrate_v3)
 
 
 class Database:
@@ -253,18 +283,17 @@ class SqliteSourceStatusRepository:
             failures=row["failures"],
             next_attempt=_read(row["next_attempt"]),
             items_seen=row["items_seen"],
-            disabled=bool(row["disabled"]),
         )
 
     def save(self, status: SourceStatus) -> None:
         """Insert or replace a status."""
         self._db.run(
             """
-            INSERT INTO sources (name, last_run, last_error, failures, next_attempt, items_seen, disabled)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sources (name, last_run, last_error, failures, next_attempt, items_seen)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(name) DO UPDATE SET last_run = excluded.last_run, last_error = excluded.last_error,
                 failures = excluded.failures, next_attempt = excluded.next_attempt,
-                items_seen = excluded.items_seen, disabled = excluded.disabled
+                items_seen = excluded.items_seen
             """,
             (
                 status.name,
@@ -273,7 +302,6 @@ class SqliteSourceStatusRepository:
                 status.failures,
                 _write(status.next_attempt),
                 status.items_seen,
-                int(status.disabled),
             ),
         )
 
@@ -328,3 +356,91 @@ class SqliteSignalRepository:
     def clear(self) -> None:
         """Forget everything the user did (the profile resets; items are untouched)."""
         self._db.run("DELETE FROM signals")
+
+
+class SqliteSourceDefinitions:
+    """The sources the user manages, in the order they were added."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database
+
+    def all(self) -> tuple[SourceDef, ...]:
+        """Every source."""
+        rows = self._db.query("SELECT * FROM source_defs ORDER BY position")
+        return tuple(
+            SourceDef(
+                name=r["name"],
+                type=r["type"],
+                settings=json.loads(r["settings"]),
+                keywords=tuple(json.loads(r["keywords"])),
+                channels=tuple(json.loads(r["channels"])),
+                enabled=bool(r["enabled"]),
+            )
+            for r in rows
+        )
+
+    def save(self, source: SourceDef) -> None:
+        """Insert a source, or replace the one with this name keeping its place."""
+        self._db.run(
+            """
+            INSERT INTO source_defs (name, type, settings, keywords, channels, enabled, position)
+            VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM source_defs))
+            ON CONFLICT(name) DO UPDATE SET type = excluded.type, settings = excluded.settings,
+                keywords = excluded.keywords, channels = excluded.channels, enabled = excluded.enabled
+            """,
+            (
+                source.name,
+                source.type,
+                json.dumps(source.settings, sort_keys=True),
+                json.dumps(list(source.keywords)),
+                json.dumps(list(source.channels)),
+                int(source.enabled),
+            ),
+        )
+
+    def delete(self, name: str) -> None:
+        """Forget a source and how its runs went; its items stay."""
+        self._db.run("DELETE FROM source_defs WHERE name = ?", (name,))
+        self._db.run("DELETE FROM sources WHERE name = ?", (name,))
+
+
+class SqliteChannelDefinitions:
+    """The channels the user manages, in the order they were added."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database
+
+    def all(self) -> tuple[Channel, ...]:
+        """Every channel."""
+        rows = self._db.query("SELECT name, description FROM channel_defs ORDER BY position")
+        return tuple(Channel(r["name"], r["description"]) for r in rows)
+
+    def save(self, channel: Channel) -> None:
+        """Insert a channel, or change the description of the one with this name."""
+        self._db.run(
+            """
+            INSERT INTO channel_defs (name, description, position)
+            VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM channel_defs))
+            ON CONFLICT(name) DO UPDATE SET description = excluded.description
+            """,
+            (channel.name, channel.description),
+        )
+
+    def delete(self, name: str) -> None:
+        """Forget a channel; items already filed in it keep its name."""
+        self._db.run("DELETE FROM channel_defs WHERE name = ?", (name,))
+
+
+class SqliteFlags:
+    """Things that happened once, such as the first seeding of sources from the file."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database
+
+    def is_set(self, name: str) -> bool:
+        """Whether ``name`` has been set."""
+        return bool(self._db.query("SELECT 1 FROM flags WHERE name = ?", (name,)))
+
+    def set(self, name: str) -> None:
+        """Remember that ``name`` happened."""
+        self._db.run("INSERT OR IGNORE INTO flags (name) VALUES (?)", (name,))

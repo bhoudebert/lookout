@@ -9,14 +9,26 @@ const FEED = `<?xml version="1.0" encoding="UTF-8"?>
 <description>Gardening tips for the weekend.</description><pubDate>Fri, 23 Oct 2026 07:00:00 GMT</pubDate></item>
 </channel></rss>`;
 
+const RUST_FEED = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Rust feed</title>
+<item><title>Rust 1.99 ships async closures</title><link>https://fake.test/rust-199</link>
+<description>Async closures are stable.</description><dc:creator>Ferris Crab</dc:creator><category>rust</category>
+<pubDate>Fri, 23 Oct 2026 09:00:00 GMT</pubDate></item>
+</channel></rss>`;
+
 function reading(prompt) {
   const python = prompt.includes("Python 3.15");
+  const rust = prompt.includes("Rust 1.99");
   return {
-    summary: python ? "Python 3.15 ships a faster interpreter." : "Gardening tips.",
-    kind: python ? "release" : "other",
+    summary: python
+      ? "Python 3.15 ships a faster interpreter."
+      : rust
+        ? "Rust 1.99 stabilises async closures."
+        : "Gardening tips.",
+    kind: python || rust ? "release" : "other",
     channel: python ? "Languages" : "Other",
-    tags: python ? ["python", "interpreter"] : [],
-    score: python ? 85 : 20,
+    tags: python ? ["python", "interpreter"] : rust ? ["async"] : [],
+    score: python ? 85 : rust ? 60 : 20,
     action_needed: false,
     reason: python ? "You write Python." : "Not relevant.",
   };
@@ -26,6 +38,8 @@ const server = createServer((request, response) => {
   const url = request.url ?? "";
   if (url === "/feed.xml") {
     response.writeHead(200, { "Content-Type": "application/rss+xml" }).end(FEED);
+  } else if (url === "/rust.xml") {
+    response.writeHead(200, { "Content-Type": "application/rss+xml" }).end(RUST_FEED);
   } else if (url === "/v1/models") {
     response
       .writeHead(200, { "Content-Type": "application/json" })

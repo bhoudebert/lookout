@@ -32,7 +32,7 @@ class Enrich:
         *,
         daily_limit: int,
         profile: Callable[[], Profile] = lambda: Profile({}),
-        catalogue: ChannelCatalogue | None = None,
+        catalogue: Callable[[], ChannelCatalogue] = ChannelCatalogue,
     ) -> None:
         self._items = items
         self._enricher = enricher
@@ -41,20 +41,21 @@ class Enrich:
         self._policy = policy
         self._daily_limit = daily_limit
         self._profile = profile
-        self._catalogue = catalogue or ChannelCatalogue()
+        self._catalogue = catalogue
 
     def run(self) -> EnrichReport:
         """Most urgent items first, so a spent budget never starves an emergency."""
         day = self._clock.now().date().isoformat()
         pending = self._items.pending_enrichment()
         profile = self._profile()
+        catalogue = self._catalogue()
         enriched = failed = 0
         for position, item in enumerate(pending):
             if self._usage.calls_on(day) >= self._daily_limit:
                 return EnrichReport(enriched, failed, waiting=len(pending) - position)
             self._usage.record_call(day)
             try:
-                reading = self._enricher.enrich(item, self._catalogue.allowed(item.sources))
+                reading = self._enricher.enrich(item, catalogue.allowed(item.sources))
             except EnrichmentError:
                 self._items.save(item.enrichment_gave_up())
                 failed += 1

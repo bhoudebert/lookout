@@ -4,6 +4,41 @@
  */
 
 export interface paths {
+    "/api/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Channel */
+        post: operations["add_channel_api_channels_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/channels/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Channel */
+        delete: operations["delete_channel_api_channels__name__delete"];
+        options?: never;
+        head?: never;
+        /** Change Channel */
+        patch: operations["change_channel_api_channels__name__patch"];
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -158,6 +193,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/source-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Types */
+        get: operations["source_types_api_source_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sources": {
         parameters: {
             query?: never;
@@ -168,7 +220,8 @@ export interface paths {
         /** Sources */
         get: operations["sources_api_sources_get"];
         put?: never;
-        post?: never;
+        /** Add Source */
+        post: operations["add_source_api_sources_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -183,9 +236,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Change Source */
+        put: operations["change_source_api_sources__name__put"];
         post?: never;
-        delete?: never;
+        /** Delete Source */
+        delete: operations["delete_source_api_sources__name__delete"];
         options?: never;
         head?: never;
         /** Patch Source */
@@ -268,6 +323,19 @@ export interface components {
             changed: number;
         };
         /**
+         * ChannelIn
+         * @description A new channel.
+         */
+        ChannelIn: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Name */
+            name: string;
+        };
+        /**
          * ChannelOut
          * @description A topic the user follows.
          */
@@ -276,6 +344,14 @@ export interface components {
             description: string;
             /** Name */
             name: string;
+        };
+        /**
+         * ChannelPatch
+         * @description A new description for a channel.
+         */
+        ChannelPatch: {
+            /** Description */
+            description: string;
         };
         /**
          * ContributionOut
@@ -302,6 +378,27 @@ export interface components {
             priority: string;
             /** Priority Reason */
             priority_reason: string;
+        };
+        /**
+         * FieldOut
+         * @description One setting a type of source takes.
+         */
+        FieldOut: {
+            /** Default */
+            default?: unknown;
+            /** Help */
+            help: string;
+            /**
+             * Kind
+             * @description text, list (one entry per line), bool or number
+             */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -433,20 +530,78 @@ export interface components {
             priority: string;
         };
         /**
+         * SourceBody
+         * @description Everything about a source except its name.
+         */
+        SourceBody: {
+            /**
+             * Channels
+             * @description Empty means every channel.
+             */
+            channels?: string[];
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Keywords */
+            keywords?: string[];
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            };
+            /** Type */
+            type: string;
+        };
+        /**
+         * SourceCreate
+         * @description A new source.
+         */
+        SourceCreate: {
+            /**
+             * Channels
+             * @description Empty means every channel.
+             */
+            channels?: string[];
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Keywords */
+            keywords?: string[];
+            /** Name */
+            name: string;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            };
+            /** Type */
+            type: string;
+        };
+        /**
          * SourceOut
-         * @description A source and its health.
+         * @description A source, its settings and how its last run went.
          */
         SourceOut: {
+            /** Channels */
+            channels: string[];
             /** Enabled */
             enabled: boolean;
             /** Items Seen */
             items_seen: number;
+            /** Keywords */
+            keywords: string[];
             /** Last Error */
             last_error: string | null;
             /** Last Run */
             last_run: string | null;
             /** Name */
             name: string;
+            /** Settings */
+            settings: {
+                [key: string]: unknown;
+            };
             /** Type */
             type: string;
         };
@@ -473,6 +628,20 @@ export interface components {
             new: number;
             /** Skipped */
             skipped: boolean;
+        };
+        /**
+         * SourceTypeOut
+         * @description A type of source and the form it needs.
+         */
+        SourceTypeOut: {
+            /** Description */
+            description: string;
+            /** Fields */
+            fields: components["schemas"]["FieldOut"][];
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
         };
         /**
          * State
@@ -523,6 +692,103 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    add_channel_api_channels_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_channel_api_channels__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_channel_api_channels__name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_api_health_get: {
         parameters: {
             query?: never;
@@ -807,6 +1073,26 @@ export interface operations {
             };
         };
     };
+    source_types_api_source_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceTypeOut"][];
+                };
+            };
+        };
+    };
     sources_api_sources_get: {
         parameters: {
             query?: never;
@@ -823,6 +1109,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourceOut"][];
+                };
+            };
+        };
+    };
+    add_source_api_sources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_source_api_sources__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_api_sources__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

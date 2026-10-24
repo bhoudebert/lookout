@@ -1,5 +1,6 @@
 """Fetch sources, store new items once, keep failures from spreading (openspec: source-ingestion)."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import timedelta
 
@@ -51,12 +52,12 @@ class Ingest:
         stack: Stack,
         *,
         body_limit: int = 4000,
-        catalogue: ChannelCatalogue | None = None,
+        catalogue: Callable[[], ChannelCatalogue] = ChannelCatalogue,
     ) -> None:
         self._items = items
         self._statuses = statuses
         self._clock = clock
-        self._catalogue = catalogue or ChannelCatalogue()
+        self._catalogue = catalogue
         self._policy = policy
         self._stack = stack
         self._body_limit = body_limit
@@ -68,8 +69,6 @@ class Ingest:
     def _run_one(self, fetcher: SourceFetcher) -> SourceReport:
         now = self._clock.now()
         status = self._statuses.get(fetcher.name)
-        if status.disabled:
-            return SourceReport(fetcher.name, skipped=True)
         if status.next_attempt is not None and status.next_attempt > now:
             return SourceReport(fetcher.name, skipped=True, error=status.last_error)
         try:
@@ -108,7 +107,7 @@ class Ingest:
             sources=(raw.source,),
             advisory=raw.advisory,
             author=clean_text(raw.author, 120),
-            channel=self._catalogue.initial((raw.source,)),
+            channel=self._catalogue().initial((raw.source,)),
             feed_tags=tuple(dict.fromkeys(t for t in (clean_text(x, 40).lower() for x in raw.tags) if t))[
                 :MAX_FEED_TAGS
             ],

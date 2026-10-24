@@ -1,5 +1,6 @@
 """The HTTP API (openspec: dashboard, triage, scheduling). Thin: every route calls one use case."""
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -14,7 +15,9 @@ from lookout.adapters.http.schemas import (
     ActionOut,
     BulkIn,
     BulkOut,
+    ChannelIn,
     ChannelOut,
+    ChannelPatch,
     ExplanationOut,
     Health,
     ItemDetail,
@@ -22,17 +25,22 @@ from lookout.adapters.http.schemas import (
     ItemPage,
     RunOut,
     SeenBelowIn,
+    SourceBody,
+    SourceCreate,
     SourceOut,
     SourcePatch,
+    SourceTypeOut,
     TaxonomyOut,
     UndoOut,
 )
 from lookout.application.ports import InboxQuery
+from lookout.application.registry import DuplicateError, InUseError, InvalidError, NotFoundError
 from lookout.application.services import Services
-from lookout.application.sources import DisabledInConfigError, UnknownSourceError
 from lookout.application.triage import Action, ItemNotFoundError
+from lookout.domain.channel import Channel
 from lookout.domain.item import InvalidTransitionError
 from lookout.domain.priority import Priority
+from lookout.domain.source import SourceDef
 from lookout.domain.state import State
 
 DEFAULT_STATES = frozenset({State.NEW, State.SEEN})
@@ -129,22 +137,52 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     @app.get("/api/taxonomy")
     def taxonomy() -> TaxonomyOut:
         return TaxonomyOut(
-            channels=[ChannelOut(name=c.name, description=c.description) for c in services.channels],
+            channels=[
+                ChannelOut(name=c.name, description=c.description) for c in services.registry.channels()
+            ],
             kinds=list(services.kinds),
         )
+
+    @app.get("/api/source-types")
+    def source_types() -> list[SourceTypeOut]:
+        return [SourceTypeOut.of(info) for info in services.source_types]
 
     @app.get("/api/sources")
     def sources() -> list[SourceOut]:
         return [SourceOut.of(v) for v in services.sources.list()]
 
+    @app.post("/api/sources", status_code=201)
+    def add_source(body: SourceCreate) -> SourceOut:
+        stored = _guard(lambda: services.registry.add_source(_definition(body.name, body)))
+        return SourceOut.of(services.sources.view(stored))
+
+    @app.put("/api/sources/{name}")
+    def change_source(name: str, body: SourceBody) -> SourceOut:
+        stored = _guard(lambda: services.registry.update_source(_definition(name, body)))
+        return SourceOut.of(services.sources.view(stored))
+
     @app.patch("/api/sources/{name}")
     def patch_source(name: str, body: SourcePatch) -> SourceOut:
-        try:
-            return SourceOut.of(services.sources.set_enabled(name, enabled=body.enabled))
-        except UnknownSourceError:
-            raise HTTPException(404, f"no source {name}") from None
-        except DisabledInConfigError:
-            raise HTTPException(409, f"{name} is disabled in lookout.yaml; enable it there") from None
+        stored = _guard(lambda: services.registry.set_enabled(name, enabled=body.enabled))
+        return SourceOut.of(services.sources.view(stored))
+
+    @app.delete("/api/sources/{name}", status_code=204)
+    def delete_source(name: str) -> None:
+        _guard(lambda: services.registry.remove_source(name))
+
+    @app.post("/api/channels", status_code=201)
+    def add_channel(body: ChannelIn) -> ChannelOut:
+        stored = _guard(lambda: services.registry.add_channel(Channel(body.name, body.description)))
+        return ChannelOut(name=stored.name, description=stored.description)
+
+    @app.patch("/api/channels/{name}")
+    def change_channel(name: str, body: ChannelPatch) -> ChannelOut:
+        stored = _guard(lambda: services.registry.update_channel(name, body.description))
+        return ChannelOut(name=stored.name, description=stored.description)
+
+    @app.delete("/api/channels/{name}", status_code=204)
+    def delete_channel(name: str) -> None:
+        _guard(lambda: services.registry.remove_channel(name))
 
     @app.get("/api/run")
     def run_status() -> RunOut:
@@ -162,6 +200,29 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     if static_dir is not None and static_dir.is_dir():
         _serve_dashboard(app, static_dir)
     return app
+
+
+def _definition(name: str, body: SourceBody) -> SourceDef:
+    return SourceDef(
+        name=name,
+        type=body.type,
+        settings=body.settings,
+        channels=tuple(body.channels),
+        keywords=tuple(body.keywords),
+        enabled=body.enabled,
+    )
+
+
+def _guard[T](change: Callable[[], T]) -> T:
+    """Run a change to sources or channels, turning what it refuses into the right HTTP answer."""
+    try:
+        return change()
+    except NotFoundError as error:
+        raise HTTPException(404, f"no such source or channel: {error}") from None
+    except (DuplicateError, InUseError) as error:
+        raise HTTPException(409, str(error)) from None
+    except InvalidError as error:
+        raise HTTPException(422, str(error)) from None
 
 
 def _wake(now: datetime, body: ActionIn) -> datetime:

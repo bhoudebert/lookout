@@ -35,9 +35,9 @@ With items selected, `e`, `d` and `s` apply to all of them. A bulk action is all
 
 Every action shows a message with **Undo** for eight seconds.
 
-## Sources
+## Sources and channels
 
-The **Sources** page shows each source's last run, item count and last error, and lets you switch it off or on. A source disabled in `lookout.yaml` can only be enabled there.
+The **Sources** page shows each source's type, channels, last run, item count and last error. From there you add, edit, switch and delete sources, and manage channels. See [sources and channels](/sources).
 
 ## Run now
 

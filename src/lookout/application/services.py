@@ -7,10 +7,11 @@ from pathlib import Path
 from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.reassess import Reassess
+from lookout.application.registry import Registry
 from lookout.application.runs import RunCoordinator, RunReport
+from lookout.application.source_types import SourceTypeInfo
 from lookout.application.sources import SourceDirectory
 from lookout.application.triage import Inbox, Triage
-from lookout.domain.channel import Channel
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +33,8 @@ class Services:
     reassess: Reassess
     personalize: Personalize
     sources: SourceDirectory
+    registry: Registry
+    source_types: tuple[SourceTypeInfo, ...]
     runs: RunCoordinator
     clock: Clock
     run: Callable[[], RunReport]
@@ -39,7 +42,6 @@ class Services:
     seed_demo: Callable[[], int]
     export: Callable[[], Iterable[str]]
     kinds: tuple[str, ...]
-    channels: tuple[Channel, ...]
     schedule_minutes: int
     dashboard_dir: Path
     close: Callable[[], None]

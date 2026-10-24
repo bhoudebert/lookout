@@ -1,11 +1,13 @@
 """The JSON shapes of the API. The frontend's TypeScript types are generated from these."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 from lookout.application.personalize import Explanation
 from lookout.application.runs import RunStatus
+from lookout.application.source_types import SourceTypeInfo
 from lookout.application.sources import SourceView
 from lookout.application.triage import Action
 from lookout.domain.item import Item
@@ -157,11 +159,14 @@ class SeenBelowIn(BaseModel):
 
 
 class SourceOut(BaseModel):
-    """A source and its health."""
+    """A source, its settings and how its last run went."""
 
     name: str
     type: str
     enabled: bool
+    channels: list[str]
+    keywords: list[str]
+    settings: dict[str, Any]
     last_run: datetime | None
     last_error: str | None
     items_seen: int
@@ -172,10 +177,81 @@ class SourceOut(BaseModel):
             name=view.name,
             type=view.type,
             enabled=view.enabled,
+            channels=list(view.channels),
+            keywords=list(view.keywords),
+            settings=view.settings,
             last_run=view.last_run,
             last_error=view.last_error,
             items_seen=view.items_seen,
         )
+
+
+class SourceBody(BaseModel):
+    """Everything about a source except its name."""
+
+    type: str
+    settings: dict[str, Any] = Field(default_factory=dict[str, Any])
+    channels: list[str] = Field(default_factory=list[str], description="Empty means every channel.")
+    keywords: list[str] = Field(default_factory=list[str])
+    enabled: bool = True
+
+
+class SourceCreate(SourceBody):
+    """A new source."""
+
+    name: str
+
+
+class FieldOut(BaseModel):
+    """One setting a type of source takes."""
+
+    name: str
+    label: str
+    kind: str = Field(description="text, list (one entry per line), bool or number")
+    required: bool
+    default: Any = None
+    help: str
+
+
+class SourceTypeOut(BaseModel):
+    """A type of source and the form it needs."""
+
+    name: str
+    label: str
+    description: str
+    fields: list[FieldOut]
+
+    @classmethod
+    def of(cls, info: SourceTypeInfo) -> "SourceTypeOut":
+        return cls(
+            name=info.name,
+            label=info.label,
+            description=info.description,
+            fields=[
+                FieldOut(
+                    name=f.name,
+                    label=f.label,
+                    kind=f.kind,
+                    required=f.required,
+                    default=f.default,
+                    help=f.help,
+                )
+                for f in info.fields
+            ],
+        )
+
+
+class ChannelIn(BaseModel):
+    """A new channel."""
+
+    name: str
+    description: str = ""
+
+
+class ChannelPatch(BaseModel):
+    """A new description for a channel."""
+
+    description: str
 
 
 class SourcePatch(BaseModel):

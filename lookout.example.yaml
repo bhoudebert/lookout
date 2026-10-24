@@ -34,6 +34,8 @@ stack:
   - name: react
     ecosystem: npm
 
+# Sources and channels only seed the dashboard on the very first start; after that, manage them
+# on its Sources page.
 sources:
   - name: python-insider
     type: rss

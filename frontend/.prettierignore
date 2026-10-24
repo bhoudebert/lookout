@@ -1,0 +1,6 @@
+src/api/schema.ts
+openapi.json
+coverage
+dist
+playwright-report
+test-results

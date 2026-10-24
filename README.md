@@ -12,6 +12,7 @@ dismissed. Lookout learns from what you act on.
 - **Priority you can trust:** P0 to P3, from deterministic rules first (a critical advisory on a dependency you
   declared is never below P1), the model second. Every priority carries its reason.
 - **Personal:** stars, reads and dismissals shape the ranking; the "why this rank" is always visible.
+- **Configured in the dashboard:** add sources (the rivers) and channels (AI, Rust, ...) from the Sources page; the file only seeds them.
 - **Triage, not a digest:** an inbox with states, keyboard shortcuts and filters by priority, channel, kind and source.
 - **Yours:** one SQLite file, one container (or a NixOS module), MIT licence.
 
