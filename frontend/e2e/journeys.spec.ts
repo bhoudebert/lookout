@@ -399,60 +399,65 @@ test("nothing is lost on a phone-sized screen", async ({ page }) => {
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test.describe("accessibility", () => {
-  const scan = async (page: Page) => {
-    const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
-    expect(
-      result.violations.map(
-        (v) =>
-          `${v.id}: ${v.help} -> ${v.nodes.map((n) => `${n.target.join(" ")} (${n.any[0]?.message ?? ""})`).join("; ")}`,
-      ),
-    ).toEqual([]);
-  };
+// Both colour schemes are scanned: the dark one is what many people see, and contrast fails there first.
+for (const scheme of ["light", "dark"] as const) {
+  test.describe(`accessibility, ${scheme} theme`, () => {
+    test.use({ colorScheme: scheme });
 
-  test("the inbox", async ({ page }) => {
-    await page.goto("/");
-    await expect(items(page).first()).toBeVisible();
-    await scan(page);
-  });
+    const scan = async (page: Page) => {
+      const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+      expect(
+        result.violations.map(
+          (v) =>
+            `${v.id}: ${v.help} -> ${v.nodes.map((n) => `${n.target.join(" ")} (${n.any[0]?.message ?? ""})`).join("; ")}`,
+        ),
+      ).toEqual([]);
+    };
 
-  test("an open item", async ({ page }) => {
-    await page.goto("/");
-    await title(page, DJANGO).click();
-    await expect(page.getByRole("complementary", { name: "Item detail" })).toBeVisible();
-    await scan(page);
-  });
+    test("the inbox", async ({ page }) => {
+      await page.goto("/");
+      await expect(items(page).first()).toBeVisible();
+      await scan(page);
+    });
 
-  test("the sources", async ({ page }) => {
-    await page.goto("/sources");
-    await expect(page.getByRole("table")).toBeVisible();
-    await scan(page);
-  });
+    test("an open item", async ({ page }) => {
+      await page.goto("/");
+      await title(page, DJANGO).click();
+      await expect(page.getByRole("complementary", { name: "Item detail" })).toBeVisible();
+      await scan(page);
+    });
 
-  test("the suggested sources, opened", async ({ page }) => {
-    await page.goto("/sources");
-    await page.locator("summary", { hasText: /^Reddit communities/ }).click();
-    await expect(page.getByRole("button", { name: "+ Reddit: AI" })).toBeVisible();
-    await scan(page);
-  });
+    test("the sources", async ({ page }) => {
+      await page.goto("/sources");
+      await expect(page.getByRole("table")).toBeVisible();
+      await scan(page);
+    });
 
-  test("the categories", async ({ page }) => {
-    await page.goto("/categories");
-    await expect(page.getByRole("region", { name: "Categories" })).toBeVisible();
-    await scan(page);
-  });
+    test("the suggested sources, opened", async ({ page }) => {
+      await page.goto("/sources");
+      await page.locator("summary", { hasText: /^Reddit communities/ }).click();
+      await expect(page.getByRole("button", { name: "+ Reddit: AI" })).toBeVisible();
+      await scan(page);
+    });
 
-  test("the source form", async ({ page }) => {
-    await page.goto("/sources");
-    await page.getByRole("button", { name: "Add a source" }).click();
-    await expect(page.getByRole("form", { name: "Add a source" })).toBeVisible();
-    await scan(page);
-  });
+    test("the categories", async ({ page }) => {
+      await page.goto("/categories");
+      await expect(page.getByRole("region", { name: "Categories" })).toBeVisible();
+      await scan(page);
+    });
 
-  test("the shortcut help", async ({ page }) => {
-    await page.goto("/");
-    await page.keyboard.press("?");
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await scan(page);
+    test("the source form", async ({ page }) => {
+      await page.goto("/sources");
+      await page.getByRole("button", { name: "Add a source" }).click();
+      await expect(page.getByRole("form", { name: "Add a source" })).toBeVisible();
+      await scan(page);
+    });
+
+    test("the shortcut help", async ({ page }) => {
+      await page.goto("/");
+      await page.keyboard.press("?");
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await scan(page);
+    });
   });
-});
+}
