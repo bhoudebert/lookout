@@ -28,9 +28,31 @@ The `rss` kind reads RSS and Atom, which already covers a lot:
 | Hacker News                       | `https://hnrss.org/frontpage`                            |
 | A YouTube channel                 | `https://www.youtube.com/feeds/videos.xml?channel_id=ID` |
 
+## GitHub: releases, security advisories, Dependabot
+
+The `github` kind reads repositories you name and gives advisories **structured data** (severity, package, identifiers), which is what the [priority rules](/priorities) need.
+
+```yaml
+sources:
+  - name: my-repos
+    kind: github
+    repos: [acme/api-service, acme/web]
+    kinds: [releases, advisories, dependabot] # default: releases and advisories
+```
+
+| Kind         | Reads                                                    | Needs                                      |
+| ------------ | -------------------------------------------------------- | ------------------------------------------ |
+| `releases`   | published releases (drafts skipped, pre-releases marked) | nothing special for public repositories    |
+| `advisories` | published security advisories of the repository          | nothing special for public repositories    |
+| `dependabot` | open Dependabot alerts                                   | access to the repository's security alerts |
+
+An advisory or alert on a repository you list **counts as affecting your stack**: critical is at least P0, high at least P1, even if the package is not in your `stack`.
+
+Lookout reaches GitHub with your local `gh` login when you have one (no token to store), otherwise with a token from `LOOKOUT_GITHUB_TOKEN` or `GITHUB_TOKEN`. Choose with `github.via` in the [configuration](/configuration). `lookout doctor` says which one is used. With neither, only the GitHub sources fail, with a message that says how to fix it.
+
 ## Coming
 
-Dedicated adapters, so advisories carry structured severity and package data that feeds the [priority rules](/priorities): GitHub security advisories and Dependabot alerts (through your local `gh` login), OSV and NVD, and website-change watching. See the [roadmap](https://github.com/bhoudebert/lookout/blob/main/ROADMAP.md).
+OSV and NVD, so advisories for packages in your stack arrive even from repositories you do not watch, and website-change watching. Dedicated Hacker News and Reddit adapters are planned too. See the [roadmap](https://github.com/bhoudebert/lookout/blob/main/ROADMAP.md).
 
 ## Politeness and failures
 

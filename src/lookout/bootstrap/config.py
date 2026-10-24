@@ -40,6 +40,13 @@ class ScheduleConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class GitHubConfig:
+    """How GitHub is reached: ``auto`` prefers the local ``gh`` login, then ``LOOKOUT_GITHUB_TOKEN``."""
+
+    via: str = "auto"
+
+
+@dataclass(frozen=True, slots=True)
 class SourceConfig:
     """One declared source."""
 
@@ -63,6 +70,7 @@ class Config:
     sources: tuple[SourceConfig, ...] = ()
     personalization: PersonalizationConfig = field(default_factory=PersonalizationConfig)
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
+    github: GitHubConfig = field(default_factory=GitHubConfig)
     dashboard_dir: Path = Path("frontend/dist")
     body_limit: int = 4000
 
@@ -100,6 +108,7 @@ def load_config(
                 reader.mapping(root.get("schedule", {}), "schedule"), "interval_minutes", 60
             )
         ),
+        github=_github(reader, reader.mapping(root.get("github", {}), "github")),
         dashboard_dir=Path(reader.text(root, "dashboard_dir", "frontend/dist")),
         body_limit=reader.integer(root, "body_limit", 4000, minimum=100),
     )
@@ -182,6 +191,16 @@ def _personalization(reader: _Reader, data: dict[str, Any]) -> PersonalizationCo
         half_life_days=reader.integer(data, "half_life_days", base.half_life_days, minimum=1),
         minimum_signals=reader.integer(data, "minimum_signals", base.minimum_signals),
     )
+
+
+GITHUB_WAYS = ("auto", "gh", "token")
+
+
+def _github(reader: _Reader, data: dict[str, Any]) -> GitHubConfig:
+    via = reader.text(data, "via", "auto")
+    if via not in GITHUB_WAYS:
+        raise reader.fail("via", f"one of {', '.join(GITHUB_WAYS)}")
+    return GitHubConfig(via=via)
 
 
 def _thresholds(reader: _Reader, data: dict[str, Any]) -> Thresholds:

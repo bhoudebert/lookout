@@ -1,0 +1,30 @@
+[
+  {
+    "ghsa_id": "GHSA-aaaa-bbbb-cccc",
+    "cve_id": "CVE-2026-1234",
+    "summary": "SQL injection in JSON lookups",
+    "description": "A crafted key allows SQL injection.",
+    "severity": "critical",
+    "html_url": "https://github.com/o/r/security/advisories/GHSA-aaaa-bbbb-cccc",
+    "published_at": "2026-10-23T08:00:00Z",
+    "vulnerabilities": [
+      {
+        "package": { "ecosystem": "pip", "name": "Django" },
+        "vulnerable_version_range": "< 5.2.9",
+        "patched_versions": "5.2.9"
+      },
+      { "package": "not an object" },
+      "junk"
+    ]
+  },
+  {
+    "ghsa_id": "GHSA-dddd-eeee-ffff",
+    "cve_id": null,
+    "summary": "Odd severity, no package",
+    "description": "",
+    "severity": "unknown",
+    "html_url": "https://github.com/o/r/security/advisories/GHSA-dddd-eeee-ffff",
+    "vulnerabilities": "oops"
+  },
+  { "summary": "no url, dropped" }
+]

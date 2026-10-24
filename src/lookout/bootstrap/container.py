@@ -1,13 +1,20 @@
 """Wiring: builds every adapter from the configuration and hands the use cases to the entry points."""
 
-from collections.abc import Callable
+import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 import httpx
 
 from lookout.adapters.clock import SystemClock
+from lookout.adapters.github.gh_cli import GhCliGateway, gh_is_logged_in
+from lookout.adapters.github.rest import RestGateway
+from lookout.adapters.github.unavailable import UnavailableGateway
 from lookout.adapters.llm.openai_compatible import OpenAiEnricher
+from lookout.adapters.sources.github import KINDS as GITHUB_KINDS
+from lookout.adapters.sources.github import GitHubFetcher
 from lookout.adapters.sources.rss import RssFetcher
 from lookout.adapters.store.codec import encode
 from lookout.adapters.store.sqlite import (
@@ -19,6 +26,7 @@ from lookout.adapters.store.sqlite import (
 )
 from lookout.application.enrich import Enrich
 from lookout.application.errors import ConfigError
+from lookout.application.github import GitHubGateway
 from lookout.application.ingest import Ingest
 from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
@@ -37,15 +45,64 @@ HTTP_TIMEOUT = 30.0
 LLM_TIMEOUT = 300.0
 
 
-def _rss(source: SourceConfig, client: httpx.Client) -> SourceFetcher:
+@dataclass(frozen=True, slots=True)
+class Ways:
+    """What source adapters may need from the outside, chosen once at wiring."""
+
+    http: httpx.Client
+    github: GitHubGateway
+
+
+def _rss(source: SourceConfig, ways: Ways) -> SourceFetcher:
     url = source.settings.get("url")
     if not isinstance(url, str) or not url:
         msg = f"source '{source.name}' (rss) needs a 'url'"
         raise ConfigError(msg)
-    return RssFetcher(source.name, url, client, keywords=source.keywords)
+    return RssFetcher(source.name, url, ways.http, keywords=source.keywords)
 
 
-SOURCE_KINDS: dict[str, Callable[[SourceConfig, httpx.Client], SourceFetcher]] = {"rss": _rss}
+REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+
+
+def _github(source: SourceConfig, ways: Ways) -> SourceFetcher:
+    repos = source.settings.get("repos")
+    if (
+        not isinstance(repos, list)
+        or not repos
+        or not all(isinstance(r, str) for r in cast("list[object]", repos))
+    ):
+        msg = f"source '{source.name}' (github) needs 'repos': a list of owner/name"
+        raise ConfigError(msg)
+    for repo in cast("list[str]", repos):
+        if not REPO.match(repo):
+            msg = f"source '{source.name}' (github): '{repo}' is not of the form owner/name"
+            raise ConfigError(msg)
+    kinds = source.settings.get("kinds", ["releases", "advisories"])
+    if not isinstance(kinds, list) or not kinds or not set(cast("list[object]", kinds)) <= set(GITHUB_KINDS):
+        msg = f"source '{source.name}' (github): 'kinds' must be a list of {', '.join(GITHUB_KINDS)}"
+        raise ConfigError(msg)
+    return GitHubFetcher(
+        source.name, tuple(cast("list[str]", repos)), tuple(cast("list[str]", kinds)), ways.github
+    )
+
+
+SOURCE_KINDS: dict[str, Callable[[SourceConfig, Ways], SourceFetcher]] = {"rss": _rss, "github": _github}
+
+
+def choose_gateway(
+    via: str,
+    client: httpx.Client,
+    environ: Mapping[str, str],
+    *,
+    logged_in: Callable[[], bool] = gh_is_logged_in,
+) -> GitHubGateway:
+    """How to reach GitHub: ``gh`` when logged in, else a token, else a gateway that says why not."""
+    token = environ.get("LOOKOUT_GITHUB_TOKEN") or environ.get("GITHUB_TOKEN") or ""
+    if via in ("auto", "gh") and logged_in():
+        return GhCliGateway()
+    if via in ("auto", "token") and token:
+        return RestGateway(client, token)
+    return UnavailableGateway()
 
 
 @dataclass
@@ -66,6 +123,7 @@ class Container:
     sources: SourceDirectory
     fetchers: tuple[SourceFetcher, ...]
     http: httpx.Client
+    github_via: str
     llm_http: httpx.Client
     runs: RunCoordinator = field(init=False)
 
@@ -90,7 +148,9 @@ class Container:
             runs=self.runs,
             clock=self.clock,
             run=self._run,
-            doctor=lambda: run_checks(self.config, self.database, self.llm_http, self.fetchers),
+            doctor=lambda: run_checks(
+                self.config, self.database, self.llm_http, self.fetchers, self.github_via
+            ),
             seed_demo=lambda: seed_demo(
                 self.items, self.clock.now(), PriorityPolicy(self.config.thresholds), self.config.stack
             ),
@@ -116,6 +176,8 @@ def build(
     *,
     transport: httpx.BaseTransport | None = None,
     clock: Clock | None = None,
+    github: GitHubGateway | None = None,
+    environ: Mapping[str, str] | None = None,
 ) -> Container:
     """Wire adapters to use cases. ``transport`` lets tests answer every HTTP call."""
     clock = clock or SystemClock()
@@ -124,7 +186,8 @@ def build(
     http = httpx.Client(transport=transport, timeout=HTTP_TIMEOUT)
     llm_http = httpx.Client(transport=transport, timeout=LLM_TIMEOUT)
     try:
-        return _assemble(config, database, clock, http, llm_http)
+        gateway = github or choose_gateway(config.github.via, http, environ or {})
+        return _assemble(config, database, clock, Ways(http, gateway), llm_http)
     except Exception:
         http.close()
         llm_http.close()
@@ -133,7 +196,7 @@ def build(
 
 
 def _assemble(
-    config: Config, database: Database, clock: Clock, http: httpx.Client, llm_http: httpx.Client
+    config: Config, database: Database, clock: Clock, ways: Ways, llm_http: httpx.Client
 ) -> Container:
     items = SqliteItemRepository(database)
     statuses = SqliteSourceStatusRepository(database)
@@ -178,7 +241,8 @@ def _assemble(
         sources=SourceDirectory(
             tuple(DeclaredSource(s.name, s.kind, s.enabled) for s in config.sources), statuses
         ),
-        fetchers=tuple(SOURCE_KINDS[s.kind](s, http) for s in config.sources if s.enabled),
-        http=http,
+        fetchers=tuple(SOURCE_KINDS[s.kind](s, ways) for s in config.sources if s.enabled),
+        http=ways.http,
+        github_via=ways.github.via,
         llm_http=llm_http,
     )
