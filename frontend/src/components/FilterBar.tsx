@@ -1,7 +1,7 @@
 import { AGES, PRIORITIES } from "../api/types";
 import type { Age, Filters, Order, Priority, View } from "../api/types";
 
-const VIEWS: { value: View; label: string }[] = [
+export const VIEWS: { value: View; label: string }[] = [
   { value: "inbox", label: "Inbox" },
   { value: "snoozed", label: "Snoozed" },
   { value: "done", label: "Done" },

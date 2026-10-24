@@ -15,6 +15,9 @@ The list SHALL offer two orders, Triage (priority, the default) and Latest (newe
 arrived since the user's last visit), kept in the URL. It SHALL load 50 items at a time with a "Load more" control and
 the real total, in both orders and in every view, including `expired`.
 
+While a text search is typed and the view is not `all`, the dashboard SHALL say which view is being searched and offer
+one control that switches to the `all` view and clears the age filter.
+
 #### Scenario: Filter by priority
 
 - **WHEN** the user selects P0 and P1

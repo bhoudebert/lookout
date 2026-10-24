@@ -4,7 +4,7 @@ import { useAct, useBulk, useItems, useRestore, useRestoreMany, useSeenBelow, us
 import { readLastVisit, rememberVisit } from "../lastVisit";
 import { useShortcuts } from "../shortcuts";
 import { CategoryTree } from "./CategoryTree";
-import { FilterBar } from "./FilterBar";
+import { FilterBar, VIEWS } from "./FilterBar";
 import { ItemDetail } from "./ItemDetail";
 import { ItemList } from "./ItemList";
 import { HelpDialog, SnoozeMenu, Toast } from "./Overlays";
@@ -258,6 +258,20 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
       )}
       <div className="inbox-main">
         <FilterBar filters={filters} sources={sourceNames} onChange={onFilters} />
+        {filters.text && filters.view !== "all" && (
+          <p className="nudge" role="note">
+            Searching only <strong>{VIEWS.find((v) => v.value === filters.view)?.label}</strong>. Done, dismissed,
+            snoozed and expired items, and older ones, are not looked at.{" "}
+            <button
+              type="button"
+              onClick={() => {
+                onFilters({ ...filters, view: "all", age: "" });
+              }}
+            >
+              Search everything
+            </button>
+          </p>
+        )}
         {list.length > 0 && list.every((i) => i.channel === "Other") && (
           <p className="nudge" role="note">
             Everything here is in <strong>Other</strong>. <a href="/categories">Define categories</a> (AI, Dev &gt;

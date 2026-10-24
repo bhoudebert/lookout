@@ -267,3 +267,38 @@ describe("the counts beside the list", () => {
     expect(screen.getByText("1 of 1")).toBeInTheDocument();
   });
 });
+
+describe("searching beyond the inbox", () => {
+  const archive = () => [
+    aged(1, { title: "Django release" }),
+    aged(90, { title: "Django old news", state: "done" }),
+    aged(200, { title: "Django ancient", state: "expired" }),
+  ];
+
+  it("says what a search looks at and widens it in one click, to every state and age", async () => {
+    const { user } = mount(new FakeBackend(archive()));
+    await screen.findByRole("button", { name: "Django release" });
+    expect(screen.queryByText(/Searching only/)).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Search"), "django");
+    const note = await screen.findByRole("note");
+    expect(note).toHaveTextContent("Searching only Inbox");
+    await waitFor(() => {
+      expect(rows()).toHaveLength(1);
+    });
+
+    await user.selectOptions(screen.getByLabelText("Age"), "newer7");
+    await user.click(within(note).getByRole("button", { name: "Search everything" }));
+    await waitFor(() => {
+      expect(rows()).toHaveLength(3);
+    });
+    expect(window.location.search).toContain("view=all");
+    expect(window.location.search).not.toContain("age=");
+    expect(screen.queryByText(/Searching only/)).not.toBeInTheDocument();
+  });
+
+  it("names the view that is being searched", async () => {
+    mount(new FakeBackend(archive()), "/?view=done&q=django");
+    expect(await screen.findByRole("note")).toHaveTextContent("Searching only Done");
+  });
+});

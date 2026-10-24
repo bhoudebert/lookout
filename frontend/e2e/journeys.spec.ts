@@ -373,6 +373,17 @@ test("a category can be created from the source form and the source files straig
   await expect(page.getByRole("button", { name: "Edit Hobbies", exact: true })).toHaveCount(0);
 });
 
+test("a search can be widened from the inbox to everything", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Search").fill("django");
+  await expect(page.getByRole("note").filter({ hasText: "Searching only Inbox" })).toBeVisible();
+  await page.getByRole("button", { name: "Search everything" }).click();
+  await expect(page).toHaveURL(/view=all/);
+  await expect(page.getByLabel("View")).toHaveValue("all");
+  await expect(page.getByRole("note").filter({ hasText: "Searching only" })).toHaveCount(0);
+  await page.getByLabel("Search").fill("");
+});
+
 test("the single-page app answers on any path, and the API still answers its own", async ({ page, request }) => {
   await page.goto("/sources");
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();

@@ -4,7 +4,8 @@ import { expect, test } from "@playwright/test";
 // Not part of the journeys: `npm run shots` starts a fresh server and sets SHOTS=1.
 test.skip(!process.env.SHOTS, "only when making the website's screenshots");
 
-const OUT = "../site/shots";
+// Where the screenshots go; a design proposal sets SHOTS_OUT to keep its own.
+const OUT = process.env.SHOTS_OUT ?? "../site/shots";
 
 test("the inbox, light and dark", async ({ browser }) => {
   for (const scheme of ["light", "dark"] as const) {
