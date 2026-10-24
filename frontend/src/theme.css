@@ -1,0 +1,300 @@
+/*
+ * Design proposal: MECH COCKPIT.
+ * A heads-up display: near-black glass, amber for what needs you, cyan for what is only information, monospace
+ * everywhere, square corners with bracket marks, a coloured threat stripe on each row. Dark only.
+ * This file is a layer on top of styles.css: delete the import in main.tsx to go back.
+ */
+:root {
+  color-scheme: dark;
+  --mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --bg: #080c10;
+  --fg: #d3e6ee;
+  --muted: #86a1ad;
+  --line: #1e3442;
+  --card: #0d141b;
+  --surface-2: #13202a;
+  --accent: #ffb000;
+  --accent-text: #ffb000;
+  --accent-fill: #ffb000;
+  --on-accent: #0a0e12;
+  --p0: #ff6464;
+  --p1: #ffb000;
+  --p2: #3fd8ff;
+  --p3: #8aa3ae;
+  --focus: #3fd8ff;
+}
+
+body {
+  font-family: var(--mono);
+  font-size: 15px;
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgb(63 216 255 / 0.07), transparent 60%),
+    radial-gradient(900px 400px at -10% 110%, rgb(255 176 0 / 0.05), transparent 60%), var(--bg);
+  scrollbar-color: #2b4352 var(--bg);
+}
+/* Faint scanlines over everything; they never take a click. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.022) 0 1px, transparent 1px 3px);
+}
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+h1,
+h2,
+legend,
+th,
+.caption,
+.tree-title,
+.filters label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+h1 {
+  font-size: 1.05rem;
+  letter-spacing: 0.3em;
+}
+h2 {
+  font-size: 1rem;
+  color: var(--accent-text);
+}
+header {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow:
+    0 1px 0 var(--line),
+    inset 0 -2px 0 rgb(255 176 0 / 0.35);
+}
+header nav a {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.8rem;
+  border-bottom-width: 2px;
+}
+header nav a[aria-current="page"] {
+  color: var(--accent-text);
+}
+
+/* Controls */
+button,
+select,
+input,
+textarea {
+  border-radius: 2px;
+}
+button {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+button:not(:disabled):hover,
+select:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--surface-2);
+}
+.run button {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+  letter-spacing: 0.14em;
+  box-shadow: 0 0 18px rgb(255 176 0 / 0.25);
+}
+.run button:disabled {
+  box-shadow: none;
+}
+.chip[aria-pressed="true"] {
+  background: var(--accent-fill);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.chip.p0:not([aria-pressed="true"]) {
+  color: var(--p0);
+}
+.chip.p1:not([aria-pressed="true"]) {
+  color: var(--p1);
+}
+.chip.p2:not([aria-pressed="true"]) {
+  color: var(--p2);
+}
+
+/* Panels carry bracket marks in two corners. */
+.filters,
+.tree,
+.detail,
+.presets,
+.manage-form,
+.channels,
+.modal,
+.item {
+  border-radius: 2px;
+  border-color: var(--line);
+  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 82%, #000));
+}
+/* The bracket marks need a positioned parent; the tree, the detail and the modal already are (sticky, fixed). */
+.filters,
+.presets,
+.manage-form,
+.item {
+  position: relative;
+}
+@media (max-width: 899px) {
+  .tree {
+    position: relative;
+  }
+}
+.filters::before,
+.tree::before,
+.detail::before,
+.presets::before,
+.manage-form::before,
+.modal::before,
+.filters::after,
+.tree::after,
+.detail::after,
+.presets::after,
+.manage-form::after,
+.modal::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  border: 0 solid var(--accent);
+}
+.filters::before,
+.tree::before,
+.detail::before,
+.presets::before,
+.manage-form::before,
+.modal::before {
+  top: 0;
+  left: 0;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+.filters::after,
+.tree::after,
+.detail::after,
+.presets::after,
+.manage-form::after,
+.modal::after {
+  right: 0;
+  bottom: 0;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+.modal {
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 24px 70px rgb(0 0 0 / 0.7);
+}
+
+/* Items: a threat stripe on the left, the focused one lit like a locked target. */
+.item {
+  border-left: 3px solid var(--line);
+}
+.item:has(.badge.p0) {
+  border-left-color: var(--p0);
+}
+.item:has(.badge.p1) {
+  border-left-color: var(--p1);
+}
+.item:has(.badge.p2) {
+  border-left-color: var(--p2);
+}
+.item.focused {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 22px rgb(255 176 0 / 0.16);
+}
+.title {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 1rem;
+  background: none;
+}
+.title:hover {
+  color: var(--accent-text);
+  background: none;
+  text-decoration: none;
+}
+.badge {
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.7rem;
+}
+.channel {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+}
+.tags span {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.divider {
+  border-top-color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* The category tree is a target list. */
+.tree button {
+  border-radius: 2px;
+  font-size: 0.82rem;
+}
+.tree button[data-depth]:not([data-depth="0"]) {
+  font-size: 0.78rem;
+}
+.tree button:hover {
+  background: var(--surface-2);
+}
+.tree button[aria-current="true"] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-text);
+  box-shadow: inset 3px 0 var(--accent);
+}
+.tree button[aria-current="true"] .count {
+  color: var(--accent-text);
+}
+
+.nudge {
+  border-radius: 2px;
+  border-color: var(--line);
+  border-left: 3px solid var(--accent);
+}
+.toast {
+  border-radius: 2px;
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+.channels li,
+tbody tr {
+  border-color: var(--line);
+}
+tbody tr:hover {
+  background: var(--surface-2);
+}
+kbd {
+  border-radius: 2px;
+  font-family: var(--mono);
+}
+
+a {
+  color: var(--p2);
+}
+a:visited {
+  color: #9ab8ff;
+}
