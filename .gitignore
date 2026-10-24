@@ -11,7 +11,7 @@ dist/
 .direnv/
 result
 .env
-lookout.yaml
+/lookout.yaml
 data/
 playwright-report/
 test-results/
