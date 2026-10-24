@@ -15,6 +15,19 @@ With [direnv](https://direnv.net), run `direnv allow` once and the shell loads b
 
 Without Nix, install Python 3.13, [uv](https://docs.astral.sh/uv/), Node 24 and [just](https://just.systems), then run `just setup`.
 
+## Ready-made commands
+
+From the repository, without entering the shell:
+
+```sh
+nix run .#dev                   # demo data, builds the dashboard, serves it
+nix run .#lookout -- inbox      # any lookout command
+nix run .#doctor                # check the setup
+nix run .#quality               # the full gate
+```
+
+Inside the shell (or with direnv) `lookout` is on your PATH.
+
 ## Try it with demo data
 
 ```sh

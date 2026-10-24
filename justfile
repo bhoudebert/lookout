@@ -78,8 +78,22 @@ e2e: ui-build
 # The gate: the same command locally and in CI
 quality: fmt-check lint types contracts test api-check docs ui-lint ui-types ui-test e2e
 
-dev:
-    @echo "dev server arrives with the HTTP adapter"
+# Run any command of the CLI: `just lookout inbox -p P0`
+lookout *args:
+    uv run lookout {{args}}
+
+# The dashboard with demo data, from a clean checkout (creates lookout.yaml from the example if missing)
+dev: setup ui-build
+    [ -f lookout.yaml ] || cp lookout.example.yaml lookout.yaml
+    uv run lookout demo
+    uv run lookout serve
+
+# Serve the dashboard and run on the schedule (build it first with `just ui-build`)
+serve:
+    uv run lookout serve
+
+demo:
+    uv run lookout demo
 
 doctor:
-    uv run lookout --help
+    uv run lookout doctor
