@@ -41,32 +41,39 @@ class RssFetcher:
         except httpx.HTTPError as error:
             msg = f"{self._url}: {error}"
             raise SourceError(msg) from error
-        parsed = parse_feed(response.content)
-        if parsed.problem is not None:
-            msg = f"{self._url}: not a readable feed ({parsed.problem})"
-            raise SourceError(msg)
-        raws = (self._raw(entry) for entry in parsed.entries if entry.get("link"))
-        return tuple(r for r in raws if self._wanted(r))
+        return raws_from_feed(self._name, self._url, response.content, self._keywords)
 
-    def _raw(self, entry: dict[str, Any]) -> RawItem:
-        link = str(entry["link"])
-        contents = cast("list[dict[str, Any]]", entry.get("content") or [{}])
-        body = contents[0].get("value") or entry.get("summary") or ""
-        return RawItem(
-            source=self._name,
-            url=link,
-            title=str(entry.get("title") or link),
-            body=str(body),
-            published_at=_moment(entry.get("published_parsed") or entry.get("updated_parsed")),
-            author=_author(entry),
-            tags=_tags(entry),
-        )
 
-    def _wanted(self, raw: RawItem) -> bool:
-        if not self._keywords:
-            return True
-        text = f"{raw.title}\n{raw.body}".lower()
-        return any(k in text for k in self._keywords)
+def raws_from_feed(name: str, url: str, content: bytes, keywords: tuple[str, ...]) -> tuple[RawItem, ...]:
+    """The entries of feed bytes that pass the keyword filter; ``url`` only names the feed in a failure."""
+    parsed = parse_feed(content)
+    if parsed.problem is not None:
+        msg = f"{url}: not a readable feed ({parsed.problem})"
+        raise SourceError(msg)
+    raws = (_raw(name, entry) for entry in parsed.entries if entry.get("link"))
+    return tuple(r for r in raws if _wanted(r, keywords))
+
+
+def _raw(source: str, entry: dict[str, Any]) -> RawItem:
+    link = str(entry["link"])
+    contents = cast("list[dict[str, Any]]", entry.get("content") or [{}])
+    body = contents[0].get("value") or entry.get("summary") or ""
+    return RawItem(
+        source=source,
+        url=link,
+        title=str(entry.get("title") or link),
+        body=str(body),
+        published_at=_moment(entry.get("published_parsed") or entry.get("updated_parsed")),
+        author=_author(entry),
+        tags=_tags(entry),
+    )
+
+
+def _wanted(raw: RawItem, keywords: tuple[str, ...]) -> bool:
+    if not keywords:
+        return True
+    text = f"{raw.title}\n{raw.body}".lower()
+    return any(k in text for k in keywords)
 
 
 def _author(entry: dict[str, Any]) -> str:

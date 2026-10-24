@@ -102,13 +102,57 @@ sources:
     keywords: [rust, security] # optional, like any source
 ```
 
+## Reddit
+
+The `reddit` type reads several communities in **one** request, so keep your subreddits together in one source:
+
+```yaml
+sources:
+  - name: reddit dev
+    type: reddit
+    subreddits: [programming, rust, r/java, https://www.reddit.com/r/python/] # names, r/names or addresses
+    sort: hot # hot (default) or new
+    limit: 100 # posts per run, 1 to 100 (default 100)
+```
+
+Reddit lets an anonymous client make about **one request a minute**. When it says to slow down, the source waits as
+long as Reddit asks (up to 90 seconds) and tries once more. Each Reddit source therefore costs about a minute of a run,
+which is another reason to group communities. Reddit shares **no scores or comment counts** with anonymous clients, so
+posts are ranked by the model and your profile, not by votes.
+
+## YouTube
+
+The `youtube` type follows one channel. Give its `@handle`, its address, or its id; Lookout finds the feed:
+
+```yaml
+sources:
+  - name: fireship
+    type: youtube
+    channel: "@fireship" # or https://www.youtube.com/@fireship, or UCsBjURrPoezykLs9EqgamOA
+```
+
+A channel is a person or an organisation; there is no "all of YouTube". Add one source per channel you want.
+
 ## Suggested sources
 
-The **Sources** page suggests sources to start with, each with an address that was checked: Hacker News and Lobsters, the official Rust blog, Inside Rust and This Week in Rust, Inside Java and the Spring blog, and some well-read AI blogs. One click adds the source and, if it does not exist yet, the category it files in (`Dev > Rust`, `Dev > Java`, `AI`).
+The **Sources** page suggests sources to start with, grouped by theme and collapsed until you open one. Each address was
+checked. One click adds the source and, if it does not exist yet, the category it files in.
+
+- **Link sites:** Hacker News (100+ points), Lobsters.
+- **Rust, Java, AI blogs:** the official Rust blog, Inside Rust and This Week in Rust; Inside Java and the Spring blog;
+  Simon Willison, Hugging Face, OpenAI, Latent Space and Google Research.
+- **Security:** OSV vulnerabilities (filed in `Security`; it needs your `stack` in `lookout.yaml`).
+- **Service status:** GitHub, Google Cloud, Cloudflare, OpenAI, Anthropic, Vercel, npm, AWS, Azure, Slack and
+  DigitalOcean, filed in `Status`.
+- **Reddit communities:** programming, AI, security, ops and France, each several communities in one source.
+- **YouTube channels:** Fireship, ThePrimeagen, Computerphile, ArjanCodes, Java, LiveOverflow, NetworkChuck and
+  Underscore_.
+- **News:** French news (Le Monde, franceinfo, France 24, Le Figaro, Libération, RFI), politics, world news (BBC, the
+  Guardian, Politico Europe) and French tech news, filed under `News > ...` and `Tech`.
 
 ## Coming
 
-Website-change watching and a dedicated Reddit adapter (scores, comment counts). See the [roadmap](https://github.com/bhoudebert/lookout/blob/main/ROADMAP.md).
+Website-change watching, and GitHub issues, pull requests and discussions. See the [roadmap](https://github.com/bhoudebert/lookout/blob/main/ROADMAP.md).
 
 ## Politeness and failures
 

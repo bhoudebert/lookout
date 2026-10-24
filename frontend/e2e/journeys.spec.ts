@@ -307,6 +307,7 @@ test("a category can be moved inside another and back, its items following", asy
 
 test("a suggested source is added with its category in one click", async ({ page }) => {
   await page.goto("/sources");
+  await page.locator("summary", { hasText: /^Java/ }).click();
   await page.getByRole("button", { name: "+ Inside Java" }).click();
   const row = page.getByRole("row", { name: /Inside Java/ });
   await expect(row).toContainText("Dev > Java");
@@ -391,6 +392,13 @@ test.describe("accessibility", () => {
   test("the sources", async ({ page }) => {
     await page.goto("/sources");
     await expect(page.getByRole("table")).toBeVisible();
+    await scan(page);
+  });
+
+  test("the suggested sources, opened", async ({ page }) => {
+    await page.goto("/sources");
+    await page.locator("summary", { hasText: /^Reddit communities/ }).click();
+    await expect(page.getByRole("button", { name: "+ Reddit: AI" })).toBeVisible();
     await scan(page);
   });
 

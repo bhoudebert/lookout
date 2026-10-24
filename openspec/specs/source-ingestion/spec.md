@@ -40,6 +40,21 @@ carry the tag `ask-hn` or `show-hn`. A service failure or an unreadable answer S
 - **WHEN** a story has no address
 - **THEN** its item is the discussion page, with the story's own text kept
 
+### Requirement: Reddit
+
+A source of type `reddit` SHALL read the posts of one or more communities (`subreddits`; a name, `r/name` or an address;
+duplicates read once) in a single request to one address naming them all, ordered `hot` (default) or `new`, at most
+`limit` posts (1 to 100, default 100). Each post SHALL be an item at its discussion page, by its poster, tagged with its
+community. When Reddit answers that requests are too frequent, the source SHALL wait as long as Reddit says (at most 90
+seconds) and try once more, then fail with a message saying it will try again later. Reddit shares no scores with
+anonymous clients, so none is shown.
+
+### Requirement: YouTube
+
+A source of type `youtube` SHALL read the recent videos of one channel, named by its `@handle`, its address or its id
+(`UC...`). A handle SHALL be resolved to the channel's id through its page; a name that is no channel SHALL fail the
+source with a message saying so. Each video SHALL be an item at its watch page, by the channel.
+
 ### Requirement: Dedupe
 
 An item SHALL be stored once per (source, external id). The same URL arriving from two sources (after removing

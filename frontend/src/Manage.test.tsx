@@ -95,6 +95,44 @@ describe("sources", () => {
     expect(screen.getByRole("button", { name: "+ Lobsters" })).toBeEnabled();
   });
 
+  it("groups the suggestions by theme and hides a theme once all of it is there", async () => {
+    const { PRESETS } = await import("./presets");
+    const backend = new FakeBackend(
+      [],
+      PRESETS.filter((p) => p.group === "rust").map((p) => makeSource({ name: p.name, settings: p.settings })),
+    );
+    mount(backend, "/sources");
+    const group = await screen.findByRole("group", { name: "Suggested sources" });
+    expect(within(group).queryByText("Rust")).not.toBeInTheDocument();
+    expect(within(group).getByText("Service status")).toBeInTheDocument();
+    expect(within(group).getByText("Reddit communities")).toBeInTheDocument();
+    expect(within(group).getByText(/one request a minute/)).toBeInTheDocument();
+  });
+
+  it("adds a Reddit suggestion with all its communities and the category it files in", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await user.click(await screen.findByRole("button", { name: "+ Reddit: France" }));
+    expect(await screen.findByRole("row", { name: /Reddit: France/ })).toHaveTextContent("News > France");
+    expect(calls(backend, "POST", "/api/channels")[0]?.body).toMatchObject({ name: "News > France" });
+    expect(calls(backend, "POST", "/api/sources")[0]?.body).toMatchObject({
+      type: "reddit",
+      settings: { subreddits: ["france", "programmation"], sort: "hot" },
+      channels: ["News > France"],
+    });
+  });
+
+  it("adds a YouTube channel by its handle", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await user.click(await screen.findByRole("button", { name: "+ YouTube: Fireship" }));
+    expect(await screen.findByRole("row", { name: /YouTube: Fireship/ })).toBeInTheDocument();
+    expect(calls(backend, "POST", "/api/sources")[0]?.body).toMatchObject({
+      type: "youtube",
+      settings: { channel: "@fireship" },
+    });
+  });
+
   it("stops suggesting once every suggestion is there", async () => {
     const { PRESETS } = await import("./presets");
     const backend = new FakeBackend(
