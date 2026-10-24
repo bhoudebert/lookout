@@ -1,0 +1,8 @@
+node_modules
+.venv
+uv.lock
+package-lock.json
+flake.lock
+CHANGELOG.md
+coverage
+dist

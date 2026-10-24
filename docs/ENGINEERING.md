@@ -59,15 +59,15 @@ Inbox ranking: urgency band first, then personal score (stars, reads, dismissals
 
 ## Ports
 
-| Port             | Role                                              | Adapters today                         |
-| ---------------- | ------------------------------------------------- | -------------------------------------- |
-| `SourceFetcher`  | Turn a configured source into raw items           | rss, hn, reddit, github, osv, nvd      |
-| `GitHubGateway`  | Releases, advisories, Dependabot alerts of a repo | `gh` CLI, REST with a token            |
-| `Enricher`       | Summarise, categorise, score one item             | OpenAI-compatible chat (JSON schema)   |
-| `Embedder`       | Vectors for similarity and personalization        | OpenAI-compatible embeddings           |
-| `ItemRepository` | Persist items, states, feedback, profile          | sqlite                                 |
-| `Clock`          | Time                                              | system, fixed (tests)                  |
-| `Notifier`       | Push P0/P1 out of the inbox                       | none yet                               |
+| Port             | Role                                              | Adapters today                       |
+| ---------------- | ------------------------------------------------- | ------------------------------------ |
+| `SourceFetcher`  | Turn a configured source into raw items           | rss, hn, reddit, github, osv, nvd    |
+| `GitHubGateway`  | Releases, advisories, Dependabot alerts of a repo | `gh` CLI, REST with a token          |
+| `Enricher`       | Summarise, categorise, score one item             | OpenAI-compatible chat (JSON schema) |
+| `Embedder`       | Vectors for similarity and personalization        | OpenAI-compatible embeddings         |
+| `ItemRepository` | Persist items, states, feedback, profile          | sqlite                               |
+| `Clock`          | Time                                              | system, fixed (tests)                |
+| `Notifier`       | Push P0/P1 out of the inbox                       | none yet                             |
 
 ## Data
 
