@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api/client";
-import type { Action, Filters } from "./api/types";
+import type { Action, Filters, SourceBody } from "./api/types";
 
 export const useItems = (filters: Filters) =>
   useQuery({ queryKey: ["items", filters], queryFn: () => api.items(filters) });
@@ -9,6 +9,9 @@ export const useItem = (id: string | null) =>
   useQuery({ queryKey: ["item", id], queryFn: () => api.item(id as string), enabled: id !== null });
 
 export const useTaxonomy = () => useQuery({ queryKey: ["taxonomy"], queryFn: api.taxonomy, staleTime: 60_000 });
+
+export const useSourceTypes = () =>
+  useQuery({ queryKey: ["source-types"], queryFn: api.sourceTypes, staleTime: Infinity });
 
 export const useSources = () => useQuery({ queryKey: ["sources"], queryFn: api.sources });
 
@@ -71,4 +74,28 @@ export function useStartRun() {
       client.setQueryData(["run"], status);
     },
   });
+}
+
+/** The management actions of sources and channels: each refreshes everything on screen, taxonomy included. */
+export function useManage() {
+  const refresh = useRefresh();
+  const options = { onSuccess: refresh };
+  return {
+    addSource: useMutation({ mutationFn: api.addSource, ...options }),
+    updateSource: useMutation({
+      mutationFn: ({ name, body }: { name: string; body: SourceBody }) => api.updateSource(name, body),
+      ...options,
+    }),
+    deleteSource: useMutation({ mutationFn: api.deleteSource, ...options }),
+    addChannel: useMutation({
+      mutationFn: ({ name, description }: { name: string; description: string }) => api.addChannel(name, description),
+      ...options,
+    }),
+    updateChannel: useMutation({
+      mutationFn: ({ name, description }: { name: string; description: string }) =>
+        api.updateChannel(name, description),
+      ...options,
+    }),
+    deleteChannel: useMutation({ mutationFn: api.deleteChannel, ...options }),
+  };
 }

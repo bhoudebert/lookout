@@ -116,7 +116,7 @@ def test_github_sources_default_to_releases_and_advisories(tmp_path: Path) -> No
     container = build(load(write(tmp_path, {"repos": ["o/r"]}), {}), github=FakeGitHub())
     try:
         assert container.github_via == "gh"
-        assert len(container.fetchers) == 1
+        assert len(container.fetchers()) == 1
     finally:
         container.close()
 

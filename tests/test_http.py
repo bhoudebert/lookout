@@ -163,31 +163,6 @@ def test_mark_everything_below_a_priority_as_seen(filled: Api) -> None:
     assert filled.client.post("/api/items/seen-below", json={"priority": "P7"}).status_code == 422
 
 
-def test_sources_can_be_switched_off_and_on(filled: Api) -> None:
-    (blog,) = filled.client.get("/api/sources").json()
-    assert (blog["name"], blog["type"], blog["enabled"], blog["items_seen"]) == ("blog", "rss", True, 3)
-    off = filled.client.patch("/api/sources/blog", json={"enabled": False}).json()
-    assert off["enabled"] is False
-    filled.lookout.network.feed = (filled.lookout.network.feed or b"").replace(b"nodate", b"another")  # type: ignore[union-attr]
-    filled.run()
-    assert filled.client.get("/api/run").json()["sources"][0]["skipped"] is True
-    assert filled.client.patch("/api/sources/blog", json={"enabled": True}).json()["enabled"] is True
-    assert filled.client.patch("/api/sources/nope", json={"enabled": True}).status_code == 404
-
-
-def test_a_source_disabled_in_the_file_cannot_be_enabled_from_the_dashboard(tmp_path: Path) -> None:
-    lookout = Lookout(
-        tmp_path, sources=[{"name": "off", "type": "rss", "url": "https://x", "enabled": False}]
-    )
-    instance = Api(lookout)
-    try:
-        assert instance.client.get("/api/sources").json()[0]["enabled"] is False
-        assert instance.client.patch("/api/sources/off", json={"enabled": True}).status_code == 409
-        assert instance.client.patch("/api/sources/off", json={"enabled": False}).json()["enabled"] is False
-    finally:
-        instance.services.close()
-
-
 def test_run_status_reports_the_last_run(filled: Api) -> None:
     status = filled.client.get("/api/run").json()
     assert (status["running"], status["enriched"], status["failed"], status["waiting"]) == (False, 3, 0, 0)

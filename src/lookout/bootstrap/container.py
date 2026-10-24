@@ -21,8 +21,11 @@ from lookout.adapters.sources.rss import RssFetcher
 from lookout.adapters.store.codec import encode
 from lookout.adapters.store.sqlite import (
     Database,
+    SqliteChannelDefinitions,
+    SqliteFlags,
     SqliteItemRepository,
     SqliteSignalRepository,
+    SqliteSourceDefinitions,
     SqliteSourceStatusRepository,
     SqliteUsageRepository,
 )
@@ -34,15 +37,18 @@ from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.ports_sources import SourceFetcher, SourceStatusRepository
 from lookout.application.reassess import Reassess
+from lookout.application.registry import InvalidError, Registry
 from lookout.application.runs import RunCoordinator, RunReport
 from lookout.application.services import Services
-from lookout.application.sources import DeclaredSource, SourceDirectory
+from lookout.application.source_types import FieldInfo, SourceTypeInfo
+from lookout.application.sources import SourceDirectory
 from lookout.application.triage import Inbox, Triage
-from lookout.bootstrap.config import Config, SourceConfig, load_config
+from lookout.bootstrap.config import Config, load_config
 from lookout.bootstrap.demo import seed_demo
 from lookout.bootstrap.doctor import run_checks
-from lookout.domain.channel import ChannelCatalogue, UnknownChannelError
+from lookout.domain.channel import UnknownChannelError
 from lookout.domain.policy import PriorityPolicy
+from lookout.domain.source import SourceDef
 from lookout.domain.stack import StackEntry
 
 HTTP_TIMEOUT = 30.0
@@ -59,10 +65,13 @@ class Ways:
     now: Callable[[], datetime]
 
 
-def _rss(source: SourceConfig, ways: Ways) -> SourceFetcher:
+def _rss(source: SourceDef, ways: Ways) -> SourceFetcher:
     url = source.settings.get("url")
     if not isinstance(url, str) or not url:
         msg = f"source '{source.name}' (rss) needs a 'url'"
+        raise ConfigError(msg)
+    if not url.startswith(("http://", "https://")):
+        msg = f"source '{source.name}' (rss): 'url' must start with http:// or https://"
         raise ConfigError(msg)
     return RssFetcher(source.name, url, ways.http, keywords=source.keywords)
 
@@ -70,7 +79,7 @@ def _rss(source: SourceConfig, ways: Ways) -> SourceFetcher:
 REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
-def _github(source: SourceConfig, ways: Ways) -> SourceFetcher:
+def _github(source: SourceDef, ways: Ways) -> SourceFetcher:
     repos = source.settings.get("repos")
     if (
         not isinstance(repos, list)
@@ -96,7 +105,7 @@ def _github(source: SourceConfig, ways: Ways) -> SourceFetcher:
     )
 
 
-def _osv(source: SourceConfig, ways: Ways) -> SourceFetcher:
+def _osv(source: SourceDef, ways: Ways) -> SourceFetcher:
     kev = source.settings.get("kev", True)
     days = source.settings.get("since_days", 30)
     if not isinstance(kev, bool):
@@ -108,10 +117,54 @@ def _osv(source: SourceConfig, ways: Ways) -> SourceFetcher:
     return OsvFetcher(source.name, ways.stack, ways.http, ways.now, kev=kev, since_days=days)
 
 
-SOURCE_TYPES: dict[str, Callable[[SourceConfig, Ways], SourceFetcher]] = {
-    "rss": _rss,
-    "github": _github,
-    "osv": _osv,
+@dataclass(frozen=True, slots=True)
+class SourceTypeSpec:
+    """A type of source: what a form shows for it, and how to build its fetcher from a definition."""
+
+    info: SourceTypeInfo
+    build: Callable[[SourceDef, Ways], SourceFetcher]
+
+
+SOURCE_TYPES: dict[str, SourceTypeSpec] = {
+    "rss": SourceTypeSpec(
+        SourceTypeInfo(
+            "rss",
+            "RSS or Atom feed",
+            "Blogs, news, GitHub releases (.../releases.atom), Reddit (.rss), YouTube channels.",
+            (FieldInfo("url", "Feed address", "text", required=True, help="https://example.com/feed.xml"),),
+        ),
+        _rss,
+    ),
+    "github": SourceTypeSpec(
+        SourceTypeInfo(
+            "github",
+            "GitHub repositories",
+            "Releases, security advisories and Dependabot alerts, through your gh login or a token.",
+            (
+                FieldInfo("repos", "Repositories", "list", required=True, help="owner/name, one per line"),
+                FieldInfo(
+                    "watch",
+                    "Watch",
+                    "list",
+                    default=["releases", "advisories"],
+                    help="releases, advisories, dependabot (needs access to the repository)",
+                ),
+            ),
+        ),
+        _github,
+    ),
+    "osv": SourceTypeSpec(
+        SourceTypeInfo(
+            "osv",
+            "OSV vulnerabilities",
+            "Vulnerabilities of the packages in your stack, with CISA's known-exploited flag.",
+            (
+                FieldInfo("since_days", "Only the last (days)", "number", default=30),
+                FieldInfo("kev", "Flag CISA known-exploited", "bool", default=True),
+            ),
+        ),
+        _osv,
+    ),
 }
 
 
@@ -147,7 +200,8 @@ class Container:
     reassess: Reassess
     personalize: Personalize
     sources: SourceDirectory
-    fetchers: tuple[SourceFetcher, ...]
+    registry: Registry
+    ways: Ways
     http: httpx.Client
     github_via: str
     llm_http: httpx.Client
@@ -155,6 +209,10 @@ class Container:
 
     def __post_init__(self) -> None:
         self.runs = RunCoordinator(self._run, self.clock)
+
+    def fetchers(self) -> tuple[SourceFetcher, ...]:
+        """A fetcher for every enabled source, built from what is stored now (ADR 0013)."""
+        return tuple(SOURCE_TYPES[s.type].build(s, self.ways) for s in self.registry.enabled_sources())
 
     def close(self) -> None:
         """Release the database and the HTTP clients."""
@@ -171,38 +229,50 @@ class Container:
             reassess=self.reassess,
             personalize=self.personalize,
             sources=self.sources,
+            registry=self.registry,
+            source_types=tuple(spec.info for spec in SOURCE_TYPES.values()),
             runs=self.runs,
             clock=self.clock,
             run=self._run,
             doctor=lambda: run_checks(
-                self.config, self.database, self.llm_http, self.fetchers, self.github_via
+                self.config, self.database, self.llm_http, self.fetchers(), self.github_via
             ),
             seed_demo=lambda: seed_demo(
                 self.items,
                 self.clock.now(),
                 PriorityPolicy(self.config.thresholds),
                 self.config.stack,
-                tuple(c.name for c in self.config.channels),
+                tuple(c.name for c in self.registry.channels()),
             ),
             export=lambda: (encode(item) for item in self.items.all()),
             kinds=self.config.kinds,
-            channels=self.config.channels,
             schedule_minutes=self.config.schedule.interval_minutes,
             dashboard_dir=self.config.dashboard_dir,
             close=self.close,
         )
 
     def _run(self) -> RunReport:
-        report = RunReport(self.ingest.run(self.fetchers), self.enrich.run())
+        report = RunReport(self.ingest.run(self.fetchers()), self.enrich.run())
         self.personalize.rerank()
         return report
 
 
-def _catalogue(config: Config) -> ChannelCatalogue:
-    try:
-        return ChannelCatalogue(config.channels, {s.name: s.channels for s in config.sources})
-    except UnknownChannelError as error:
-        raise ConfigError(str(error)) from error
+def _validator(ways: Ways) -> Callable[[SourceDef], None]:
+    """What a source must pass before it is stored: its type exists and builds a fetcher from its settings."""
+
+    def validate(source: SourceDef) -> None:
+        spec = SOURCE_TYPES.get(source.type)
+        if spec is None:
+            msg = (
+                f"source '{source.name}' has type {source.type!r}; supported types: {', '.join(SOURCE_TYPES)}"
+            )
+            raise InvalidError(msg)
+        try:
+            spec.build(source, ways)
+        except ConfigError as error:
+            raise InvalidError(str(error)) from error
+
+    return validate
 
 
 def load(path: Path, environ: dict[str, str] | None = None) -> Config:
@@ -249,7 +319,16 @@ def _assemble(
         minimum_signals=config.personalization.minimum_signals,
     )
     policy = PriorityPolicy(config.thresholds)
-    catalogue = _catalogue(config)
+    registry = Registry(
+        SqliteSourceDefinitions(database),
+        SqliteChannelDefinitions(database),
+        SqliteFlags(database),
+        _validator(ways),
+    )
+    try:
+        registry.seed(config.sources, config.channels)
+    except (UnknownChannelError, InvalidError) as error:
+        raise ConfigError(str(error)) from error
     enricher = OpenAiEnricher(
         llm_http,
         base_url=config.llm.base_url,
@@ -267,7 +346,13 @@ def _assemble(
         statuses=statuses,
         clock=clock,
         ingest=Ingest(
-            items, statuses, clock, policy, config.stack, body_limit=config.body_limit, catalogue=catalogue
+            items,
+            statuses,
+            clock,
+            policy,
+            config.stack,
+            body_limit=config.body_limit,
+            catalogue=registry.catalogue,
         ),
         enrich=Enrich(
             items,
@@ -277,16 +362,15 @@ def _assemble(
             policy,
             daily_limit=config.llm.daily_limit,
             profile=personalize.profile,
-            catalogue=catalogue,
+            catalogue=registry.catalogue,
         ),
         triage=Triage(items, personalize),
         inbox=Inbox(items, clock),
         reassess=Reassess(items, policy, config.stack),
         personalize=personalize,
-        sources=SourceDirectory(
-            tuple(DeclaredSource(s.name, s.type, s.enabled) for s in config.sources), statuses
-        ),
-        fetchers=tuple(SOURCE_TYPES[s.type](s, ways) for s in config.sources if s.enabled),
+        sources=SourceDirectory(registry, statuses),
+        registry=registry,
+        ways=ways,
         http=ways.http,
         github_via=ways.github.via,
         llm_http=llm_http,

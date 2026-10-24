@@ -70,7 +70,12 @@ def ingest_world(cat: ChannelCatalogue) -> tuple[Ingest, SqliteItemRepository]:
     db = database()
     items = SqliteItemRepository(db)
     ingest = Ingest(
-        items, SqliteSourceStatusRepository(db), FixedClock(), PriorityPolicy(), Stack(), catalogue=cat
+        items,
+        SqliteSourceStatusRepository(db),
+        FixedClock(),
+        PriorityPolicy(),
+        Stack(),
+        catalogue=lambda: cat,
     )
     return ingest, items
 
@@ -136,7 +141,7 @@ def enrich_world(cat: ChannelCatalogue, enricher: ScriptedEnricher) -> tuple[Enr
         FixedClock(),
         PriorityPolicy(),
         daily_limit=10,
-        catalogue=cat,
+        catalogue=lambda: cat,
     )
     return runner, items
 

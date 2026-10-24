@@ -9,6 +9,7 @@ import yaml
 from lookout.application.errors import ConfigError
 from lookout.domain.channel import OTHER, Channel
 from lookout.domain.policy import Thresholds
+from lookout.domain.source import SourceDef
 from lookout.domain.stack import Stack, StackEntry
 
 DEFAULT_KINDS = (
@@ -60,18 +61,6 @@ class GitHubConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class SourceConfig:
-    """One declared source."""
-
-    name: str
-    type: str
-    settings: dict[str, Any] = field(default_factory=dict[str, Any])
-    keywords: tuple[str, ...] = ()
-    enabled: bool = True
-    channels: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
 class Config:
     """Everything Lookout needs to run."""
 
@@ -82,7 +71,7 @@ class Config:
     channels: tuple[Channel, ...] = (Channel(OTHER),)
     stack: Stack = field(default_factory=Stack)
     thresholds: Thresholds = field(default_factory=Thresholds)
-    sources: tuple[SourceConfig, ...] = ()
+    sources: tuple[SourceDef, ...] = ()
     personalization: PersonalizationConfig = field(default_factory=PersonalizationConfig)
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     github: GitHubConfig = field(default_factory=GitHubConfig)
@@ -248,8 +237,8 @@ def _thresholds(reader: _Reader, data: dict[str, Any]) -> Thresholds:
     return found
 
 
-def _sources(reader: _Reader, raw: object, supported: tuple[str, ...]) -> tuple[SourceConfig, ...]:
-    sources: list[SourceConfig] = []
+def _sources(reader: _Reader, raw: object, supported: tuple[str, ...]) -> tuple[SourceDef, ...]:
+    sources: list[SourceDef] = []
     for number, data in enumerate(reader.sequence(raw, "sources")):
         name, source_type = data.get("name"), data.get("type")
         if not isinstance(name, str) or not name.strip():
@@ -264,7 +253,7 @@ def _sources(reader: _Reader, raw: object, supported: tuple[str, ...]) -> tuple[
             k: v for k, v in data.items() if k not in {"name", "type", "keywords", "enabled", "channels"}
         }
         sources.append(
-            SourceConfig(
+            SourceDef(
                 name=name,
                 type=str(source_type),
                 settings=settings,

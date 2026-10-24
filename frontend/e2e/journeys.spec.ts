@@ -199,6 +199,60 @@ test("sources show their health and can be switched off for good", async ({ page
   await expect(page.getByRole("switch", { name: "Enable fake-feed" })).toBeChecked();
 });
 
+test("sources and channels are managed from the dashboard, and a new source is used by the next run", async ({
+  page,
+}) => {
+  await page.goto("/sources");
+  const channels = page.getByRole("region", { name: "Channels" });
+
+  await page.getByRole("form", { name: "Add a channel" }).getByLabel("New channel").fill("Gardening");
+  await page.getByRole("form", { name: "Add a channel" }).getByLabel("Description").fill("Plants and soil");
+  await page.getByRole("button", { name: "Add channel" }).click();
+  await expect(channels).toContainText("Plants and soil");
+
+  await page.getByRole("button", { name: "Add a source" }).click();
+  const form = page.getByRole("form", { name: "Add a source" });
+  await form.getByLabel("Name").fill("rust-blog");
+  await form.getByLabel("Feed address").fill("nope");
+  await form.getByRole("checkbox", { name: "Rust" }).check();
+  await form.getByRole("button", { name: "Add" }).click();
+  await expect(form.getByRole("alert")).toContainText("'url' must start with http");
+
+  await form.getByLabel("Feed address").fill("http://127.0.0.1:8902/rust.xml");
+  await form.getByRole("button", { name: "Add" }).click();
+  const row = page.getByRole("row", { name: /rust-blog/ });
+  await expect(row).toContainText("Rust");
+  await expect(row).toContainText("never");
+
+  await page.getByRole("button", { name: "Run now" }).click();
+  await expect(page.getByText("Last run: 1 new, 1 read")).toBeVisible({ timeout: 30_000 });
+  await expect(row).toContainText("1");
+  await page.getByRole("link", { name: "Inbox" }).click();
+  const rust = items(page).filter({ hasText: "Rust 1.99 ships async closures" });
+  await expect(rust.locator(".channel")).toHaveText("Rust");
+  await expect(rust).toContainText("by Ferris Crab");
+
+  await page.getByRole("link", { name: "Sources" }).click();
+  await page.getByRole("button", { name: "Edit rust-blog" }).click();
+  const edit = page.getByRole("form", { name: "Edit rust-blog" });
+  await expect(edit.getByLabel("Name")).toBeDisabled();
+  await edit.getByRole("checkbox", { name: "Rust" }).uncheck();
+  await edit.getByRole("checkbox", { name: "Gardening" }).check();
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("row", { name: /rust-blog/ })).toContainText("Gardening");
+
+  await page.getByRole("button", { name: "Delete Gardening" }).click();
+  await expect(channels.getByRole("alert")).toContainText("fed by rust-blog");
+
+  await page.getByRole("button", { name: "Delete rust-blog" }).click();
+  await expect(page.getByRole("row", { name: /rust-blog/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Delete Gardening" }).click();
+  await expect(channels).not.toContainText("Plants and soil");
+
+  await page.getByRole("link", { name: "Inbox" }).click();
+  await expect(items(page).filter({ hasText: "Rust 1.99 ships async closures" })).toHaveCount(1);
+});
+
 test("the single-page app answers on any path, and the API still answers its own", async ({ page, request }) => {
   await page.goto("/sources");
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
@@ -241,6 +295,13 @@ test.describe("accessibility", () => {
   test("the sources", async ({ page }) => {
     await page.goto("/sources");
     await expect(page.getByRole("table")).toBeVisible();
+    await scan(page);
+  });
+
+  test("the source form", async ({ page }) => {
+    await page.goto("/sources");
+    await page.getByRole("button", { name: "Add a source" }).click();
+    await expect(page.getByRole("form", { name: "Add a source" })).toBeVisible();
     await scan(page);
   });
 

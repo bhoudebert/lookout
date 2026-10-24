@@ -1,12 +1,16 @@
 import type {
   Action,
   ActionResult,
+  Channel,
   Filters,
   Item,
   ItemDetail,
   ItemPage,
   RunStatus,
   Source,
+  SourceBody,
+  SourceCreate,
+  SourceType,
   Taxonomy,
   Undo,
 } from "./types";
@@ -36,7 +40,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     const detail = typeof body.detail === "string" ? body.detail : `Request failed (${response.status})`;
     throw new ApiError(response.status, detail);
   }
-  return (await response.json()) as T;
+  return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
 const STATES: Record<Filters["view"], string[]> = {
@@ -72,6 +76,19 @@ export const api = {
   seenBelow: (priority: string) =>
     call<{ changed: number }>("/api/items/seen-below", { method: "POST", body: JSON.stringify({ priority }) }),
   taxonomy: () => call<Taxonomy>("/api/taxonomy"),
+  sourceTypes: () => call<SourceType[]>("/api/source-types"),
+  addSource: (source: SourceCreate) => call<Source>("/api/sources", { method: "POST", body: JSON.stringify(source) }),
+  updateSource: (name: string, source: SourceBody) =>
+    call<Source>(`/api/sources/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(source) }),
+  deleteSource: (name: string) => call<undefined>(`/api/sources/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  addChannel: (name: string, description: string) =>
+    call<Channel>("/api/channels", { method: "POST", body: JSON.stringify({ name, description }) }),
+  updateChannel: (name: string, description: string) =>
+    call<Channel>(`/api/channels/${encodeURIComponent(name)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ description }),
+    }),
+  deleteChannel: (name: string) => call<undefined>(`/api/channels/${encodeURIComponent(name)}`, { method: "DELETE" }),
   sources: () => call<Source[]>("/api/sources"),
   setSource: (name: string, enabled: boolean) =>
     call<Source>(`/api/sources/${encodeURIComponent(name)}`, { method: "PATCH", body: JSON.stringify({ enabled }) }),

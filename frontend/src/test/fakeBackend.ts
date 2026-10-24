@@ -1,4 +1,4 @@
-import type { ActionResult, Item, ItemDetail, RunStatus, Source, Taxonomy } from "../api/types";
+import type { ActionResult, Channel, Item, ItemDetail, RunStatus, Source, SourceType, Taxonomy } from "../api/types";
 
 export function makeItem(overrides: Partial<Item> = {}): Item {
   return {
@@ -35,6 +35,9 @@ export function makeSource(overrides: Partial<Source> = {}): Source {
     name: "blog",
     type: "rss",
     enabled: true,
+    channels: [],
+    keywords: [],
+    settings: { url: "https://example.test/feed" },
     last_run: "2026-10-24T08:00:00Z",
     last_error: null,
     items_seen: 3,
@@ -72,11 +75,55 @@ export class FakeBackend {
     ],
     kinds: ["release", "security", "tooling"],
   };
+  sourceTypes: SourceType[] = [
+    {
+      name: "rss",
+      label: "RSS or Atom feed",
+      description: "Blogs and news.",
+      fields: [
+        { name: "url", label: "Feed address", kind: "text", required: true, default: null, help: "https://..." },
+      ],
+    },
+    {
+      name: "github",
+      label: "GitHub repositories",
+      description: "Releases and advisories.",
+      fields: [
+        {
+          name: "repos",
+          label: "Repositories",
+          kind: "list",
+          required: true,
+          default: null,
+          help: "owner/name, one per line",
+        },
+        {
+          name: "watch",
+          label: "Watch",
+          kind: "list",
+          required: false,
+          default: ["releases", "advisories"],
+          help: "what to read",
+        },
+      ],
+    },
+    {
+      name: "osv",
+      label: "OSV vulnerabilities",
+      description: "Vulnerabilities of your stack.",
+      fields: [
+        { name: "since_days", label: "Only the last (days)", kind: "number", required: false, default: 30, help: "" },
+        { name: "kev", label: "Flag CISA known-exploited", kind: "bool", required: false, default: true, help: "" },
+      ],
+    },
+  ];
   run: RunStatus = IDLE;
   runPolls = 0;
   calls: Call[] = [];
   failWith: { status: number; detail: unknown } | null = null;
   unreachable = false;
+  /** Answer 500 to the paths starting with this, and normally to the others. */
+  failOn: string | null = null;
   detail: Partial<ItemDetail> = {};
   private undo = new Map<string, Item>();
 
@@ -91,6 +138,9 @@ export class FakeBackend {
     const method = init?.method ?? "GET";
     const body: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
     this.calls.push({ method, path: url.pathname + url.search, body });
+    if (this.failOn && url.pathname.startsWith(this.failOn)) {
+      return Promise.resolve(new Response(JSON.stringify({ detail: "broken" }), { status: 500 }));
+    }
     if (this.failWith) {
       const { status, detail } = this.failWith;
       return Promise.resolve(new Response(JSON.stringify({ detail }), { status }));
@@ -114,8 +164,13 @@ export class FakeBackend {
     if (id && method === "GET") return this.one(id);
     if (path === "/api/taxonomy") return this.json(this.taxonomy);
     if (path === "/api/sources" && method === "GET") return this.json(this.sources);
+    if (path === "/api/source-types") return this.json(this.sourceTypes);
+    if (path === "/api/sources" && method === "POST") return this.addSource(body as Partial<Source>);
     if (path.startsWith("/api/sources/"))
-      return this.patchSource(decodeURIComponent(path.slice(13)), body as { enabled: boolean });
+      return this.changeSource(method, decodeURIComponent(path.slice(13)), body as Partial<Source>);
+    if (path === "/api/channels" && method === "POST") return this.addChannel(body as Channel);
+    if (path.startsWith("/api/channels/"))
+      return this.changeChannel(method, decodeURIComponent(path.slice(14)), body as Partial<Channel>);
     if (path === "/api/run" && method === "POST") {
       this.run = { ...IDLE, running: true, started: true, started_at: "2026-10-24T09:00:00Z" };
       return this.json(this.run, 202);
@@ -211,9 +266,36 @@ export class FakeBackend {
     return this.json({ changed: low.length });
   }
 
-  private patchSource(name: string, body: { enabled: boolean }): Response {
-    const source = this.sources.find((s) => s.name === name) as Source;
-    source.enabled = body.enabled;
+  private addSource(body: Partial<Source>): Response {
+    const source = makeSource({ items_seen: 0, last_run: null, ...body });
+    this.sources.push(source);
+    return this.json(source, 201);
+  }
+
+  private changeSource(method: string, name: string, body: Partial<Source>): Response {
+    const index = this.sources.findIndex((s) => s.name === name);
+    if (method === "DELETE") {
+      this.sources.splice(index, 1);
+      return new Response(null, { status: 204 });
+    }
+    const source = this.sources[index] as Source;
+    Object.assign(source, body);
     return this.json(source);
+  }
+
+  private addChannel(body: Channel): Response {
+    this.taxonomy.channels.push(body);
+    return this.json(body, 201);
+  }
+
+  private changeChannel(method: string, name: string, body: Partial<Channel>): Response {
+    const index = this.taxonomy.channels.findIndex((c) => c.name === name);
+    if (method === "DELETE") {
+      this.taxonomy.channels.splice(index, 1);
+      return new Response(null, { status: 204 });
+    }
+    const channel = this.taxonomy.channels[index] as Channel;
+    Object.assign(channel, body);
+    return this.json(channel);
   }
 }

@@ -591,7 +591,7 @@ describe("sources", () => {
 
   it("says when no source is declared, and when they cannot be loaded", async () => {
     mount(new FakeBackend([], []), "/sources");
-    expect(await screen.findByText(/No source is declared/)).toBeInTheDocument();
+    expect(await screen.findByText(/No source yet/)).toBeInTheDocument();
   });
 
   it("can retry after an error", async () => {

@@ -1,67 +1,51 @@
-"""The sources as the user sees them: declared ones with their health, switchable (openspec: dashboard)."""
+"""Sources as the user sees them: their definition and how they are doing (openspec: source-management)."""
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from lookout.application.ports_sources import SourceStatusRepository
-
-
-class UnknownSourceError(Exception):
-    """No declared source has this name."""
-
-
-class DisabledInConfigError(Exception):
-    """The configuration file turns this source off; only the file can turn it on."""
-
-
-@dataclass(frozen=True, slots=True)
-class DeclaredSource:
-    """A source from the configuration."""
-
-    name: str
-    type: str
-    enabled: bool
+from lookout.application.registry import Registry
+from lookout.domain.source import SourceDef
 
 
 @dataclass(frozen=True, slots=True)
 class SourceView:
-    """A source and how it is doing."""
+    """A source, its settings and its last run."""
 
     name: str
     type: str
     enabled: bool
+    channels: tuple[str, ...]
+    keywords: tuple[str, ...]
+    settings: dict[str, Any]
     last_run: datetime | None
     last_error: str | None
     items_seen: int
 
 
 class SourceDirectory:
-    """Lists sources and switches them on and off without editing the configuration."""
+    """Joins the definitions with the health of each source."""
 
-    def __init__(self, declared: tuple[DeclaredSource, ...], statuses: SourceStatusRepository) -> None:
-        self._declared = declared
+    def __init__(self, registry: Registry, statuses: SourceStatusRepository) -> None:
+        self._registry = registry
         self._statuses = statuses
 
     def list(self) -> tuple[SourceView, ...]:
-        """Every declared source with its last run; one switched off in the dashboard shows as disabled."""
-        views: list[SourceView] = []
-        for source in self._declared:
-            status = self._statuses.get(source.name)
-            enabled = source.enabled and not status.disabled
-            views.append(
-                SourceView(
-                    source.name, source.type, enabled, status.last_run, status.last_error, status.items_seen
-                )
-            )
-        return tuple(views)
+        """Every source with its last run."""
+        return tuple(self.view(source) for source in self._registry.sources())
 
-    def set_enabled(self, name: str, *, enabled: bool) -> SourceView:
-        """Switch a declared source on or off."""
-        declared = next((s for s in self._declared if s.name == name), None)
-        if declared is None:
-            raise UnknownSourceError(name)
-        if enabled and not declared.enabled:
-            raise DisabledInConfigError(name)
-        status = self._statuses.get(name)
-        self._statuses.save(replace(status, disabled=not enabled))
-        return next(view for view in self.list() if view.name == name)
+    def view(self, source: SourceDef) -> SourceView:
+        """One source with its last run."""
+        status = self._statuses.get(source.name)
+        return SourceView(
+            name=source.name,
+            type=source.type,
+            enabled=source.enabled,
+            channels=source.channels,
+            keywords=source.keywords,
+            settings=source.settings,
+            last_run=status.last_run,
+            last_error=status.last_error,
+            items_seen=status.items_seen,
+        )

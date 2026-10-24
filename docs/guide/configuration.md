@@ -6,6 +6,8 @@ Secrets never go in the file: set `LOOKOUT_LLM_API_KEY` in the environment if yo
 
 ## Keys
 
+`channels` and `sources` only **seed** the dashboard on the first start (see [sources and channels](/sources)); everything else below is read at every start.
+
 | Key               | Default                                                                                                           | What                                                                                                                                          |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `database`        | `data/lookout.db`                                                                                                 | The SQLite file. A copy is the whole backup.                                                                                                  |
