@@ -4,7 +4,7 @@ Sources are the **rivers** that flow into your inbox; [categories](/concepts) ar
 
 ## In the dashboard
 
-- **Add a source**: pick its type, fill the settings that type needs (the form is built from the type), tick the categories it may feed, add keywords if you want to keep only some entries. A source is checked when you save it: a bad address or an unknown repository is refused with the reason, and nothing is stored.
+- **Add a source**: pick its type, fill the settings that type needs (the form is built from the type), tick the categories it may feed (or create one right there: a source that mixes topics, like a Reddit source on Rust and on motorcycles, is better split in two, each filed in its own category, so the model does not have to choose), add keywords if you want to keep only some entries. A source is checked when you save it: a bad address or an unknown repository is refused with the reason, and nothing is stored.
 - **Edit** any setting except the name and the type. **Switch** a source on or off. **Delete** a source: its items stay in your inbox.
 - **Categories** are managed on their own page. A category a source still feeds cannot be deleted, and the message names those sources.
 - A new or changed source is used by the **next run**, with no restart.

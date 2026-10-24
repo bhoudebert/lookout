@@ -42,6 +42,13 @@ The user SHALL be able to add a channel (name, description), change its descript
 be deleted while a source feeds it, and the refusal SHALL name those sources. `Other` SHALL always exist and SHALL NOT be
 deleted. A source SHALL only list channels that exist.
 
+### Requirement: Where the items go
+
+The source form SHALL say, for the categories ticked, what will happen: none, the model chooses a category for each item
+among all of them (using the model limit, `Other` when none fits); one, every item goes there without asking the model;
+several, the model chooses among them. The form SHALL let the user create a category (a name, optionally a description)
+without leaving it, and tick it; a refusal SHALL be shown and keep what was typed.
+
 ### Requirement: Suggested sources
 
 The sources page SHALL suggest well-known sources that are not yet there (by name or by feed address), grouped by theme

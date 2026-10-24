@@ -216,6 +216,9 @@ export function SourcesView() {
             error={failure ? message(failure) : undefined}
             busy={saving}
             onCancel={close}
+            onCreateCategory={(name, description) =>
+              addChannel.mutateAsync({ name, description }).then((created) => created.name)
+            }
             onSave={(name, body) => {
               if (form === "add") addSource.mutate({ name, ...body }, { onSuccess: close });
               else updateSource.mutate({ name: form.name, body }, { onSuccess: close });
