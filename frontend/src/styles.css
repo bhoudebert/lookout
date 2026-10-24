@@ -757,3 +757,34 @@ tbody tr:hover {
     transition: none !important;
   }
 }
+
+.chip.wide {
+  min-width: 5rem;
+}
+.divider {
+  list-style: none;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--accent-text);
+  border-top: 1px dashed var(--accent-text);
+  padding-top: 0.35rem;
+  margin: 0.4rem 0;
+}
+.more {
+  text-align: center;
+  margin: 1rem 0;
+}
+.sample {
+  margin: 0.25rem 0 0.75rem;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+/* Filters: the controls share a row; Starred and the search fill what remains, and wrap together. */
+.filters label.check {
+  order: 9;
+}
+.filters label:has(input[type="search"]) {
+  order: 10;
+  flex: 1 1 18rem;
+}

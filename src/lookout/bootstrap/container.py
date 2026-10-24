@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from typing import cast
@@ -34,6 +34,7 @@ from lookout.adapters.store.sqlite import (
 )
 from lookout.application.enrich import Enrich
 from lookout.application.errors import ConfigError
+from lookout.application.expire import AgeLimited, Expire
 from lookout.application.github import GitHubGateway
 from lookout.application.ingest import Ingest
 from lookout.application.personalize import Personalize
@@ -52,6 +53,7 @@ from lookout.bootstrap.demo import seed_demo
 from lookout.bootstrap.doctor import run_checks
 from lookout.domain.channel import UnknownChannelError
 from lookout.domain.policy import PriorityPolicy
+from lookout.domain.retention import Retention
 from lookout.domain.source import SourceDef
 from lookout.domain.stack import StackEntry
 
@@ -67,6 +69,7 @@ class Ways:
     github: GitHubGateway
     stack: tuple[StackEntry, ...]
     now: Callable[[], datetime]
+    retention: Retention = field(default_factory=Retention)
 
 
 def _rss(source: SourceDef, ways: Ways) -> SourceFetcher:
@@ -140,6 +143,25 @@ def _hackernews(source: SourceDef, ways: Ways) -> SourceFetcher:
         min_points=points,
         limit=limit,
         keywords=source.keywords,
+    )
+
+
+def _max_age(source: SourceDef, ways: Ways) -> int:
+    """How old an entry of this source may be, in days (0: no limit); every type has it (ADR 0016)."""
+    days = source.settings.get("max_age_days", ways.retention.max_age_days)
+    if isinstance(days, bool) or not isinstance(days, int) or days < 0:
+        msg = f"source '{source.name}': 'max_age_days' must be a whole number of days, 0 for no limit"
+        raise ConfigError(msg)
+    return days
+
+
+def _max_age_field(retention: Retention) -> FieldInfo:
+    return FieldInfo(
+        "max_age_days",
+        "Ignore entries older than (days)",
+        "number",
+        default=retention.max_age_days,
+        help="0 keeps everything; older entries are never stored",
     )
 
 
@@ -249,6 +271,7 @@ class Container:
     triage: Triage
     inbox: Inbox
     reassess: Reassess
+    expire: Expire
     refile: Refile
     personalize: Personalize
     sources: SourceDirectory
@@ -263,8 +286,11 @@ class Container:
         self.runs = RunCoordinator(self._run, self.clock)
 
     def fetchers(self) -> tuple[SourceFetcher, ...]:
-        """A fetcher for every enabled source, built from what is stored now (ADR 0013)."""
-        return tuple(SOURCE_TYPES[s.type].build(s, self.ways) for s in self.registry.enabled_sources())
+        """A fetcher for every enabled source as stored now (ADR 0013), without its old entries."""
+        return tuple(
+            AgeLimited(SOURCE_TYPES[s.type].build(s, self.ways), _max_age(s, self.ways), self.clock)
+            for s in self.registry.enabled_sources()
+        )
 
     def close(self) -> None:
         """Release the database and the HTTP clients."""
@@ -273,7 +299,8 @@ class Container:
         self.database.close()
 
     def services(self) -> Services:
-        """The application as the entry points see it."""
+        """The application as the entry points see it. Untouched items that are due expire first."""
+        self.expire.run()
         return Services(
             items=self.items,
             triage=self.triage,
@@ -283,7 +310,10 @@ class Container:
             personalize=self.personalize,
             sources=self.sources,
             registry=self.registry,
-            source_types=tuple(spec.info for spec in SOURCE_TYPES.values()),
+            source_types=tuple(
+                replace(spec.info, fields=(*spec.info.fields, _max_age_field(self.config.retention)))
+                for spec in SOURCE_TYPES.values()
+            ),
             runs=self.runs,
             clock=self.clock,
             run=self._run,
@@ -293,7 +323,7 @@ class Container:
             seed_demo=lambda: seed_demo(
                 self.items,
                 self.clock.now(),
-                PriorityPolicy(self.config.thresholds),
+                PriorityPolicy(self.config.thresholds, self.config.retention.rules_window_days),
                 self.config.stack,
                 self.registry.channels(),
             ),
@@ -306,6 +336,7 @@ class Container:
     def _run(self) -> RunReport:
         report = RunReport(self.ingest.run(self.fetchers()), self.enrich.run())
         self.personalize.rerank()
+        self.expire.run()
         return report
 
 
@@ -321,6 +352,7 @@ def _validator(ways: Ways) -> Callable[[SourceDef], None]:
             raise InvalidError(msg)
         try:
             spec.build(source, ways)
+            _max_age(source, ways)
         except ConfigError as error:
             raise InvalidError(str(error)) from error
 
@@ -349,7 +381,11 @@ def build(
     try:
         gateway = github or choose_gateway(config.github.via, http, environ or {})
         return _assemble(
-            config, database, clock, Ways(http, gateway, config.stack.entries, clock.now), llm_http
+            config,
+            database,
+            clock,
+            Ways(http, gateway, config.stack.entries, clock.now, config.retention),
+            llm_http,
         )
     except Exception:
         http.close()
@@ -370,7 +406,7 @@ def _assemble(
         half_life_days=config.personalization.half_life_days,
         minimum_signals=config.personalization.minimum_signals,
     )
-    policy = PriorityPolicy(config.thresholds)
+    policy = PriorityPolicy(config.thresholds, config.retention.rules_window_days)
     registry = Registry(
         SqliteSourceDefinitions(database),
         SqliteChannelDefinitions(database),
@@ -418,7 +454,8 @@ def _assemble(
         ),
         triage=Triage(items, personalize),
         inbox=Inbox(items, clock),
-        reassess=Reassess(items, policy, config.stack),
+        reassess=Reassess(items, policy, config.stack, clock),
+        expire=Expire(items, clock, config.retention),
         refile=Refile(items, registry.catalogue),
         personalize=personalize,
         sources=SourceDirectory(registry, statuses),

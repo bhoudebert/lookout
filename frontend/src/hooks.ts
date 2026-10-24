@@ -1,9 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api/client";
-import type { Action, Filters, SourceBody } from "./api/types";
+import type { Action, Filters, SourceBody, UndoEntry } from "./api/types";
 
+/** The items of a selection, a page at a time: the next page starts after what is already loaded. */
 export const useItems = (filters: Filters) =>
-  useQuery({ queryKey: ["items", filters], queryFn: () => api.items(filters) });
+  useInfiniteQuery({
+    queryKey: ["items", filters],
+    queryFn: ({ pageParam }) => api.items(filters, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
+  });
 
 export const useItem = (id: string | null) =>
   useQuery({ queryKey: ["item", id], queryFn: () => api.item(id as string), enabled: id !== null });
@@ -43,6 +52,21 @@ export function useBulk() {
       api.bulk(ids, action, hours),
     onSuccess: refresh,
   });
+}
+
+/** An action on everything a selection matches; a dry run only counts. */
+export function useSweep() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: ({ filters, action, dryRun }: { filters: Filters; action: Action; dryRun: boolean }) =>
+      api.sweep(filters, action, dryRun),
+    onSuccess: (_result, { dryRun }) => (dryRun ? undefined : refresh()),
+  });
+}
+
+export function useRestoreMany() {
+  const refresh = useRefresh();
+  return useMutation({ mutationFn: (entries: UndoEntry[]) => api.restoreMany(entries), onSuccess: refresh });
 }
 
 export function useRestore() {

@@ -1,12 +1,18 @@
-import { PRIORITIES } from "../api/types";
-import type { Filters, Priority, View } from "../api/types";
+import { AGES, PRIORITIES } from "../api/types";
+import type { Age, Filters, Order, Priority, View } from "../api/types";
 
 const VIEWS: { value: View; label: string }[] = [
   { value: "inbox", label: "Inbox" },
   { value: "snoozed", label: "Snoozed" },
   { value: "done", label: "Done" },
   { value: "dismissed", label: "Dismissed" },
+  { value: "expired", label: "Expired" },
   { value: "all", label: "Everything" },
+];
+
+const ORDERS: { value: Order; label: string; hint: string }[] = [
+  { value: "priority", label: "Triage", hint: "Most urgent first" },
+  { value: "date", label: "Latest", hint: "Newest first" },
 ];
 
 interface Props {
@@ -51,6 +57,27 @@ export function FilterBar({ filters, sources, onChange }: Props) {
           ))}
         </div>
       </div>
+      <div className="field">
+        <span className="caption" aria-hidden="true">
+          Order
+        </span>
+        <div className="chips" role="group" aria-label="Order">
+          {ORDERS.map((order) => (
+            <button
+              key={order.value}
+              type="button"
+              className="chip wide"
+              title={order.hint}
+              aria-pressed={filters.order === order.value}
+              onClick={() => {
+                onChange({ ...filters, order: order.value });
+              }}
+            >
+              {order.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <label>
         View
         <select
@@ -78,6 +105,21 @@ export function FilterBar({ filters, sources, onChange }: Props) {
           {sources.map((s) => (
             <option key={s} value={s}>
               {s}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Age
+        <select
+          value={filters.age}
+          onChange={(e) => {
+            onChange({ ...filters, age: e.target.value as Age });
+          }}
+        >
+          {AGES.map((a) => (
+            <option key={a.value} value={a.value}>
+              {a.label}
             </option>
           ))}
         </select>

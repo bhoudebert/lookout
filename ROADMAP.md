@@ -8,6 +8,7 @@ Not commitments. Ordered by expected value for one person tracking the news, rel
 - CLI, HTTP API, dashboard, user guide and website.
 - GitHub releases, advisories and Dependabot alerts, through `gh` or a token.
 - Sources and a tree of categories managed in the dashboard, with a file that only seeds them, and a way to file existing items again.
+- Freshness at ingestion, expiry of untouched items, Triage and Latest orders, paging and acting on a whole selection (ADR 0016).
 - Hacker News source (front page, newest, Ask, Show; points) and one-click suggested sources.
 - OSV vulnerabilities for the declared stack, with CVSS severity and CISA's known-exploited flag.
 - A container image (published with each release) and a NixOS module, see the self-hosting guide.

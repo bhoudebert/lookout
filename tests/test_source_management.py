@@ -51,7 +51,13 @@ def sources(api: Api) -> list[dict[str, Any]]:
 def test_the_api_publishes_the_types_and_their_fields(api: Api) -> None:
     types = {t["name"]: t for t in api.client.get("/api/source-types").json()}
     assert set(types) == {"rss", "github", "osv", "hackernews"}
-    assert [(f["name"], f["kind"], f["required"]) for f in types["rss"]["fields"]] == [("url", "text", True)]
+    assert [(f["name"], f["kind"], f["required"]) for f in types["rss"]["fields"]] == [
+        ("url", "text", True),
+        ("max_age_days", "number", False),
+    ]
+    assert all(
+        t["fields"][-1]["name"] == "max_age_days" and t["fields"][-1]["default"] == 30 for t in types.values()
+    )
     github = {f["name"]: f for f in types["github"]["fields"]}
     assert (github["repos"]["kind"], github["repos"]["required"]) == ("list", True)
     assert github["watch"]["default"] == ["releases", "advisories"]

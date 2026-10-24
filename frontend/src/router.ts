@@ -1,8 +1,9 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { NO_FILTERS, PRIORITIES } from "./api/types";
-import type { Filters, Priority, View } from "./api/types";
+import type { Age, Filters, Order, Priority, View } from "./api/types";
 
-const VIEWS: readonly View[] = ["inbox", "snoozed", "done", "dismissed", "all"];
+const VIEWS: readonly View[] = ["inbox", "snoozed", "done", "dismissed", "expired", "all"];
+const AGES: readonly Age[] = ["older7", "older14", "older30", "newer7"];
 
 export interface Location {
   path: string;
@@ -13,6 +14,8 @@ export interface Location {
 export function parseLocation(path: string, search: string): Location {
   const params = new URLSearchParams(search);
   const view = params.get("view") as View | null;
+  const age = params.get("age") as Age | null;
+  const order = params.get("order") as Order | null;
   return {
     path,
     filters: {
@@ -22,6 +25,8 @@ export function parseLocation(path: string, search: string): Location {
       view: view && VIEWS.includes(view) ? view : NO_FILTERS.view,
       starred: params.get("starred") === "true",
       text: params.get("q") ?? "",
+      order: order === "date" ? "date" : NO_FILTERS.order,
+      age: age && AGES.includes(age) ? age : NO_FILTERS.age,
     },
     item: params.get("item"),
   };
@@ -35,6 +40,8 @@ export function buildSearch(filters: Filters, item: string | null): string {
   if (filters.view !== NO_FILTERS.view) params.set("view", filters.view);
   if (filters.starred) params.set("starred", "true");
   if (filters.text) params.set("q", filters.text);
+  if (filters.order !== NO_FILTERS.order) params.set("order", filters.order);
+  if (filters.age) params.set("age", filters.age);
   if (item) params.set("item", item);
   const text = params.toString();
   return text ? `?${text}` : "";

@@ -12,8 +12,10 @@ import type {
   SourceBody,
   SourceCreate,
   SourceType,
+  Sweep,
   Taxonomy,
   Undo,
+  UndoEntry,
 } from "./types";
 
 /** An answer the backend refused, with the message it gave. */
@@ -49,10 +51,21 @@ const STATES: Record<Filters["view"], string[]> = {
   snoozed: ["snoozed"],
   done: ["done"],
   dismissed: ["dismissed"],
-  all: ["new", "seen", "snoozed", "done", "dismissed"],
+  expired: ["expired"],
+  all: ["new", "seen", "snoozed", "done", "dismissed", "expired"],
 };
 
-export function itemsQuery(filters: Filters, limit = 100): string {
+/** Items are loaded this many at a time. */
+export const PAGE = 50;
+
+const DAYS: Record<Exclude<Filters["age"], "">, { key: "older_than_days" | "newer_than_days"; days: number }> = {
+  older7: { key: "older_than_days", days: 7 },
+  older14: { key: "older_than_days", days: 14 },
+  older30: { key: "older_than_days", days: 30 },
+  newer7: { key: "newer_than_days", days: 7 },
+};
+
+export function itemsQuery(filters: Filters, limit = PAGE, offset = 0): string {
   const params = new URLSearchParams();
   for (const priority of filters.priorities) params.append("priority", priority);
   if (filters.channel) params.set("channel", filters.channel);
@@ -60,12 +73,30 @@ export function itemsQuery(filters: Filters, limit = 100): string {
   for (const state of STATES[filters.view]) params.append("state", state);
   if (filters.starred) params.set("starred", "true");
   if (filters.text) params.set("text", filters.text);
+  if (filters.age) params.set(DAYS[filters.age].key, String(DAYS[filters.age].days));
+  if (filters.order !== "priority") params.set("order", filters.order);
   params.set("limit", String(limit));
+  if (offset > 0) params.set("offset", String(offset));
   return params.toString();
 }
 
+/** The same selection as a body for an action on everything it matches. */
+export function filterBody(filters: Filters) {
+  const age = filters.age ? DAYS[filters.age] : null;
+  return {
+    priority: filters.priorities,
+    channel: filters.channel ? [filters.channel] : [],
+    source: filters.source ? [filters.source] : [],
+    state: STATES[filters.view],
+    starred: filters.starred ? true : null,
+    text: filters.text,
+    older_than_days: age?.key === "older_than_days" ? age.days : null,
+    newer_than_days: age?.key === "newer_than_days" ? age.days : null,
+  };
+}
+
 export const api = {
-  items: (filters: Filters) => call<ItemPage>(`/api/items?${itemsQuery(filters)}`),
+  items: (filters: Filters, offset = 0) => call<ItemPage>(`/api/items?${itemsQuery(filters, PAGE, offset)}`),
   item: (id: string) => call<ItemDetail>(`/api/items/${id}`),
   act: (id: string, action: Action, hours?: number) =>
     call<ActionResult>(`/api/items/${id}/actions`, { method: "POST", body: JSON.stringify({ action, hours }) }),
@@ -75,6 +106,13 @@ export const api = {
     call<{ changed: number }>("/api/items/bulk", { method: "POST", body: JSON.stringify({ ids, action, hours }) }),
   seenBelow: (priority: string) =>
     call<{ changed: number }>("/api/items/seen-below", { method: "POST", body: JSON.stringify({ priority }) }),
+  sweep: (filters: Filters, action: Action, dryRun: boolean) =>
+    call<Sweep>("/api/items/sweep", {
+      method: "POST",
+      body: JSON.stringify({ action, dry_run: dryRun, filter: filterBody(filters) }),
+    }),
+  restoreMany: (entries: UndoEntry[]) =>
+    call<{ changed: number }>("/api/items/restore-many", { method: "POST", body: JSON.stringify({ entries }) }),
   taxonomy: () => call<Taxonomy>("/api/taxonomy"),
   sourceTypes: () => call<SourceType[]>("/api/source-types"),
   addSource: (source: SourceCreate) => call<Source>("/api/sources", { method: "POST", body: JSON.stringify(source) }),

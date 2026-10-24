@@ -41,8 +41,9 @@ The user SHALL be able to apply a transition to several items at once, and to ma
 
 ### Requirement: Bulk actions on a filter
 
-The user SHALL be able to apply a transition to everything a filter matches, and SHALL be able to ask first how many items
-that is and see a sample, without changing anything.
+The user SHALL be able to apply a transition to everything a filter matches (at most 5000 at once; a bigger selection is
+refused with the count), and SHALL be able to ask first how many items that is and see a sample, without changing
+anything. Such an action SHALL record no taste signal: sweeping a backlog says nothing about what the user likes.
 
 #### Scenario: Clearing a backlog
 

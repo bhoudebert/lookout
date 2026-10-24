@@ -1,6 +1,7 @@
 """The HTTP API (openspec: dashboard, triage, scheduling). Thin: every route calls one use case."""
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timedelta
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -22,9 +23,11 @@ from lookout.adapters.http.schemas import (
     ExplanationOut,
     Health,
     ItemDetail,
+    ItemFilter,
     ItemOut,
     ItemPage,
     RefileOut,
+    RestoreIn,
     RunOut,
     SeenBelowIn,
     SourceBody,
@@ -32,13 +35,16 @@ from lookout.adapters.http.schemas import (
     SourceOut,
     SourcePatch,
     SourceTypeOut,
+    SweepIn,
+    SweepOut,
     TaxonomyOut,
+    UndoEntry,
     UndoOut,
 )
-from lookout.application.ports import InboxQuery
+from lookout.application.ports import InboxQuery, Order
 from lookout.application.registry import DuplicateError, InUseError, InvalidError, NotFoundError
 from lookout.application.services import Services
-from lookout.application.triage import Action, ItemNotFoundError
+from lookout.application.triage import Action, ItemNotFoundError, TooManyItemsError
 from lookout.domain.channel import Channel
 from lookout.domain.item import InvalidTransitionError
 from lookout.domain.priority import Priority
@@ -62,27 +68,32 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
         return Health(status="ok", version=package_version("lookout"))
 
     @app.get("/api/items")
-    def list_items(
+    def list_items(  # noqa: PLR0913, PLR0917 - one parameter per query-string key
         priority: Annotated[list[Literal["P0", "P1", "P2", "P3"]] | None, Query()] = None,
         channel: Annotated[list[str] | None, Query()] = None,
         source: Annotated[list[str] | None, Query()] = None,
         state: Annotated[list[State] | None, Query()] = None,
         starred: bool | None = None,
         text: str = "",
+        older_than_days: Annotated[int | None, Query(ge=0)] = None,
+        newer_than_days: Annotated[int | None, Query(ge=0)] = None,
+        order: Order = Order.PRIORITY,
         limit: Annotated[int, Query(ge=1, le=500)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> ItemPage:
-        query = InboxQuery(
-            priorities=frozenset(Priority[p] for p in priority or []),
-            channels=frozenset(channel or []),
-            sources=frozenset(source or []),
-            states=frozenset(state) if state else DEFAULT_STATES,
+        selection = ItemFilter(
+            priority=priority or [],
+            channel=channel or [],
+            source=source or [],
+            state=state or [],
             starred=starred,
             text=text,
-            limit=limit,
-            offset=offset,
+            older_than_days=older_than_days,
+            newer_than_days=newer_than_days,
         )
-        page = services.inbox.list(query)
+        page = services.inbox.list(
+            replace(_query(selection, services.clock.now()), order=order, limit=limit, offset=offset)
+        )
         return ItemPage(items=[ItemOut.of(i) for i in page.items], total=page.total)
 
     @app.get("/api/items/{item_id}")
@@ -129,6 +140,42 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
         except InvalidTransitionError as error:
             raise HTTPException(409, str(error)) from error
         return BulkOut(changed=len(outcomes))
+
+    @app.post("/api/items/sweep")
+    def sweep(body: SweepIn) -> SweepOut:
+        now = services.clock.now()
+        until = _wake(now, body) if body.action is Action.SNOOZE else None
+        try:
+            result = services.triage.sweep(
+                _query(body.filter, now), body.action, until=until, dry_run=body.dry_run
+            )
+        except TooManyItemsError as error:
+            raise HTTPException(422, str(error)) from error
+        except InvalidTransitionError as error:
+            raise HTTPException(409, str(error)) from error
+        return SweepOut(
+            matched=result.matched,
+            changed=len(result.outcomes),
+            sample=[ItemOut.of(i) for i in result.sample],
+            undo=[
+                UndoEntry(
+                    id=o.before.id,
+                    state=o.before.state,
+                    snoozed_until=o.before.snoozed_until,
+                    starred=o.before.starred,
+                )
+                for o in result.outcomes
+            ],
+        )
+
+    @app.post("/api/items/restore-many")
+    def restore_many(body: RestoreIn) -> BulkOut:
+        try:
+            for entry in body.entries:
+                services.triage.restore(entry.id, entry.state, entry.snoozed_until, starred=entry.starred)
+        except ItemNotFoundError as error:
+            raise HTTPException(404, f"no item {error}") from error
+        return BulkOut(changed=len(body.entries))
 
     @app.post("/api/items/seen-below")
     def seen_below(body: SeenBelowIn) -> BulkOut:
@@ -240,6 +287,24 @@ def _guard[T](change: Callable[[], T]) -> T:
         raise HTTPException(409, str(error)) from None
     except InvalidError as error:
         raise HTTPException(422, str(error)) from None
+
+
+def _query(selection: ItemFilter, now: datetime) -> InboxQuery:
+    """The inbox query a filter stands for; the age filters are counted back from now."""
+    return InboxQuery(
+        priorities=frozenset(Priority[p] for p in selection.priority),
+        channels=frozenset(selection.channel),
+        sources=frozenset(selection.source),
+        states=frozenset(selection.state) if selection.state else DEFAULT_STATES,
+        starred=selection.starred,
+        text=selection.text,
+        published_before=None
+        if selection.older_than_days is None
+        else now - timedelta(days=selection.older_than_days),
+        published_after=None
+        if selection.newer_than_days is None
+        else now - timedelta(days=selection.newer_than_days),
+    )
 
 
 def _wake(now: datetime, body: ActionIn) -> datetime:

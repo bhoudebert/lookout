@@ -9,10 +9,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from lookout.adapters.store.codec import decode, encode
-from lookout.application.ports import InboxQuery, Page
+from lookout.application.ports import InboxQuery, Order, Page
 from lookout.application.ports_sources import SourceStatus
 from lookout.domain.channel import SEP, Channel
 from lookout.domain.item import Item
+from lookout.domain.priority import Priority
 from lookout.domain.profile import Signal, SignalKind
 from lookout.domain.source import SourceDef
 
@@ -66,6 +67,7 @@ def migrate_v1(db: sqlite3.Connection) -> None:
 
 
 _ORDER = "priority, rank DESC, published_at DESC"
+_NEWEST_FIRST = "published_at DESC, id"
 
 
 def migrate_v2(db: sqlite3.Connection) -> None:
@@ -248,10 +250,17 @@ class SqliteItemRepository:
         if query.text:
             clauses.append("search LIKE ?")
             args.append(f"%{query.text.lower()}%")
+        if query.published_before is not None:
+            clauses.append("published_at < ?")
+            args.append(query.published_before.astimezone(UTC).isoformat())
+        if query.published_after is not None:
+            clauses.append("published_at >= ?")
+            args.append(query.published_after.astimezone(UTC).isoformat())
+        order = _NEWEST_FIRST if query.order is Order.DATE else _ORDER
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
         total = self._db.query(f"SELECT count(*) FROM items {where}", args)[0][0]  # noqa: S608
         rows = self._db.query(
-            f"SELECT data FROM items {where} ORDER BY {_ORDER} LIMIT ? OFFSET ?",  # noqa: S608
+            f"SELECT data FROM items {where} ORDER BY {order} LIMIT ? OFFSET ?",  # noqa: S608
             [*args, query.limit, query.offset],
         )
         return Page(tuple(decode(r["data"]) for r in rows), int(total))
@@ -261,6 +270,15 @@ class SqliteItemRepository:
         rows = self._db.query(
             "SELECT data FROM items WHERE state = 'snoozed' AND snoozed_until <= ?",
             (moment.astimezone(UTC).isoformat(),),
+        )
+        return tuple(decode(r["data"]) for r in rows)
+
+    def untouched_before(self, priority: Priority, moment: datetime) -> tuple[Item, ...]:
+        """Unstarred new or seen items of this priority published before ``moment``."""
+        rows = self._db.query(
+            "SELECT data FROM items WHERE state IN ('new', 'seen') AND starred = 0 AND priority = ?"
+            " AND published_at < ?",
+            (int(priority), moment.astimezone(UTC).isoformat()),
         )
         return tuple(decode(r["data"]) for r in rows)
 

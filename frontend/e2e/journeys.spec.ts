@@ -319,6 +319,34 @@ test("a suggested source is added with its category in one click", async ({ page
   await expect(page.getByRole("button", { name: "Edit Dev > Java", exact: true })).toHaveCount(0);
 });
 
+test("the list can be read in date order, by age, and a whole selection cleared and put back", async ({ page }) => {
+  await page.goto("/");
+  const total = await items(page).count();
+
+  await page.getByRole("button", { name: "Latest" }).click();
+  await expect(page).toHaveURL(/order=date/);
+  await expect(page.getByRole("button", { name: "Latest" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Triage" }).click();
+  await expect(page).not.toHaveURL(/order=/);
+
+  await page.getByLabel("Age").selectOption("older30");
+  await expect(page.getByText("Nothing to look at.")).toBeVisible();
+  await page.getByLabel("Age").selectOption("");
+  await page.getByLabel("View").selectOption("expired");
+  await expect(page.getByText("Nothing to look at.")).toBeVisible();
+  await page.getByLabel("View").selectOption("inbox");
+
+  await page.getByRole("button", { name: /^Act on all \d+…$/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Act on everything shown" });
+  await expect(dialog).toContainText(`${total} items`);
+  await dialog.getByRole("button", { name: `Mark ${total} done` }).click();
+  await expect(page.getByText(`Marked done: ${total} items`)).toBeVisible();
+  await expect(items(page)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(items(page)).toHaveCount(total);
+});
+
 test("the single-page app answers on any path, and the API still answers its own", async ({ page, request }) => {
   await page.goto("/sources");
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();

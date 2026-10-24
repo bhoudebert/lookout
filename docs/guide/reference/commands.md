@@ -52,7 +52,7 @@ List items, most urgent first.
 | `--priority`, `-p` | P0 to P3, repeatable. |
 | `--channel` | The topic: AI, Rust, ... |
 | `--source` |  |
-| `--state` | Default: new and seen. One of: `new`, `seen`, `done`, `snoozed`, `dismissed`. |
+| `--state` | Default: new and seen. One of: `new`, `seen`, `done`, `snoozed`, `dismissed`, `expired`. |
 | `--starred` | Only starred items. |
 | `--text` |  |
 | `--limit` |  Default: `30`. |

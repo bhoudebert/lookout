@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from typing import Protocol
 
 from lookout.domain.item import Item
@@ -16,6 +17,13 @@ class Clock(Protocol):
     def now(self) -> datetime: ...
 
 
+class Order(StrEnum):
+    """How a listing is ordered: by priority band (triage) or strictly newest first (latest), ADR 0016."""
+
+    PRIORITY = "priority"
+    DATE = "date"
+
+
 @dataclass(frozen=True, slots=True)
 class InboxQuery:
     """Filters of an item listing. ``None`` or empty means no filter."""
@@ -26,6 +34,9 @@ class InboxQuery:
     states: frozenset[State] = frozenset()
     starred: bool | None = None
     text: str = ""
+    published_before: datetime | None = None
+    published_after: datetime | None = None
+    order: Order = Order.PRIORITY
     limit: int = 50
     offset: int = 0
 
@@ -48,6 +59,8 @@ class ItemRepository(Protocol):
     def search(self, query: InboxQuery) -> Page: ...
 
     def snoozed_before(self, moment: datetime) -> tuple[Item, ...]: ...
+
+    def untouched_before(self, priority: Priority, moment: datetime) -> tuple[Item, ...]: ...
 
     def pending_enrichment(self) -> tuple[Item, ...]: ...
 

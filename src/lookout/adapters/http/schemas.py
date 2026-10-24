@@ -1,7 +1,7 @@
 """The JSON shapes of the API. The frontend's TypeScript types are generated from these."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -142,6 +142,50 @@ class BulkIn(ActionIn):
     """The same action on several items."""
 
     ids: list[str] = Field(min_length=1)
+
+
+PriorityName = Literal["P0", "P1", "P2", "P3"]
+
+
+class ItemFilter(BaseModel):
+    """What to select, as the inbox filters do. Empty means no filter; states default to new and seen."""
+
+    priority: list[PriorityName] = Field(default_factory=list[PriorityName])
+    channel: list[str] = Field(default_factory=list[str])
+    source: list[str] = Field(default_factory=list[str])
+    state: list[State] = Field(default_factory=list[State])
+    starred: bool | None = None
+    text: str = ""
+    older_than_days: int | None = Field(default=None, ge=0)
+    newer_than_days: int | None = Field(default=None, ge=0)
+
+
+class SweepIn(ActionIn):
+    """An action on everything a filter matches; with ``dry_run`` it only says what would change."""
+
+    filter: ItemFilter = Field(default_factory=ItemFilter)
+    dry_run: bool = False
+
+
+class UndoEntry(UndoOut):
+    """One item's undo, with its id."""
+
+    id: str
+
+
+class SweepOut(BaseModel):
+    """What a sweep matched, a sample of it, and how to undo what it changed."""
+
+    matched: int
+    changed: int
+    sample: list[ItemOut]
+    undo: list[UndoEntry]
+
+
+class RestoreIn(BaseModel):
+    """Put several items back as they were."""
+
+    entries: list[UndoEntry] = Field(min_length=1)
 
 
 class BulkOut(BaseModel):
