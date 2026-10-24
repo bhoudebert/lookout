@@ -1,9 +1,15 @@
 version: 2
 updates:
+  # Python: the lock file is the truth, so only it is updated (lower bounds in pyproject stay as written).
   - package-ecosystem: pip
     directory: /
+    versioning-strategy: lockfile-only
     schedule:
       interval: weekly
+    groups:
+      python-dev-tooling:
+        patterns: ["pytest*", "import-linter", "types-*"]
+
   - package-ecosystem: npm
     directory: /frontend
     schedule:
@@ -12,15 +18,23 @@ updates:
       react:
         patterns: ["react", "react-dom", "@types/react*", "@tanstack/*"]
       testing:
-        patterns: ["vitest", "@vitest/*", "@testing-library/*", "jsdom", "@playwright/*", "@axe-core/*"]
+        patterns: ["vitest", "@vitest/*", "@testing-library/*", "jsdom", "@axe-core/*"]
+    ignore:
+      # Held back by their plugins: eslint-plugin-jsx-a11y supports ESLint 9, typescript-eslint and
+      # openapi-typescript support TypeScript 5. Playwright is pinned to the version Nix provides.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@playwright/test"
+
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    groups:
-      dev-tooling:
-        patterns:
-          ["eslint*", "@eslint/*", "typescript*", "prettier", "@commitlint/*", "@playwright/*", "vitest", "@types/*"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
