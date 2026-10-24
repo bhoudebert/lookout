@@ -6,3 +6,5 @@ flake.lock
 CHANGELOG.md
 coverage
 dist
+.import_linter_cache
+.venv
