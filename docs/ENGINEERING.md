@@ -79,6 +79,22 @@ before the first pending step (ADR 0004).
 `lookout.yaml` declares sources, the stack (packages, frameworks, versions) used by the priority rules, the LLM
 endpoint and the schedule. Secrets come from the environment, never from the file.
 
+## Design
+
+One design, "Samurai calm", on all three surfaces: warm paper and soft ink in light, a brown-black lacquer with muted gold in
+dark, serif headings, one-pixel rules, a small vermilion seal for urgency, a tinted (not solid) P0. Text is about 12:1 against
+its background, and every text and badge pair stays above 4.5:1.
+
+| Surface   | Where it lives                                                                                        |
+| --------- | ----------------------------------------------------------------------------------------------------- |
+| Dashboard | the tokens and rules of `frontend/src/styles.css`, with the Samurai layer in `frontend/src/theme.css` |
+| Guide     | `docs/guide/.vitepress/theme/custom.css` (the VitePress variables)                                    |
+| Website   | the `:root` tokens and the few rules at the top of `site/index.html`                                  |
+
+The palettes are repeated in these three places on purpose: each is a separate build with no shared stylesheet. Change one,
+change the others. The dashboard's accessibility scans run in light and dark (`frontend/e2e/journeys.spec.ts`), so a palette that
+fails contrast fails the gate.
+
 ## Quality
 
 See `docs/TESTING.md`. The gate (`nix run .#quality`) is the same command locally and in CI.
