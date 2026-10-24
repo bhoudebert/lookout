@@ -60,12 +60,23 @@ api-check:
     uv run python scripts/dump_openapi.py | diff -q - frontend/openapi.json
     npm run --prefix frontend api:check
 
+# The guide's command reference is generated from the command line (a test fails when it is stale)
+reference:
+    uv run python scripts/reference.py > docs/guide/reference/commands.md
+
+# The user guide and the website
+docs:
+    npx vitepress build docs/guide
+
+docs-dev:
+    npx vitepress dev docs/guide
+
 # Journeys in a real browser against the real backend, a fake feed and a fake model
 e2e: ui-build
     npm run --prefix frontend e2e
 
 # The gate: the same command locally and in CI
-quality: fmt-check lint types contracts test api-check ui-lint ui-types ui-test e2e
+quality: fmt-check lint types contracts test api-check docs ui-lint ui-types ui-test e2e
 
 dev:
     @echo "dev server arrives with the HTTP adapter"

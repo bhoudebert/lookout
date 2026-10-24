@@ -2,11 +2,17 @@
 
 Not commitments. Ordered by expected value for one person tracking the news, releases and risks of their own stack.
 
-## Now (v0.x)
+## Done (v0.x)
 
-- Core: sources, enrichment, priority, triage, personalization (see `openspec/specs/`).
-- Adapters: RSS/Atom, Hacker News, Reddit, GitHub releases, GitHub advisories and Dependabot alerts, OSV and NVD.
-- Dashboard, guide, website.
+- Core: RSS/Atom ingestion, enrichment through any OpenAI-compatible model, priority rules, triage, personalization.
+- CLI, HTTP API, dashboard, user guide and website.
+
+## Now
+
+- Adapters with structured data for the priority rules: GitHub advisories and Dependabot alerts (through `gh` or a token),
+  OSV and NVD, with version-range matching against the declared stack.
+- Dedicated Hacker News and Reddit adapters (scores, comment counts).
+- Container image and a NixOS module.
 
 ## Next
 
