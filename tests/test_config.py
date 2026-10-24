@@ -38,6 +38,7 @@ def test_full_file_is_read(tmp_path: Path) -> None:
                 "body_limit": 500,
                 "llm": {"base_url": "http://h/v1", "model": "m", "daily_limit": 5, "summary_chars": 100},
                 "thresholds": {"p0": 95, "p1": 80, "p2": 50},
+                "personalization": {"half_life_days": 7, "minimum_signals": 2},
                 "stack": [{"name": "postgresql", "ecosystem": "other", "aliases": ["postgres"]}],
                 "sources": [
                     {"name": "a", "kind": "rss", "url": "https://a", "keywords": ["x"], "enabled": False},
@@ -54,6 +55,7 @@ def test_full_file_is_read(tmp_path: Path) -> None:
     )
     assert (config.llm.model, config.llm.api_key, config.llm.daily_limit) == ("m", "secret", 5)
     assert config.thresholds == Thresholds(95, 80, 50)
+    assert (config.personalization.half_life_days, config.personalization.minimum_signals) == (7, 2)
     assert config.stack.entries[0].aliases == ("postgres",)
     (source,) = config.sources
     assert (source.keywords, source.enabled, source.settings) == (("x",), False, {"url": "https://a"})
@@ -102,6 +104,7 @@ def test_invalid_yaml_is_reported(tmp_path: Path) -> None:
             "two sources are named 'a'",
         ),
         ({"sources": [{"name": "a", "kind": "rss", "enabled": "yes"}]}, "'enabled' must be true or false"),
+        ({"personalization": {"half_life_days": 0}}, "'half_life_days' must be a whole number of at least 1"),
         ({"body_limit": 5}, "'body_limit' must be a whole number of at least 100"),
     ],
 )

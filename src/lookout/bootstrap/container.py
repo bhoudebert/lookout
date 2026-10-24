@@ -12,12 +12,14 @@ from lookout.adapters.sources.rss import RssFetcher
 from lookout.adapters.store.sqlite import (
     Database,
     SqliteItemRepository,
+    SqliteSignalRepository,
     SqliteSourceStatusRepository,
     SqliteUsageRepository,
 )
 from lookout.application.enrich import Enrich
 from lookout.application.errors import ConfigError
 from lookout.application.ingest import Ingest
+from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.ports_sources import SourceFetcher, SourceStatusRepository
 from lookout.application.reassess import Reassess
@@ -57,6 +59,7 @@ class Container:
     triage: Triage
     inbox: Inbox
     reassess: Reassess
+    personalize: Personalize
     fetchers: tuple[SourceFetcher, ...]
     http: httpx.Client
     llm_http: httpx.Client
@@ -74,6 +77,7 @@ class Container:
             triage=self.triage,
             inbox=self.inbox,
             reassess=self.reassess,
+            personalize=self.personalize,
             clock=self.clock,
             run=self._run,
             doctor=lambda: run_checks(self.config, self.database, self.llm_http, self.fetchers),
@@ -84,7 +88,9 @@ class Container:
         )
 
     def _run(self) -> RunReport:
-        return RunReport(self.ingest.run(self.fetchers), self.enrich.run())
+        report = RunReport(self.ingest.run(self.fetchers), self.enrich.run())
+        self.personalize.rerank()
+        return report
 
 
 def load(path: Path, environ: dict[str, str] | None = None) -> Config:
@@ -118,6 +124,13 @@ def _assemble(
 ) -> Container:
     items = SqliteItemRepository(database)
     statuses = SqliteSourceStatusRepository(database)
+    personalize = Personalize(
+        items,
+        SqliteSignalRepository(database),
+        clock,
+        half_life_days=config.personalization.half_life_days,
+        minimum_signals=config.personalization.minimum_signals,
+    )
     policy = PriorityPolicy(config.thresholds)
     enricher = OpenAiEnricher(
         llm_http,
@@ -143,10 +156,12 @@ def _assemble(
             clock,
             policy,
             daily_limit=config.llm.daily_limit,
+            profile=personalize.profile,
         ),
-        triage=Triage(items),
+        triage=Triage(items, personalize),
         inbox=Inbox(items, clock),
         reassess=Reassess(items, policy, config.stack),
+        personalize=personalize,
         fetchers=tuple(SOURCE_KINDS[s.kind](s, http) for s in config.sources if s.enabled),
         http=http,
         llm_http=llm_http,

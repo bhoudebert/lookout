@@ -133,6 +133,28 @@ def create_app(open_services: Opener) -> typer.Typer:
             typer.echo(f"added {services.seed_demo()} demo items")
 
     @app.command()
+    def explain(ctx: typer.Context, item_id: Annotated[str, typer.Argument(help="Item id.")]) -> None:
+        """Say why an item has its priority and its place in the inbox."""
+        with _open(ctx) as services:
+            try:
+                why = services.personalize.explain(item_id)
+            except ItemNotFoundError:
+                _die(f"no item {item_id}")
+        typer.echo(f"{why.priority.name} ({why.priority.label}): {why.priority_reason}")
+        if why.model_score is not None:
+            typer.echo(f"model score {why.model_score}")
+        typer.echo(f"your profile moves it {why.boost:+d} inside its priority")
+        for part in why.contributions:
+            typer.echo(f"  {part.points:+d} {part.feature}")
+
+    @app.command()
+    def forget(ctx: typer.Context) -> None:
+        """Reset what Lookout learnt from your actions; items stay."""
+        with _open(ctx) as services:
+            services.personalize.reset()
+        typer.echo("profile reset")
+
+    @app.command()
     def reassess(ctx: typer.Context) -> None:
         """Recompute priorities after changing the stack or the thresholds (no model call)."""
         with _open(ctx) as services:

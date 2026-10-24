@@ -10,6 +10,7 @@ from lookout.adapters.store.codec import decode, encode
 from lookout.application.ports import InboxQuery, Page
 from lookout.application.ports_sources import SourceStatus
 from lookout.domain.item import Item
+from lookout.domain.profile import Signal, SignalKind
 
 
 class SchemaTooNewError(Exception):
@@ -50,6 +51,13 @@ def _v1(db: sqlite3.Connection) -> None:
         """
     )
     db.execute("CREATE TABLE usage (day TEXT PRIMARY KEY, calls INTEGER NOT NULL)")
+    db.execute(
+        """
+        CREATE TABLE signals (
+            id INTEGER PRIMARY KEY, item_id TEXT NOT NULL, kind TEXT NOT NULL, at TEXT NOT NULL
+        )
+        """
+    )
 
 
 _ORDER = "priority, rank DESC, published_at DESC"
@@ -113,7 +121,7 @@ class SqliteItemRepository:
     def save(self, item: Item) -> None:
         """Insert or replace an item."""
         enrichment = item.enrichment
-        rank = enrichment.score if enrichment else 0
+        rank = (enrichment.score if enrichment else 0) + item.boost
         category = enrichment.category if enrichment else ""
         tags = " ".join(enrichment.tags) if enrichment else ""
         summary = enrichment.summary if enrichment else ""
@@ -265,3 +273,28 @@ def _write(moment: datetime | None) -> str | None:
 
 def _read(text: str | None) -> datetime | None:
     return datetime.fromisoformat(text) if text else None
+
+
+class SqliteSignalRepository:
+    """What the user did, in order."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database.connection
+
+    def add(self, signal: Signal) -> None:
+        """Remember one action."""
+        self._db.execute(
+            "INSERT INTO signals (item_id, kind, at) VALUES (?, ?, ?)",
+            (signal.item_id, signal.kind.value, signal.at.astimezone(UTC).isoformat()),
+        )
+
+    def all(self) -> tuple[Signal, ...]:
+        """Every action, oldest first."""
+        rows = self._db.execute("SELECT item_id, kind, at FROM signals ORDER BY id").fetchall()
+        return tuple(
+            Signal(r["item_id"], SignalKind(r["kind"]), datetime.fromisoformat(r["at"])) for r in rows
+        )
+
+    def clear(self) -> None:
+        """Forget everything the user did (the profile resets; items are untouched)."""
+        self._db.execute("DELETE FROM signals")

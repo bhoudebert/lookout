@@ -40,6 +40,7 @@ class Item:
     state: State = State.NEW
     snoozed_until: datetime | None = None
     starred: bool = False
+    boost: int = 0
     extra: dict[str, str] = field(default_factory=dict[str, str])
 
     # Triage ---------------------------------------------------------------------------------------------
@@ -88,6 +89,10 @@ class Item:
     def enrichment_gave_up(self) -> Self:
         """The model never produced a valid answer; the item stays, flagged."""
         return replace(self, enrichment_failed=True)
+
+    def ranked(self, boost: int) -> Self:
+        """Set the personal rank adjustment; it orders items inside a priority band."""
+        return replace(self, boost=boost)
 
     def assessed(self, priority: Priority, reason: str, stack_matches: tuple[str, ...]) -> Self:
         """Record the priority decided by the policy, why, and the stack entries matched."""

@@ -31,6 +31,7 @@ def encode(item: Item) -> str:
             "state": item.state.value,
             "snoozed_until": _dt(item.snoozed_until) if item.snoozed_until else None,
             "starred": item.starred,
+            "boost": item.boost,
             "extra": item.extra,
         },
         separators=(",", ":"),
@@ -56,6 +57,7 @@ def decode(text: str) -> Item:
         state=State(raw["state"]),
         snoozed_until=datetime.fromisoformat(raw["snoozed_until"]) if raw["snoozed_until"] else None,
         starred=raw["starred"],
+        boost=raw["boost"],
         extra=raw["extra"],
     )
 
