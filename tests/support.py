@@ -4,11 +4,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from lookout.adapters.store.sqlite import SqliteItemRepository
+from lookout.adapters.store.sqlite import Database, SqliteItemRepository
+from lookout.application.ports_sources import EnrichmentError, SourceError
 from lookout.domain.advisory import Advisory
 from lookout.domain.enrichment import Enrichment
 from lookout.domain.item import Item, item_id
 from lookout.domain.priority import Priority
+from lookout.domain.raw import RawItem
 
 NOW = datetime(2026, 10, 24, 9, 0, tzinfo=UTC)
 
@@ -59,16 +61,63 @@ def make_item(
     return item.enriched(enrichment(score, category)) if score is not None else item
 
 
-_OPENED: list[SqliteItemRepository] = []
+_OPENED: list[Database] = []
+
+
+def database(path: Path | str = ":memory:") -> Database:
+    """A database the test does not have to close: conftest closes every one after the test."""
+    db = Database(path)
+    _OPENED.append(db)
+    return db
 
 
 def repository(path: Path | str = ":memory:") -> SqliteItemRepository:
-    """A repository the test does not have to close: conftest closes every one after the test."""
-    repo = SqliteItemRepository(path)
-    _OPENED.append(repo)
-    return repo
+    return SqliteItemRepository(database(path))
 
 
 def close_repositories() -> None:
     while _OPENED:
         _OPENED.pop().close()
+
+
+class FakeFetcher:
+    """A source that returns the given entries, or fails with the given message."""
+
+    def __init__(self, name: str, raws: tuple[RawItem, ...] = (), error: str | None = None) -> None:
+        self.name = name
+        self.raws = raws
+        self.error = error
+        self.calls = 0
+
+    def fetch(self) -> tuple[RawItem, ...]:
+        self.calls += 1
+        if self.error is not None:
+            raise SourceError(self.error)
+        return self.raws
+
+
+class ScriptedEnricher:
+    """Answers items by title from a table; anything not listed gets a default reading."""
+
+    def __init__(self, answers: dict[str, Enrichment | EnrichmentError] | None = None) -> None:
+        self.answers = answers or {}
+        self.asked: list[str] = []
+
+    def enrich(self, item: Item) -> Enrichment:
+        self.asked.append(item.title)
+        answer = self.answers.get(item.title, enrichment(50))
+        if isinstance(answer, EnrichmentError):
+            raise answer
+        return answer
+
+
+def raw(
+    url: str = "https://example.com/post",
+    *,
+    source: str = "blog",
+    title: str = "A post",
+    body: str = "",
+    published_at: datetime | None = NOW,
+    advisory: Advisory | None = None,
+) -> RawItem:
+    return RawItem(source, url, title, body, published_at, advisory)

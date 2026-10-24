@@ -8,6 +8,7 @@ from pathlib import Path
 
 from lookout.adapters.store.codec import decode, encode
 from lookout.application.ports import InboxQuery, Page
+from lookout.application.ports_sources import SourceStatus
 from lookout.domain.item import Item
 
 
@@ -27,6 +28,7 @@ def _v1(db: sqlite3.Connection) -> None:
             sources TEXT NOT NULL,
             search TEXT NOT NULL,
             rank INTEGER NOT NULL,
+            pending INTEGER NOT NULL,
             published_at TEXT NOT NULL,
             snoozed_until TEXT,
             data TEXT NOT NULL
@@ -34,6 +36,20 @@ def _v1(db: sqlite3.Connection) -> None:
         """
     )
     db.execute("CREATE INDEX items_inbox ON items (state, priority, rank DESC, published_at DESC)")
+    db.execute("CREATE INDEX items_pending ON items (pending, priority)")
+    db.execute(
+        """
+        CREATE TABLE sources (
+            name TEXT PRIMARY KEY,
+            last_run TEXT,
+            last_error TEXT,
+            failures INTEGER NOT NULL,
+            next_attempt TEXT,
+            items_seen INTEGER NOT NULL
+        )
+        """
+    )
+    db.execute("CREATE TABLE usage (day TEXT PRIMARY KEY, calls INTEGER NOT NULL)")
 
 
 _ORDER = "priority, rank DESC, published_at DESC"
@@ -41,14 +57,19 @@ _ORDER = "priority, rank DESC, published_at DESC"
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (_v1,)
 
 
-class SqliteItemRepository:
-    """Items in one SQLite file. Each public method is one transaction."""
+class Database:
+    """One SQLite file, migrated to the current schema on open (ADR 0004)."""
 
     def __init__(self, path: Path | str) -> None:
         self._path = Path(path)
         self._db = sqlite3.connect(str(path), isolation_level=None)
         self._db.row_factory = sqlite3.Row
         self._migrate()
+
+    @property
+    def connection(self) -> sqlite3.Connection:
+        """The open connection, for the repositories built on this database."""
+        return self._db
 
     def close(self) -> None:
         """Close the connection."""
@@ -77,7 +98,12 @@ class SqliteItemRepository:
     def _backup(self, version: int) -> None:
         shutil.copyfile(self._path, self._path.with_name(f"{self._path.name}.bak-v{version}"))
 
-    # Repository -----------------------------------------------------------------------------------------
+
+class SqliteItemRepository:
+    """Items in a database."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database.connection
 
     def get(self, item_id: str) -> Item | None:
         """The item with this id, or ``None``."""
@@ -91,15 +117,16 @@ class SqliteItemRepository:
         category = enrichment.category if enrichment else ""
         tags = " ".join(enrichment.tags) if enrichment else ""
         summary = enrichment.summary if enrichment else ""
+        pending = enrichment is None and not item.enrichment_failed
         self._db.execute(
             """
-            INSERT INTO items (id, priority, state, starred, category, sources, search, rank,
+            INSERT INTO items (id, priority, state, starred, category, sources, search, rank, pending,
                                published_at, snoozed_until, data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 priority = excluded.priority, state = excluded.state, starred = excluded.starred,
                 category = excluded.category, sources = excluded.sources, search = excluded.search,
-                rank = excluded.rank, published_at = excluded.published_at,
+                rank = excluded.rank, pending = excluded.pending, published_at = excluded.published_at,
                 snoozed_until = excluded.snoozed_until, data = excluded.data
             """,
             (
@@ -111,6 +138,7 @@ class SqliteItemRepository:
                 "|" + "|".join(item.sources) + "|",
                 f"{item.title}\n{summary}\n{tags}".lower(),
                 rank,
+                int(pending),
                 item.published_at.astimezone(UTC).isoformat(),
                 item.snoozed_until.astimezone(UTC).isoformat() if item.snoozed_until else None,
                 encode(item),
@@ -155,6 +183,13 @@ class SqliteItemRepository:
         ).fetchall()
         return tuple(decode(r["data"]) for r in rows)
 
+    def pending_enrichment(self) -> tuple[Item, ...]:
+        """Items the model has not read yet, most urgent first."""
+        rows = self._db.execute(
+            f"SELECT data FROM items WHERE pending = 1 ORDER BY {_ORDER}"  # noqa: S608
+        ).fetchall()
+        return tuple(decode(r["data"]) for r in rows)
+
     def all(self) -> tuple[Item, ...]:
         """Every stored item."""
         return tuple(decode(r["data"]) for r in self._db.execute("SELECT data FROM items"))
@@ -162,3 +197,71 @@ class SqliteItemRepository:
 
 def _marks(values: object) -> str:
     return ",".join("?" for _ in values)  # type: ignore[attr-defined]
+
+
+class SqliteSourceStatusRepository:
+    """Health of sources."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database.connection
+
+    def get(self, name: str) -> SourceStatus:
+        """The status of a source; a source never run has an empty one."""
+        row = self._db.execute("SELECT * FROM sources WHERE name = ?", (name,)).fetchone()
+        if row is None:
+            return SourceStatus(name)
+        return SourceStatus(
+            name=name,
+            last_run=_read(row["last_run"]),
+            last_error=row["last_error"],
+            failures=row["failures"],
+            next_attempt=_read(row["next_attempt"]),
+            items_seen=row["items_seen"],
+        )
+
+    def save(self, status: SourceStatus) -> None:
+        """Insert or replace a status."""
+        self._db.execute(
+            """
+            INSERT INTO sources (name, last_run, last_error, failures, next_attempt, items_seen)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET last_run = excluded.last_run, last_error = excluded.last_error,
+                failures = excluded.failures, next_attempt = excluded.next_attempt,
+                items_seen = excluded.items_seen
+            """,
+            (
+                status.name,
+                _write(status.last_run),
+                status.last_error,
+                status.failures,
+                _write(status.next_attempt),
+                status.items_seen,
+            ),
+        )
+
+
+class SqliteUsageRepository:
+    """Model calls per day."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database.connection
+
+    def calls_on(self, day: str) -> int:
+        """Calls recorded for a UTC day (``YYYY-MM-DD``)."""
+        row = self._db.execute("SELECT calls FROM usage WHERE day = ?", (day,)).fetchone()
+        return int(row["calls"]) if row else 0
+
+    def record_call(self, day: str) -> None:
+        """Count one call."""
+        self._db.execute(
+            "INSERT INTO usage (day, calls) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET calls = calls + 1",
+            (day,),
+        )
+
+
+def _write(moment: datetime | None) -> str | None:
+    return moment.astimezone(UTC).isoformat() if moment else None
+
+
+def _read(text: str | None) -> datetime | None:
+    return datetime.fromisoformat(text) if text else None
