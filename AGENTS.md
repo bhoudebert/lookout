@@ -56,8 +56,11 @@ The full path every feature follows is in `docs/EVOLVING.md`. Short form:
 nix develop              # the shell: Python, uv, Node, gh, just
 nix run .#quality        # the gate
 just test                # Python tests with the coverage gate
+just ui-test             # dashboard component tests, 100% coverage
 just e2e                 # Playwright journeys against the real stack on fakes
-just docs                # build the guide and the website
-just dev                 # backend + frontend with demo data
+just api-types           # regenerate the dashboard's types after changing the API
+just reference           # regenerate the command reference after changing a command
+just docs                # build the guide (a dead link fails the build)
+npm run --prefix frontend shots   # website screenshots, from the real app
 lookout doctor           # check environment, LLM endpoint, sources
 ```

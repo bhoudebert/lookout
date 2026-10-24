@@ -14,3 +14,7 @@ frontend/coverage
 frontend/dist
 frontend/playwright-report
 frontend/test-results
+docs/guide/reference/commands.md
+docs/guide/.vitepress/dist
+docs/guide/.vitepress/cache
+site/shots

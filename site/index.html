@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Lookout, a watch tower for your work</title>
+    <meta
+      name="description"
+      content="Self-hosted. Plug in feeds, releases and advisories; a model summarises and prioritises; you work an inbox."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%23d9480f' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23d9480f'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        --bg: #fbfaf8;
+        --fg: #1d1b19;
+        --muted: #5f5952;
+        --line: #e2ddd6;
+        --card: #ffffff;
+        --accent: #c2410c;
+        --accent-fg: #ffffff;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #161412;
+          --fg: #efebe6;
+          --muted: #a8a095;
+          --line: #34302b;
+          --card: #1f1c19;
+          --accent: #ff8a50;
+          --accent-fg: #161412;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          17px/1.6 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      a {
+        color: var(--accent);
+      }
+      .wrap {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+      header.top {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1rem 0;
+        flex-wrap: wrap;
+      }
+      header.top strong {
+        color: var(--accent);
+        font-size: 1.2rem;
+      }
+      header.top nav {
+        display: flex;
+        gap: 1.25rem;
+        margin-left: auto;
+      }
+      .hero {
+        padding: 3.5rem 0 2rem;
+        max-width: 760px;
+      }
+      h1 {
+        font-size: clamp(2rem, 5vw, 3.2rem);
+        line-height: 1.15;
+        margin: 0 0 1rem;
+      }
+      .lead {
+        font-size: 1.25rem;
+        color: var(--muted);
+        margin: 0 0 1.5rem;
+      }
+      .buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .button {
+        display: inline-block;
+        padding: 0.6rem 1.1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        border: 2px solid var(--accent);
+      }
+      .button.primary {
+        background: var(--accent);
+        color: var(--accent-fg);
+      }
+      figure {
+        margin: 2rem 0;
+      }
+      figure img {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        display: block;
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+      }
+      .shot-dark {
+        display: none;
+      }
+      @media (prefers-color-scheme: dark) {
+        .shot-light {
+          display: none;
+        }
+        .shot-dark {
+          display: block;
+        }
+      }
+      section {
+        padding: 2rem 0;
+      }
+      h2 {
+        font-size: 1.6rem;
+        margin: 0 0 1rem;
+      }
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+      }
+      .card h3 {
+        margin: 0 0 0.4rem;
+        font-size: 1.05rem;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+      }
+      ol.steps {
+        padding-left: 1.2rem;
+      }
+      ol.steps li {
+        margin-bottom: 0.6rem;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        background: var(--card);
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--line);
+      }
+      pre {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 1rem;
+        overflow-x: auto;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.92em;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 1.5rem 0 3rem;
+        color: var(--muted);
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <strong>Lookout</strong>
+        <nav aria-label="Main">
+          <a href="guide/">Guide</a>
+          <a href="guide/reference/commands">Commands</a>
+          <a href="https://github.com/bhoudebert/lookout">GitHub</a>
+        </nav>
+      </header>
+
+      <main>
+        <div class="hero">
+          <h1>Know what needs you today.</h1>
+          <p class="lead">
+            Lookout is a self-hosted watch tower. Plug in the feeds, releases and advisories that matter to your work; a
+            model summarises, categorises and prioritises each item; you work an inbox.
+          </p>
+          <div class="buttons">
+            <a class="button primary" href="guide/getting-started">Get started</a>
+            <a class="button" href="guide/concepts">How it thinks</a>
+          </div>
+        </div>
+
+        <figure>
+          <img
+            class="shot-light"
+            src="shots/detail-light.png"
+            width="1200"
+            height="760"
+            alt="The Lookout inbox in light mode. A P0 item, a critical Django advisory, is open on the right with the rule that made it P0."
+          />
+          <img
+            class="shot-dark"
+            src="shots/inbox-dark.png"
+            width="1200"
+            height="760"
+            alt="The Lookout inbox in dark mode, six items ordered from P0, act today, to P3, background."
+          />
+          <figcaption>The dashboard on the built-in demo data (<code>lookout demo</code>).</figcaption>
+        </figure>
+
+        <section aria-labelledby="why">
+          <h2 id="why">Built around trust</h2>
+          <div class="grid">
+            <div class="card">
+              <h3>Rules first, model second</h3>
+              <p>
+                A critical advisory on a package you declared is never below P0, whatever the model says. Every priority
+                shows its reason.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Text from the internet is data</h3>
+              <p>
+                A title that says "ignore previous instructions" is stored as plain text and decides nothing. This is
+                tested in a real browser.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Any model, free to start</h3>
+              <p>One OpenAI-compatible port. Run Ollama on your machine, or point it at any compatible endpoint.</p>
+            </div>
+            <div class="card">
+              <h3>It learns, and says why</h3>
+              <p>
+                Stars, finished items and dismissals reorder items inside their priority. “Why this rank” lists each
+                contribution.
+              </p>
+            </div>
+            <div class="card">
+              <h3>A triage inbox</h3>
+              <p>New, seen, done, snoozed, dismissed. Filters in the URL, keyboard shortcuts, bulk actions, undo.</p>
+            </div>
+            <div class="card">
+              <h3>Yours</h3>
+              <p>
+                One SQLite file, one process, MIT licence. Nothing leaves your machine except the calls you configure.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="levels">
+          <h2 id="levels">Four levels of urgency</h2>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Level</th>
+                <th scope="col">Meaning</th>
+                <th scope="col">Example</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">P0</th>
+                <td>act today</td>
+                <td>Critical SQL injection in a library you run</td>
+              </tr>
+              <tr>
+                <th scope="row">P1</th>
+                <td>this week</td>
+                <td>A release candidate of a framework you build on</td>
+              </tr>
+              <tr>
+                <th scope="row">P2</th>
+                <td>read when free</td>
+                <td>A database beta with a feature you may use</td>
+              </tr>
+              <tr>
+                <th scope="row">P3</th>
+                <td>background</td>
+                <td>A survey of the industry</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section aria-labelledby="start">
+          <h2 id="start">Try it in a minute</h2>
+          <pre><code>git clone https://github.com/bhoudebert/lookout &amp;&amp; cd lookout
+nix develop &amp;&amp; just setup
+cp lookout.example.yaml lookout.yaml
+lookout demo &amp;&amp; npm run --prefix frontend build
+lookout serve   # http://127.0.0.1:8899</code></pre>
+          <p>
+            Sources today: any RSS or Atom feed, which already covers blogs, GitHub releases, Reddit, Hacker News and
+            YouTube channels. Advisory and Dependabot adapters are next.
+            <a href="guide/sources">See the sources</a>.
+          </p>
+        </section>
+
+        <section aria-labelledby="proof">
+          <h2 id="proof">Proven on every change</h2>
+          <ol class="steps">
+            <li>100% line and branch coverage on the backend, from scenarios that run real use cases.</li>
+            <li>100% coverage on the dashboard, plus browser journeys against the real server.</li>
+            <li>Accessibility checks (WCAG 2 A and AA) on every screen, and a phone-width check.</li>
+            <li>One command, <code>nix run .#quality</code>, locally and in CI.</li>
+          </ol>
+        </section>
+      </main>
+
+      <footer>
+        MIT licence · <a href="https://github.com/bhoudebert/lookout">Source</a> ·
+        <a href="guide/">Documentation</a>
+      </footer>
+    </div>
+  </body>
+</html>

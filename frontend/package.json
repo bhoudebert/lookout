@@ -11,7 +11,8 @@
     "test": "vitest run --coverage",
     "e2e": "playwright test",
     "api:types": "openapi-typescript openapi.json -o src/api/schema.ts",
-    "api:check": "openapi-typescript openapi.json -o /tmp/lookout-schema.ts && diff -q /tmp/lookout-schema.ts src/api/schema.ts"
+    "api:check": "openapi-typescript openapi.json -o /tmp/lookout-schema.ts && diff -q /tmp/lookout-schema.ts src/api/schema.ts",
+    "shots": "SHOTS=1 playwright test shots"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.5",
