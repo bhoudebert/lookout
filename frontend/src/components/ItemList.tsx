@@ -58,7 +58,7 @@ export function ItemList({ items, focusedId, selected, now, onFocus, onOpen, onT
               {item.enrichment_failed && <> · the model could not read it</>}
             </p>
             {item.tags.length > 0 && (
-              <p className="chips" aria-label="Tags">
+              <p className="tags" aria-label="Tags">
                 {item.tags.slice(0, 4).map((tag) => (
                   <span key={tag}>#{tag}</span>
                 ))}

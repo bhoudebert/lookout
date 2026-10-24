@@ -350,13 +350,14 @@ describe("categories", () => {
     expect(calls(backend, "PATCH", "/api/channels/AI")[0]?.body).toEqual({ description: "Models and agents" });
   });
 
-  it("shows the parent of a path the server stored without one", async () => {
+  it("shows why a move was refused and keeps the tree as the server has it", async () => {
     const backend = world();
-    backend.taxonomy.channels = [{ name: "Dev > Web", description: "", items: 2, sources: [] }];
-    mount(backend, "/categories");
-    const dev = (await screen.findByRole("button", { name: "Edit Dev" })).closest("li") as HTMLElement;
-    expect(dev).toHaveTextContent("2 items");
-    expect(screen.getByRole("button", { name: "Edit Dev > Web" })).toBeInTheDocument();
+    const { user } = mount(backend, "/categories");
+    await user.click(await screen.findByRole("button", { name: "Move AI" }));
+    backend.failWith = { status: 404, detail: "no such source or channel: Dev" };
+    await user.click(within(screen.getByRole("group", { name: "Move AI" })).getByRole("button", { name: "Move here" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("no such source or channel: Dev");
+    expect(screen.getByRole("button", { name: "Edit AI" })).toBeInTheDocument();
   });
 
   it("offers no move when there is nowhere to go", async () => {

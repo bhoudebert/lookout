@@ -183,6 +183,26 @@ def test_moving_a_category_takes_its_subcategories_its_items_and_its_sources_alo
         instance.services.close()
 
 
+def test_a_database_with_a_path_but_not_its_parent_gets_the_parent_when_opened(tmp_path: Path) -> None:
+    first = Api(Lookout(tmp_path, channels=[{"name": "Security"}]))
+    first.services.close()
+    raw = sqlite3.connect(tmp_path / "lookout.db")
+    raw.execute("INSERT INTO channel_defs (name, description, position) VALUES ('Dev > Web', '', 99)")
+    raw.commit()
+    raw.close()
+    reopened = Api(Lookout(tmp_path, channels=[{"name": "Security"}]))
+    try:
+        assert "Dev" in names(reopened)
+        assert move(reopened, "Security", "Dev").json()["name"] == "Dev > Security"
+    finally:
+        reopened.services.close()
+
+
+def test_moving_inside_a_parent_that_was_never_stored_is_refused_not_invented(api: Api) -> None:
+    assert move(api, OTHER, "Ghost").status_code in (404, 409)
+    assert "Ghost" not in names(api)
+
+
 def test_a_category_can_go_back_to_the_top_level(api: Api) -> None:
     api.client.post("/api/channels", json={"name": "Dev > Rust"})
     assert move(api, "Dev > Rust").json()["name"] == "Rust"

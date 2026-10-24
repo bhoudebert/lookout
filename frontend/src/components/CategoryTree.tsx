@@ -14,6 +14,9 @@ export function CategoryTree({ channels, selected, onSelect }: Props) {
   const everything = rows.filter((r) => r.depth === 0).reduce((sum, r) => sum + r.total, 0);
   return (
     <nav className="tree" aria-label="Categories">
+      <p className="tree-title" aria-hidden="true">
+        Categories
+      </p>
       <ul>
         <li>
           <button
@@ -28,9 +31,11 @@ export function CategoryTree({ channels, selected, onSelect }: Props) {
           </button>
         </li>
         {rows.map((row) => (
-          <li key={row.path} style={{ paddingLeft: `${row.depth}rem` }}>
+          <li key={row.path}>
             <button
               type="button"
+              style={{ paddingLeft: `${0.6 + row.depth * 1.1}rem` }}
+              data-depth={row.depth}
               title={row.description || row.path}
               aria-current={selected === row.path ? "true" : undefined}
               onClick={() => {
