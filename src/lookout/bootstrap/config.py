@@ -33,6 +33,13 @@ class PersonalizationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ScheduleConfig:
+    """How often ``lookout serve`` runs by itself; 0 turns it off."""
+
+    interval_minutes: int = 60
+
+
+@dataclass(frozen=True, slots=True)
 class SourceConfig:
     """One declared source."""
 
@@ -55,6 +62,8 @@ class Config:
     thresholds: Thresholds = field(default_factory=Thresholds)
     sources: tuple[SourceConfig, ...] = ()
     personalization: PersonalizationConfig = field(default_factory=PersonalizationConfig)
+    schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
+    dashboard_dir: Path = Path("frontend/dist")
     body_limit: int = 4000
 
 
@@ -86,6 +95,12 @@ def load_config(
         personalization=_personalization(
             reader, reader.mapping(root.get("personalization", {}), "personalization")
         ),
+        schedule=ScheduleConfig(
+            interval_minutes=reader.integer(
+                reader.mapping(root.get("schedule", {}), "schedule"), "interval_minutes", 60
+            )
+        ),
+        dashboard_dir=Path(reader.text(root, "dashboard_dir", "frontend/dist")),
         body_limit=reader.integer(root, "body_limit", 4000, minimum=100),
     )
 

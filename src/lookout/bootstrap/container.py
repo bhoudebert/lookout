@@ -1,7 +1,7 @@
 """Wiring: builds every adapter from the configuration and hands the use cases to the entry points."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
@@ -9,6 +9,7 @@ import httpx
 from lookout.adapters.clock import SystemClock
 from lookout.adapters.llm.openai_compatible import OpenAiEnricher
 from lookout.adapters.sources.rss import RssFetcher
+from lookout.adapters.store.codec import encode
 from lookout.adapters.store.sqlite import (
     Database,
     SqliteItemRepository,
@@ -23,7 +24,9 @@ from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.ports_sources import SourceFetcher, SourceStatusRepository
 from lookout.application.reassess import Reassess
-from lookout.application.services import RunReport, Services
+from lookout.application.runs import RunCoordinator, RunReport
+from lookout.application.services import Services
+from lookout.application.sources import DeclaredSource, SourceDirectory
 from lookout.application.triage import Inbox, Triage
 from lookout.bootstrap.config import Config, SourceConfig, load_config
 from lookout.bootstrap.demo import seed_demo
@@ -60,9 +63,14 @@ class Container:
     inbox: Inbox
     reassess: Reassess
     personalize: Personalize
+    sources: SourceDirectory
     fetchers: tuple[SourceFetcher, ...]
     http: httpx.Client
     llm_http: httpx.Client
+    runs: RunCoordinator = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.runs = RunCoordinator(self._run, self.clock)
 
     def close(self) -> None:
         """Release the database and the HTTP clients."""
@@ -78,12 +86,17 @@ class Container:
             inbox=self.inbox,
             reassess=self.reassess,
             personalize=self.personalize,
+            sources=self.sources,
+            runs=self.runs,
             clock=self.clock,
             run=self._run,
             doctor=lambda: run_checks(self.config, self.database, self.llm_http, self.fetchers),
             seed_demo=lambda: seed_demo(
                 self.items, self.clock.now(), PriorityPolicy(self.config.thresholds), self.config.stack
             ),
+            export=lambda: (encode(item) for item in self.items.all()),
+            schedule_minutes=self.config.schedule.interval_minutes,
+            dashboard_dir=self.config.dashboard_dir,
             close=self.close,
         )
 
@@ -162,6 +175,9 @@ def _assemble(
         inbox=Inbox(items, clock),
         reassess=Reassess(items, policy, config.stack),
         personalize=personalize,
+        sources=SourceDirectory(
+            tuple(DeclaredSource(s.name, s.kind, s.enabled) for s in config.sources), statuses
+        ),
         fetchers=tuple(SOURCE_KINDS[s.kind](s, http) for s in config.sources if s.enabled),
         http=http,
         llm_http=llm_http,

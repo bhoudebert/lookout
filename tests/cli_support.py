@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import yaml
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from tests.support import FixedClock
 
 if TYPE_CHECKING:
@@ -75,7 +77,15 @@ class Lookout:
             **config,
         }
         self.write()
-        self.app = create_app(self._open)
+        self.served: list[tuple[str, int]] = []
+        self.app = create_app(self._open, self._serve)
+
+    def services(self) -> Services:
+        return self._open(self.path)
+
+    def _serve(self, services: Services, host: str, port: int) -> None:
+        self.served.append((host, port))
+        assert services.items is not None
 
     def write(self) -> None:
         self.path.write_text(yaml.safe_dump(self.config))
@@ -88,3 +98,8 @@ class Lookout:
         result = runner.invoke(self.app, ["--config", str(self.path), *args])
         assert result.exit_code == exit_code, result.output
         return result.output
+
+
+def http_client(api: FastAPI) -> httpx.Client:
+    """A test client typed as the plain httpx client it is."""
+    return TestClient(api)
