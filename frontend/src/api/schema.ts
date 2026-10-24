@@ -322,7 +322,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Taxonomy */
+        /**
+         * Taxonomy
+         * @description The categories, each with how many items the same filters would list in it (the category aside).
+         */
         get: operations["taxonomy_api_taxonomy_get"];
         put?: never;
         post?: never;
@@ -1037,10 +1040,10 @@ export interface operations {
     list_items_api_items_get: {
         parameters: {
             query?: {
-                priority?: ("P0" | "P1" | "P2" | "P3")[] | null;
-                channel?: string[] | null;
-                source?: string[] | null;
-                state?: components["schemas"]["State"][] | null;
+                priority?: ("P0" | "P1" | "P2" | "P3")[];
+                channel?: string[];
+                source?: string[];
+                state?: components["schemas"]["State"][];
                 starred?: boolean | null;
                 text?: string;
                 older_than_days?: number | null;
@@ -1571,7 +1574,16 @@ export interface operations {
     };
     taxonomy_api_taxonomy_get: {
         parameters: {
-            query?: never;
+            query?: {
+                priority?: ("P0" | "P1" | "P2" | "P3")[];
+                channel?: string[];
+                source?: string[];
+                state?: components["schemas"]["State"][];
+                starred?: boolean | null;
+                text?: string;
+                older_than_days?: number | null;
+                newer_than_days?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1585,6 +1597,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaxonomyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

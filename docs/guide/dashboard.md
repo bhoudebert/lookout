@@ -9,7 +9,7 @@ By default (**Triage**) items are ordered by priority, then by your profile, the
 Filters are kept in the address, so a filtered inbox can be bookmarked:
 
 - priority chips, order (Triage or Latest), view (Inbox, Snoozed, Done, Dismissed, **Expired**, Everything) and age (newer than a week, older than a week, two weeks, a month)
-- category (picked in the tree beside the list, subcategories included), source, starred, and free text over title, summary, tags and author
+- category (picked in the tree beside the list, subcategories included; the numbers in the tree are what the list would show with the other filters, so they change with the view, age and the rest), source, starred, and free text over title, summary, tags and author
 
 The list loads 50 items at a time: **Load more** fetches the next 50, and the count always says the real total ("50 of 2329").
 
@@ -39,7 +39,7 @@ Every action shows a message with **Undo** for eight seconds.
 
 ## Categories
 
-The **Categories** page is where you define what you look at. It lists each category with its description, how many items it holds and which sources feed it, suggests starting categories (AI, `Dev > Rust`, Security, ...) you can add with one click, and lets you add, describe and delete your own, inside another category if you want. You can **move** a category (with what is under it) inside another or back to the top level; its items and sources follow. After you create one, the page tells you how many items it could file again and asks before touching them; **File existing items again** does it at any time. While everything in your inbox is still in `Other`, the inbox tells you so and links here. See [how Lookout thinks](/concepts).
+The **Categories** page is where you define what you look at. It lists each category with its description, how many items it holds in the inbox and which sources feed it, suggests starting categories (AI, `Dev > Rust`, Security, ...) you can add with one click, and lets you add, describe and delete your own, inside another category if you want. You can **move** a category (with what is under it) inside another or back to the top level; its items and sources follow. After you create one, the page tells you how many items it could file again and asks before touching them; **File existing items again** does it at any time. While everything in your inbox is still in `Other`, the inbox tells you so and links here. See [how Lookout thinks](/concepts).
 
 ## Sources
 

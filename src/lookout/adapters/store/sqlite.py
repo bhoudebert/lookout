@@ -226,44 +226,20 @@ class SqliteItemRepository:
 
     def search(self, query: InboxQuery) -> Page:
         """Items matching the filters, most urgent first, then by score, then newest."""
-        clauses: list[str] = []
-        args: list[object] = []
-        if query.priorities:
-            clauses.append(f"priority IN ({_marks(query.priorities)})")
-            args.extend(int(p) for p in query.priorities)
-        if query.channels:
-            clauses.append(
-                "(" + " OR ".join("channel = ? OR substr(channel, 1, ?) = ?" for _ in query.channels) + ")"
-            )
-            for path in query.channels:
-                prefix = path + SEP
-                args.extend((path, len(prefix), prefix))
-        if query.states:
-            clauses.append(f"state IN ({_marks(query.states)})")
-            args.extend(s.value for s in query.states)
-        if query.sources:
-            clauses.append("(" + " OR ".join("sources LIKE ?" for _ in query.sources) + ")")
-            args.extend(f"%|{name}|%" for name in query.sources)
-        if query.starred is not None:
-            clauses.append("starred = ?")
-            args.append(int(query.starred))
-        if query.text:
-            clauses.append("search LIKE ?")
-            args.append(f"%{query.text.lower()}%")
-        if query.published_before is not None:
-            clauses.append("published_at < ?")
-            args.append(query.published_before.astimezone(UTC).isoformat())
-        if query.published_after is not None:
-            clauses.append("published_at >= ?")
-            args.append(query.published_after.astimezone(UTC).isoformat())
+        where, args = _where(query)
         order = _NEWEST_FIRST if query.order is Order.DATE else _ORDER
-        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
         total = self._db.query(f"SELECT count(*) FROM items {where}", args)[0][0]  # noqa: S608
         rows = self._db.query(
             f"SELECT data FROM items {where} ORDER BY {order} LIMIT ? OFFSET ?",  # noqa: S608
             [*args, query.limit, query.offset],
         )
         return Page(tuple(decode(r["data"]) for r in rows), int(total))
+
+    def count_by_channel(self, query: InboxQuery) -> dict[str, int]:
+        """How many items each channel holds among those ``query`` matches, so counts agree with listings."""
+        where, args = _where(query)
+        rows = self._db.query(f"SELECT channel, count(*) AS n FROM items {where} GROUP BY channel", args)  # noqa: S608
+        return {r["channel"]: int(r["n"]) for r in rows}
 
     def snoozed_before(self, moment: datetime) -> tuple[Item, ...]:
         """Snoozed items whose wake-up time is at or before ``moment``."""
@@ -289,14 +265,44 @@ class SqliteItemRepository:
         )
         return tuple(decode(r["data"]) for r in rows)
 
-    def count_by_channel(self) -> dict[str, int]:
-        """How many items each channel holds."""
-        rows = self._db.query("SELECT channel, count(*) AS n FROM items GROUP BY channel")
-        return {r["channel"]: int(r["n"]) for r in rows}
-
     def all(self) -> tuple[Item, ...]:
         """Every stored item."""
         return tuple(decode(r["data"]) for r in self._db.query("SELECT data FROM items"))
+
+
+def _where(query: InboxQuery) -> tuple[str, list[object]]:
+    """The SQL conditions of a query and their arguments, shared by listings and counts."""
+    clauses: list[str] = []
+    args: list[object] = []
+    if query.priorities:
+        clauses.append(f"priority IN ({_marks(query.priorities)})")
+        args.extend(int(p) for p in query.priorities)
+    if query.channels:
+        clauses.append(
+            "(" + " OR ".join("channel = ? OR substr(channel, 1, ?) = ?" for _ in query.channels) + ")"
+        )
+        for path in query.channels:
+            prefix = path + SEP
+            args.extend((path, len(prefix), prefix))
+    if query.states:
+        clauses.append(f"state IN ({_marks(query.states)})")
+        args.extend(s.value for s in query.states)
+    if query.sources:
+        clauses.append("(" + " OR ".join("sources LIKE ?" for _ in query.sources) + ")")
+        args.extend(f"%|{name}|%" for name in query.sources)
+    if query.starred is not None:
+        clauses.append("starred = ?")
+        args.append(int(query.starred))
+    if query.text:
+        clauses.append("search LIKE ?")
+        args.append(f"%{query.text.lower()}%")
+    if query.published_before is not None:
+        clauses.append("published_at < ?")
+        args.append(query.published_before.astimezone(UTC).isoformat())
+    if query.published_after is not None:
+        clauses.append("published_at >= ?")
+        args.append(query.published_after.astimezone(UTC).isoformat())
+    return ("WHERE " + " AND ".join(clauses)) if clauses else "", args
 
 
 def _marks(values: object) -> str:

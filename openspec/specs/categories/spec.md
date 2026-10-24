@@ -28,6 +28,17 @@ it and its subcategories, and `All` clears it.
 - **WHEN** the user chooses `Dev`
 - **THEN** the list holds the items of `Dev` and of `Dev > Rust`, and the URL records the choice
 
+### Requirement: Counts that match the list
+
+The number beside each category SHALL be the number of items the list would show in it (and under it) with the filters
+in force, the category aside: the view (inbox by default; done, dismissed or expired items are not counted in the
+inbox), priority, source, star, text and age. `All` SHALL equal the total of the list without a category.
+
+#### Scenario: A category and its list
+
+- **WHEN** a category holds 3 items in the inbox, 1 done and 1 expired
+- **THEN** the tree says 3, clicking it lists 3, and in the expired view it says 1
+
 ### Requirement: Subcategories
 
 The user SHALL be able to add a category inside another. A category that has subcategories or is named by a source SHALL

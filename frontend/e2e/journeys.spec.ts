@@ -321,6 +321,7 @@ test("a suggested source is added with its category in one click", async ({ page
 
 test("the list can be read in date order, by age, and a whole selection cleared and put back", async ({ page }) => {
   await page.goto("/");
+  await expect(items(page).first()).toBeVisible();
   const total = await items(page).count();
 
   await page.getByRole("button", { name: "Latest" }).click();
@@ -331,6 +332,7 @@ test("the list can be read in date order, by age, and a whole selection cleared 
 
   await page.getByLabel("Age").selectOption("older30");
   await expect(page.getByText("Nothing to look at.")).toBeVisible();
+  await expect(tree(page).getByRole("button", { name: /^All/ })).toContainText("0"); // the counts follow the filters
   await page.getByLabel("Age").selectOption("");
   await page.getByLabel("View").selectOption("expired");
   await expect(page.getByText("Nothing to look at.")).toBeVisible();

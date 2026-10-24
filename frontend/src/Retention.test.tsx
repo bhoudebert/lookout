@@ -222,3 +222,48 @@ describe("the address", () => {
     expect(parseLocation("/", "?order=sideways&age=yesterday").filters).toMatchObject({ order: "priority", age: "" });
   });
 });
+
+describe("the counts beside the list", () => {
+  const mixed = () => [
+    aged(1, { channel: "AI" }),
+    aged(2, { channel: "AI" }),
+    aged(40, { channel: "AI" }),
+    aged(3, { channel: "AI", state: "done" }),
+    aged(4, { channel: "AI", state: "expired" }),
+    aged(5, { channel: "Dev > Rust" }),
+  ];
+  const tree = () => within(screen.getByRole("navigation", { name: "Categories" }));
+  const row = (name: RegExp) => tree().getByRole("button", { name }).textContent;
+
+  it("count what the list shows, not everything ever filed", async () => {
+    mount(new FakeBackend(mixed()));
+    await screen.findByRole("button", { name: "Story 1" });
+    // Five of the six items are in the AI or Dev branches, but one is done and one expired.
+    expect(screen.getByText("4 of 4")).toBeInTheDocument();
+    expect(row(/^All/)).toBe("All4");
+    expect(row(/^AI/)).toBe("AI3");
+    expect(row(/^Dev/)).toBe("Dev1");
+  });
+
+  it("follow the age filter and the view, so a category number is what clicking it lists", async () => {
+    const { user } = mount(new FakeBackend(mixed()));
+    await screen.findByRole("button", { name: "Story 1" });
+    await user.selectOptions(screen.getByLabelText("Age"), "older30");
+    await waitFor(() => {
+      expect(row(/^AI/)).toBe("AI1");
+    });
+    expect(row(/^All/)).toBe("All1");
+    await user.click(tree().getByRole("button", { name: /^AI/ }));
+    await waitFor(() => {
+      expect(screen.getByText("1 of 1")).toBeInTheDocument();
+    });
+
+    await user.selectOptions(screen.getByLabelText("Age"), "");
+    await user.selectOptions(screen.getByLabelText("View"), "expired");
+    await waitFor(() => {
+      expect(row(/^AI/)).toBe("AI1");
+    });
+    expect(row(/^All/)).toBe("All1");
+    expect(screen.getByText("1 of 1")).toBeInTheDocument();
+  });
+});

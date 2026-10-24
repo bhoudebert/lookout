@@ -257,7 +257,7 @@ def test_opening_the_application_expires_what_is_due_and_a_run_does_too(tmp_path
 
 @pytest.fixture
 def api(tmp_path: Path) -> Any:
-    instance = Api(Lookout(tmp_path))
+    instance = Api(Lookout(tmp_path, channels=[{"name": "AI"}]))
     repo = instance.services.items
     for n, (priority, age, channel) in enumerate(
         [(Priority.P0, 20, "AI"), (Priority.P2, 2, "AI"), (Priority.P3, 1, "Other"), (Priority.P1, 15, "AI")]
@@ -344,3 +344,30 @@ def test_a_sweep_can_snooze_and_refuses_what_makes_no_sense_or_is_too_big(
         ).status_code
         == 404
     )
+
+
+# --- the counts beside the list tell the truth about the list ---
+
+
+def test_the_tree_counts_what_the_list_would_show_for_the_same_filters(api: Any) -> None:
+    """Counts used to include done, dismissed and expired items, so 2441 beside a list of 112."""
+    repo = api.services.items
+    finished = make_item("https://x/finished", channel="AI", published_at=ago(days=1)).mark_done()
+    gone = make_item("https://x/gone", channel="AI", published_at=ago(days=40)).expire()
+    repo.save(finished)
+    repo.save(gone)
+
+    def counts(**params: Any) -> dict[str, int]:
+        found = api.client.get("/api/taxonomy", params=params).json()["channels"]
+        return {c["name"]: c["items"] for c in found}
+
+    assert counts()["AI"] == len(api.items(channel="AI")) == 3  # not 5: done and expired are not in the inbox
+    assert counts(state="expired")["AI"] == 1
+    assert counts(older_than_days=10)["AI"] == 2
+    assert counts(newer_than_days=10, priority="P2")["AI"] == 1
+    assert counts(text="item 3")["AI"] == 1
+    assert counts(source="nobody")["AI"] == 0
+    assert counts(starred=True)["AI"] == 0
+    for params in ({}, {"state": "expired"}, {"older_than_days": 10}, {"priority": "P0"}):
+        shown = api.client.get("/api/items", params={"channel": "AI", "limit": 100, **params}).json()["total"]
+        assert counts(**params)["AI"] == shown, params

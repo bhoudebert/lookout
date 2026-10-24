@@ -1416,24 +1416,17 @@
             "name": "priority",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "items": {
-                    "enum": [
-                      "P0",
-                      "P1",
-                      "P2",
-                      "P3"
-                    ],
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Priority"
+              "items": {
+                "enum": [
+                  "P0",
+                  "P1",
+                  "P2",
+                  "P3"
+                ],
+                "type": "string"
+              },
+              "title": "Priority",
+              "type": "array"
             }
           },
           {
@@ -1441,18 +1434,11 @@
             "name": "channel",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Channel"
+              "items": {
+                "type": "string"
+              },
+              "title": "Channel",
+              "type": "array"
             }
           },
           {
@@ -1460,18 +1446,11 @@
             "name": "source",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Source"
+              "items": {
+                "type": "string"
+              },
+              "title": "Source",
+              "type": "array"
             }
           },
           {
@@ -1479,18 +1458,11 @@
             "name": "state",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "items": {
-                    "$ref": "#/components/schemas/State"
-                  },
-                  "type": "array"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "State"
+              "items": {
+                "$ref": "#/components/schemas/State"
+              },
+              "title": "State",
+              "type": "array"
             }
           },
           {
@@ -2193,7 +2165,124 @@
     },
     "/api/taxonomy": {
       "get": {
+        "description": "The categories, each with how many items the same filters would list in it (the category aside).",
         "operationId": "taxonomy_api_taxonomy_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "items": {
+                "enum": [
+                  "P0",
+                  "P1",
+                  "P2",
+                  "P3"
+                ],
+                "type": "string"
+              },
+              "title": "Priority",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Channel",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Source",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/State"
+              },
+              "title": "State",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "starred",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Starred"
+            }
+          },
+          {
+            "in": "query",
+            "name": "text",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "older_than_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Older Than Days"
+            }
+          },
+          {
+            "in": "query",
+            "name": "newer_than_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Newer Than Days"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2204,6 +2293,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Taxonomy"
