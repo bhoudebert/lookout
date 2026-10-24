@@ -51,6 +51,8 @@ class Network:
             200, json={"vulns": []}
         )
         self.kev: bytes | int = json.dumps({"vulnerabilities": []}).encode()
+        self.reddit: Callable[[httpx.Request], httpx.Response] = lambda _request: httpx.Response(404)
+        self.youtube: Callable[[httpx.Request], httpx.Response] = lambda _request: httpx.Response(404)
         self.hackernews: Callable[[httpx.Request], httpx.Response] = lambda _request: httpx.Response(
             200, json={"hits": []}
         )
@@ -60,15 +62,18 @@ class Network:
         url = str(request.url)
         if url.startswith(LLM_URL):
             return self._model(request, url)
-        if url == "https://api.osv.dev/v1/query":
-            return self.osv(request)
-        if url.startswith("https://hn.algolia.com/"):
-            return self.hackernews(request)
+        scripted = {
+            "https://api.osv.dev/v1/query": self.osv,
+            "https://www.reddit.com/": self.reddit,
+            "https://www.youtube.com/": self.youtube,
+            "https://hn.algolia.com/": self.hackernews,
+        }
+        for prefix, answer in scripted.items():
+            if url.startswith(prefix):
+                return answer(request)
         if url.startswith("https://www.cisa.gov/"):
             return self._served(self.kev)
-        if url == FEED_URL:
-            return self._served(self.feed)
-        return httpx.Response(404)
+        return self._served(self.feed) if url == FEED_URL else httpx.Response(404)
 
     def _model(self, request: httpx.Request, url: str) -> httpx.Response:
         if self.llm_down:

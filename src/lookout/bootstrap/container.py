@@ -20,7 +20,11 @@ from lookout.adapters.sources.hackernews import FEEDS as HN_FEEDS
 from lookout.adapters.sources.hackernews import MAX_LIMIT as HN_MAX_LIMIT
 from lookout.adapters.sources.hackernews import HackerNewsFetcher
 from lookout.adapters.sources.osv import OsvFetcher
+from lookout.adapters.sources.reddit import MAX_LIMIT as REDDIT_MAX_LIMIT
+from lookout.adapters.sources.reddit import SORTS as REDDIT_SORTS
+from lookout.adapters.sources.reddit import RedditFetcher, community, valid_community
 from lookout.adapters.sources.rss import RssFetcher
+from lookout.adapters.sources.youtube import YouTubeFetcher, channel_ref
 from lookout.adapters.store.codec import encode
 from lookout.adapters.store.sqlite import (
     Database,
@@ -165,6 +169,40 @@ def _max_age_field(retention: Retention) -> FieldInfo:
     )
 
 
+def _reddit(source: SourceDef, ways: Ways) -> SourceFetcher:
+    raw = source.settings.get("subreddits")
+    if not isinstance(raw, list) or not raw or not all(isinstance(r, str) for r in cast("list[object]", raw)):
+        msg = f"source '{source.name}' (reddit) needs 'subreddits': a list of communities"
+        raise ConfigError(msg)
+    names = tuple(dict.fromkeys(community(r) for r in cast("list[str]", raw)))
+    for name in names:
+        if not valid_community(name):
+            msg = f"source '{source.name}' (reddit): '{name}' is not the name of a community"
+            raise ConfigError(msg)
+    sort = source.settings.get("sort", "hot")
+    limit = source.settings.get("limit", REDDIT_MAX_LIMIT)
+    if sort not in REDDIT_SORTS:
+        msg = f"source '{source.name}' (reddit): 'sort' must be one of {', '.join(REDDIT_SORTS)}"
+        raise ConfigError(msg)
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= REDDIT_MAX_LIMIT:
+        msg = f"source '{source.name}' (reddit): 'limit' must be a whole number from 1 to {REDDIT_MAX_LIMIT}"
+        raise ConfigError(msg)
+    return RedditFetcher(
+        source.name, names, ways.http, sort=cast("str", sort), limit=limit, keywords=source.keywords
+    )
+
+
+def _youtube(source: SourceDef, ways: Ways) -> SourceFetcher:
+    channel = source.settings.get("channel")
+    ref = channel_ref(channel) if isinstance(channel, str) else None
+    if ref is None:
+        msg = (
+            f"source '{source.name}' (youtube) needs a 'channel': its @handle, its address or its id (UC...)"
+        )
+        raise ConfigError(msg)
+    return YouTubeFetcher(source.name, ref, ways.http, keywords=source.keywords)
+
+
 @dataclass(frozen=True, slots=True)
 class SourceTypeSpec:
     """A type of source: what a form shows for it, and how to build its fetcher from a definition."""
@@ -206,6 +244,43 @@ SOURCE_TYPES: dict[str, SourceTypeSpec] = {
             ),
         ),
         _github,
+    ),
+    "reddit": SourceTypeSpec(
+        SourceTypeInfo(
+            "reddit",
+            "Reddit communities",
+            "Posts of several subreddits at once (no scores: Reddit does not share them anonymously). "
+            "Keep your communities in one source: Reddit allows about one request a minute.",
+            (
+                FieldInfo(
+                    "subreddits",
+                    "Communities",
+                    "list",
+                    required=True,
+                    help="rust, r/java or an address, one per line",
+                ),
+                FieldInfo("sort", "Order", "text", default="hot", help="hot or new"),
+                FieldInfo("limit", "Posts per run (1 to 100)", "number", default=100),
+            ),
+        ),
+        _reddit,
+    ),
+    "youtube": SourceTypeSpec(
+        SourceTypeInfo(
+            "youtube",
+            "YouTube channel",
+            "The recent videos of one channel.",
+            (
+                FieldInfo(
+                    "channel",
+                    "Channel",
+                    "text",
+                    required=True,
+                    help="@handle, the channel's address, or its id (UC...)",
+                ),
+            ),
+        ),
+        _youtube,
     ),
     "hackernews": SourceTypeSpec(
         SourceTypeInfo(

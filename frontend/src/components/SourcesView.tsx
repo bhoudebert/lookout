@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Source, SourceType } from "../api/types";
 import { useManage, useSetSource, useSourceTypes, useSources, useTaxonomy } from "../hooks";
 import { until } from "../format";
-import { PRESETS } from "../presets";
+import { GROUPS, PRESETS } from "../presets";
 import type { Preset } from "../presets";
 import { SourceForm } from "./SourceForm";
 import { StateView } from "./StateView";
@@ -100,21 +100,39 @@ export function SourcesView() {
           </p>
         )}
         {missing.length > 0 && (
-          <div className="suggestions" role="group" aria-label="Suggested sources">
-            <span className="hint">Start with:</span>
-            {missing.map((p) => (
-              <button
-                key={p.name}
-                type="button"
-                title={p.blurb}
-                disabled={adding !== null}
-                onClick={() => {
-                  addPreset(p);
-                }}
-              >
-                + {p.name}
-              </button>
-            ))}
+          <div className="presets" role="group" aria-label="Suggested sources">
+            <p className="hint">
+              Start with a suggestion: each address was checked, and one click adds the source and the category it files
+              in. Open a theme to see them.
+            </p>
+            {GROUPS.map((group) => {
+              const inGroup = missing.filter((p) => p.group === group.id);
+              if (inGroup.length === 0) return null;
+              return (
+                <details key={group.id}>
+                  <summary>
+                    {group.title} <span className="count">{inGroup.length}</span>
+                  </summary>
+                  <p className="hint">{group.about}</p>
+                  <ul>
+                    {inGroup.map((p) => (
+                      <li key={p.name}>
+                        <button
+                          type="button"
+                          disabled={adding !== null}
+                          onClick={() => {
+                            addPreset(p);
+                          }}
+                        >
+                          + {p.name}
+                        </button>
+                        <span className="hint">{p.blurb}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              );
+            })}
           </div>
         )}
         {sources.data.length === 0 ? (
