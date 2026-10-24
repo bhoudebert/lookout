@@ -1,0 +1,236 @@
+/*
+ * Design proposal: PHOSPHOR TERMINAL.
+ * A green CRT: black glass, one phosphor green, monospace, flat lines made of dashes, a block cursor after the name and a
+ * ">" marking the focused row, text that glows a little. Dark only.
+ * This file is a layer on top of styles.css: delete the import in main.tsx to go back.
+ */
+:root {
+  color-scheme: dark;
+  --mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --bg: #040906;
+  --fg: #b9f5c6;
+  --muted: #74b58a;
+  --line: #1c3a27;
+  --card: #08110b;
+  --surface-2: #0d1b12;
+  --accent: #5dff8a;
+  --accent-text: #5dff8a;
+  --accent-fill: #5dff8a;
+  --on-accent: #03160a;
+  --p0: #ff6b6b;
+  --p1: #ffd166;
+  --p2: #5dff8a;
+  --p3: #74b58a;
+  --focus: #ffd166;
+  --glow: 0 0 8px rgb(93 255 138 / 0.35);
+}
+
+body {
+  font-family: var(--mono);
+  font-size: 15px;
+  background: radial-gradient(900px 500px at 50% -20%, rgb(93 255 138 / 0.07), transparent 65%), var(--bg);
+  scrollbar-color: #24523a var(--bg);
+}
+/* A flicker-free vignette, so the corners fall off like a tube. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 62%, rgb(0 0 0 / 0.45));
+}
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+h1,
+h2 {
+  text-shadow: var(--glow);
+  color: var(--accent-text);
+}
+h1 {
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+}
+/* The block cursor. */
+h1::after {
+  content: "";
+  display: inline-block;
+  width: 0.6em;
+  height: 1.05em;
+  margin-left: 0.25em;
+  background: var(--accent);
+  vertical-align: -0.15em;
+  box-shadow: var(--glow);
+}
+h2::before {
+  content: "$ ";
+  color: var(--muted);
+}
+header {
+  border-bottom: 1px dashed var(--line);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+}
+header nav a {
+  font-size: 0.9rem;
+}
+header nav a::before {
+  content: "./";
+  color: var(--muted);
+}
+header nav a[aria-current="page"] {
+  color: var(--accent-text);
+  border-bottom: 0;
+  text-shadow: var(--glow);
+}
+
+/* Controls are bracketed text. */
+button,
+select,
+input,
+textarea {
+  border-radius: 0;
+}
+button {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg);
+}
+button:not(:disabled):hover,
+select:hover {
+  background: var(--accent-fill);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.run button {
+  border-color: var(--accent);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  font-weight: 700;
+  box-shadow: var(--glow);
+}
+.chip[aria-pressed="true"] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.chip.p0:not([aria-pressed="true"]) {
+  color: var(--p0);
+}
+.chip.p1:not([aria-pressed="true"]) {
+  color: var(--p1);
+}
+
+/* No boxes: panels are dashed outlines on the glass. */
+.filters,
+.tree,
+.detail,
+.presets,
+.manage-form,
+.channels,
+.modal {
+  border-radius: 0;
+  border: 1px dashed var(--line);
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+}
+.modal {
+  background: var(--card);
+  border-style: solid;
+  border-color: var(--accent);
+  box-shadow: 0 0 30px rgb(93 255 138 / 0.18);
+}
+
+/* Rows are lines of output; the focused one has the prompt. */
+.items {
+  gap: 0;
+}
+.item {
+  position: relative;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  border-radius: 0;
+  padding: 0.8rem 0.5rem 0.8rem 1.5rem;
+}
+.item.focused {
+  border-color: transparent;
+  border-bottom: 1px dashed var(--line);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: none;
+}
+.item.focused::before {
+  content: ">";
+  position: absolute;
+  left: 0.45rem;
+  top: 0.75rem;
+  color: var(--accent);
+  text-shadow: var(--glow);
+  font-weight: 700;
+}
+.title {
+  font-size: 1rem;
+}
+.title:hover {
+  color: var(--accent-text);
+  background: none;
+  text-decoration: none;
+  text-shadow: var(--glow);
+}
+.badge {
+  border-radius: 0;
+  background: none;
+  border-style: dashed;
+  letter-spacing: 0.04em;
+}
+.badge.p0 {
+  border-style: solid;
+  background: var(--p0);
+  color: #1a0505;
+  border-color: var(--p0);
+  font-weight: 700;
+}
+.channel {
+  text-shadow: var(--glow);
+}
+.tags span {
+  background: none;
+  padding: 0;
+  color: var(--muted);
+}
+
+.tree button {
+  border-radius: 0;
+}
+.tree button:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.tree button[aria-current="true"] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+.tree button[aria-current="true"] .count {
+  color: var(--on-accent);
+}
+
+.nudge {
+  border-radius: 0;
+  border-style: dashed;
+}
+.toast {
+  border-radius: 0;
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+tbody tr:hover {
+  background: var(--surface-2);
+}
+.channels li {
+  border-bottom-style: dashed;
+}
+a {
+  color: var(--p1);
+}
