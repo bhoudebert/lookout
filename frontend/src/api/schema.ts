@@ -39,6 +39,23 @@ export interface paths {
         patch: operations["change_channel_api_channels__name__patch"];
         trace?: never;
     };
+    "/api/channels/{name}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move Channel */
+        post: operations["move_channel_api_channels__name__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -351,6 +368,17 @@ export interface components {
             description: string;
             /** Name */
             name: string;
+        };
+        /**
+         * ChannelMove
+         * @description Where to move a category: inside this one, or to the top level when empty.
+         */
+        ChannelMove: {
+            /**
+             * Parent
+             * @default
+             */
+            parent: string;
         };
         /**
          * ChannelOut
@@ -805,6 +833,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ChannelPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_channel_api_channels__name__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelMove"];
             };
         };
         responses: {

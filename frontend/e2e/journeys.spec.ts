@@ -55,7 +55,7 @@ test("filters narrow the inbox, live in the URL and survive a reload", async ({ 
 test("categories are a tree beside the inbox, and a parent includes what is under it", async ({ page }) => {
   await page.goto("/");
   const rows = tree(page).getByRole("listitem");
-  await expect(rows).toHaveText(["All6", "AI1", "Dev2", "Rust1", "Web1", "Python0", "Security2", "Other1"]);
+  await expect(rows).toHaveText(["All6", "AI1", "Dev2", "Python0", "Rust1", "Web1", "Security2", "Other1"]);
 
   await tree(page).getByRole("button", { name: /^Rust/ }).click();
   await expect(items(page)).toHaveCount(1);
@@ -284,6 +284,25 @@ test("items already in Other can be filed again, and a parent cannot be deleted 
   await nav(page, "Inbox").click();
   await page.getByRole("button", { name: "Run now" }).click();
   await expect(page.getByText(/Last run: \d+ new, \d+ read/)).toBeVisible({ timeout: 30_000 });
+});
+
+test("a category can be moved inside another and back, its items following", async ({ page }) => {
+  await page.goto("/categories");
+  const panel = page.getByRole("region", { name: "Categories" });
+  await panel.getByRole("button", { name: "Move Security", exact: true }).click();
+  await panel.getByLabel("Move Security inside").selectOption("Dev");
+  await panel.getByRole("button", { name: "Move here" }).click();
+  await expect(panel.getByRole("button", { name: "Edit Dev > Security" })).toBeVisible();
+
+  await nav(page, "Inbox").click();
+  await tree(page).getByRole("button", { name: /^Dev/ }).click();
+  await expect(items(page).filter({ hasText: DJANGO })).toHaveCount(1);
+
+  await page.goto("/categories");
+  await panel.getByRole("button", { name: "Move Dev > Security", exact: true }).click();
+  await panel.getByLabel("Move Security inside").selectOption("(top level)");
+  await panel.getByRole("button", { name: "Move here" }).click();
+  await expect(panel.getByRole("button", { name: "Edit Security", exact: true })).toBeVisible();
 });
 
 test("the single-page app answers on any path, and the API still answers its own", async ({ page, request }) => {

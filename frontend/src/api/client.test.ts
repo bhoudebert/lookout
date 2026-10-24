@@ -31,6 +31,13 @@ describe("itemsQuery", () => {
     const urls = fetch.mock.calls.map((c) => (c as unknown as [string])[0]);
     expect(urls).toEqual(["/api/refile?dry_run=true", "/api/refile?dry_run=false"]);
   });
+  it("moves a category with its path encoded", async () => {
+    const fetch = answer(200, { name: "Dev > Rust", description: "" });
+    vi.stubGlobal("fetch", fetch);
+    await api.moveChannel("Rust", "Dev");
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect([url, init.method, init.body]).toEqual(["/api/channels/Rust/move", "POST", '{"parent":"Dev"}']);
+  });
   it("writes nothing for the defaults", () => {
     expect(itemsQuery(NO_FILTERS, 10)).toBe("limit=10");
   });

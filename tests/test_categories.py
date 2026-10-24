@@ -148,6 +148,80 @@ def test_each_category_says_how_many_items_it_holds_and_who_names_it(tmp_path: P
         instance.services.close()
 
 
+# --- moving a category ---
+
+
+def move(api: Api, name: str, parent: str = "") -> Any:
+    return api.client.post(f"/api/channels/{name}/move", json={"parent": parent})
+
+
+def test_moving_a_category_takes_its_subcategories_its_items_and_its_sources_along(tmp_path: Path) -> None:
+    instance = Api(
+        Lookout(
+            tmp_path,
+            channels=[{"name": "Languages > Rust", "description": "Rust"}, {"name": "Dev"}, {"name": "AI"}],
+            sources=[
+                {"name": "blog", "type": "rss", "url": FEED_URL, "channels": ["Languages > Rust"]},
+                {"name": "wide", "type": "rss", "url": FEED_URL + "?x", "channels": ["AI", "Languages"]},
+            ],
+        )
+    )
+    try:
+        instance.run()
+        moved = move(instance, "Languages", "Dev")
+        assert (moved.status_code, moved.json()["name"]) == (200, "Dev > Languages")
+        found = categories(instance)
+        assert set(found) == {"Dev", "Dev > Languages", "Dev > Languages > Rust", "AI", OTHER}
+        assert found["Dev > Languages > Rust"]["description"] == "Rust"
+        assert found["Dev > Languages > Rust"]["items"] == 3
+        assert found["Dev > Languages > Rust"]["sources"] == ["blog"]
+        assert found["Dev > Languages"]["sources"] == ["wide"]
+        assert {i["channel"] for i in instance.items(channel="Dev")} == {"Dev > Languages > Rust"}
+        assert move(instance, "AI", "Dev").status_code == 200
+        assert {i["channel"] for i in instance.items(channel="Dev")} == {"Dev > Languages > Rust"}
+    finally:
+        instance.services.close()
+
+
+def test_a_category_can_go_back_to_the_top_level(api: Api) -> None:
+    api.client.post("/api/channels", json={"name": "Dev > Rust"})
+    assert move(api, "Dev > Rust").json()["name"] == "Rust"
+    assert sorted(names(api)) == ["Dev", OTHER, "Rust"]
+
+
+def test_moving_where_it_already_is_changes_nothing(api: Api) -> None:
+    api.client.post("/api/channels", json={"name": "Dev > Rust"})
+    assert move(api, "Dev > Rust", "Dev").json()["name"] == "Dev > Rust"
+    assert sorted(names(api)) == ["Dev", "Dev > Rust", OTHER]
+
+
+@pytest.mark.parametrize(
+    ("name", "parent", "status"),
+    [
+        ("Nope", "", 404),
+        ("Dev", "Nope", 404),
+        (OTHER, "Dev", 409),
+        ("Dev", "Dev > Rust", 422),
+        ("Dev", "Dev", 422),
+        ("Rust", "Dev", 409),
+    ],
+)
+def test_impossible_moves_are_refused_and_change_nothing(
+    api: Api, name: str, parent: str, status: int
+) -> None:
+    api.client.post("/api/channels", json={"name": "Dev > Rust"})
+    api.client.post("/api/channels", json={"name": "Rust"})
+    before = names(api)
+    assert move(api, name, parent).status_code == status
+    assert names(api) == before
+
+
+def test_a_move_that_makes_the_path_too_deep_is_refused(api: Api) -> None:
+    api.client.post("/api/channels", json={"name": "A > B > C > D"})
+    api.client.post("/api/channels", json={"name": "X > Y"})
+    assert move(api, "X", "A > B > C > D").status_code == 422
+
+
 # --- tags carry what kinds used to ---
 
 

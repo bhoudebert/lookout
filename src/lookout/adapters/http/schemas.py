@@ -252,6 +252,12 @@ class ChannelPatch(BaseModel):
     description: str
 
 
+class ChannelMove(BaseModel):
+    """Where to move a category: inside this one, or to the top level when empty."""
+
+    parent: str = ""
+
+
 class SourcePatch(BaseModel):
     """Switch a source on or off."""
 

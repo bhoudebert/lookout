@@ -89,6 +89,11 @@ export const api = {
       body: JSON.stringify({ description }),
     }),
   refile: (dryRun = false) => call<RefileResult>(`/api/refile?dry_run=${String(dryRun)}`, { method: "POST" }),
+  moveChannel: (name: string, parent: string) =>
+    call<Channel>(`/api/channels/${encodeURIComponent(name)}/move`, {
+      method: "POST",
+      body: JSON.stringify({ parent }),
+    }),
   deleteChannel: (name: string) => call<undefined>(`/api/channels/${encodeURIComponent(name)}`, { method: "DELETE" }),
   sources: () => call<Source[]>("/api/sources"),
   setSource: (name: string, enabled: boolean) =>

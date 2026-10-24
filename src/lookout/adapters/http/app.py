@@ -16,6 +16,7 @@ from lookout.adapters.http.schemas import (
     BulkIn,
     BulkOut,
     ChannelIn,
+    ChannelMove,
     ChannelOut,
     ChannelPatch,
     ExplanationOut,
@@ -189,6 +190,11 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     @app.patch("/api/channels/{name}")
     def change_channel(name: str, body: ChannelPatch) -> ChannelOut:
         stored = _guard(lambda: services.registry.update_channel(name, body.description))
+        return ChannelOut(name=stored.name, description=stored.description)
+
+    @app.post("/api/channels/{name}/move")
+    def move_channel(name: str, body: ChannelMove) -> ChannelOut:
+        stored = _guard(lambda: services.registry.move_channel(name, body.parent))
         return ChannelOut(name=stored.name, description=stored.description)
 
     @app.delete("/api/channels/{name}", status_code=204)
