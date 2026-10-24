@@ -12,6 +12,8 @@
   --p3: #5c6670;
   --focus: #1d5fa8;
   --surface-2: #f3efe9;
+  --on-accent: #ffffff;
+  --accent-fill: #b13a08;
   --ease: 150ms ease;
   color-scheme: light dark;
 }
@@ -30,6 +32,8 @@
     --p3: #a5aeb8;
     --focus: #7fb2ee;
     --surface-2: #28241f;
+    --on-accent: #1d1b19;
+    --accent-fill: #ff7a3d;
   }
 }
 * {
@@ -613,9 +617,9 @@ select {
   cursor: pointer;
 }
 .run button {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #1d1b19;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
   font-weight: 600;
 }
 .run button:disabled {
