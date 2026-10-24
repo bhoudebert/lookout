@@ -4,14 +4,14 @@ The rule: nothing ships that has not passed every layer, and every layer is dete
 or a real LLM. A change that touches behaviour comes with a test that fails without it, and a bug starts with a
 failing test ([ADR 0009](adr/0009-testing-strategy.md)).
 
-| Layer     | Command         | Covers                                                                                          |
-| --------- | --------------- | ----------------------------------------------------------------------------------------------- |
-| Python    | `just test`     | every use case through its public entry on fakes and a real SQLite file; 100% line and branch   |
-| Contracts | `just contracts`| `import-linter`: the hexagonal dependency rules                                                 |
-| Frontend  | `just ui-test`  | every component and state in Vitest + Testing Library; 100% line and branch                     |
-| Journeys  | `just e2e`      | Playwright against the real backend and built frontend, on demo data and a fake LLM             |
-| Docs      | `just docs`     | the guide builds with no dead link; generated reference pages match the code                    |
-| Gate      | `just quality`  | format, lint, types, all of the above. `nix run .#quality` is the same command                  |
+| Layer     | Command          | Covers                                                                                        |
+| --------- | ---------------- | --------------------------------------------------------------------------------------------- |
+| Python    | `just test`      | every use case through its public entry on fakes and a real SQLite file; 100% line and branch |
+| Contracts | `just contracts` | `import-linter`: the hexagonal dependency rules                                               |
+| Frontend  | `just ui-test`   | every component and state in Vitest + Testing Library; 100% line and branch                   |
+| Journeys  | `just e2e`       | Playwright against the real backend and built frontend, on demo data and a fake LLM           |
+| Docs      | `just docs`      | the guide builds with no dead link; generated reference pages match the code                  |
+| Gate      | `just quality`   | format, lint, types, all of the above. `nix run .#quality` is the same command                |
 
 ## Non-regression tests (NRT)
 

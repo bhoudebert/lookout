@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: commitlint checks every commit of the pull request.
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v31
+      - name: Install dependencies
+        run: nix develop --command just setup
+      - name: Gate (format, lint, types, contracts, tests with 100% coverage)
+        run: nix run .#quality
+      - name: Commit messages follow Conventional Commits
+        if: github.event_name == 'pull_request'
+        run: nix develop --command just commits ${{ github.event.pull_request.base.sha }}

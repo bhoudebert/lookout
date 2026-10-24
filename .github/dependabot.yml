@@ -10,7 +10,8 @@ updates:
       interval: weekly
     groups:
       dev-tooling:
-        patterns: ["eslint*", "@eslint/*", "typescript*", "prettier", "@commitlint/*", "@playwright/*", "vitest", "@types/*"]
+        patterns:
+          ["eslint*", "@eslint/*", "typescript*", "prettier", "@commitlint/*", "@playwright/*", "vitest", "@types/*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

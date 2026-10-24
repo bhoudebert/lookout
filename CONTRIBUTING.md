@@ -30,19 +30,19 @@ Conventional Commits, enforced by the commit-msg hook and in CI:
 <footer: BREAKING CHANGE: ..., Refs #12, optional>
 ```
 
-| Type       | Use for                                       | Release effect                 |
-| ---------- | --------------------------------------------- | ------------------------------ |
-| `feat`     | A capability users did not have before        | minor version                  |
-| `fix`      | Wrong behaviour corrected                     | patch version                  |
-| `perf`     | Same behaviour, faster or cheaper             | patch version                  |
-| `refactor` | Code change with no behaviour change          | none                           |
-| `docs`     | Guide, website, README, specs, roadmap        | none (listed in the changelog) |
-| `test`     | Tests only                                    | none                           |
-| `build`    | Dependencies, tooling, Nix, scripts           | none (listed in the changelog) |
+| Type       | Use for                                        | Release effect                 |
+| ---------- | ---------------------------------------------- | ------------------------------ |
+| `feat`     | A capability users did not have before         | minor version                  |
+| `fix`      | Wrong behaviour corrected                      | patch version                  |
+| `perf`     | Same behaviour, faster or cheaper              | patch version                  |
+| `refactor` | Code change with no behaviour change           | none                           |
+| `docs`     | Guide, website, README, specs, roadmap         | none (listed in the changelog) |
+| `test`     | Tests only                                     | none                           |
+| `build`    | Dependencies, tooling, Nix, scripts            | none (listed in the changelog) |
 | `ci`       | GitHub Actions, Dependabot, release automation | none                           |
-| `chore`    | Housekeeping that fits nowhere else           | none                           |
-| `style`    | Formatting, no logic change                   | none                           |
-| `revert`   | Reverts a previous commit; subject names it   | depends on what is reverted    |
+| `chore`    | Housekeeping that fits nowhere else            | none                           |
+| `style`    | Formatting, no logic change                    | none                           |
+| `revert`   | Reverts a previous commit; subject names it    | depends on what is reverted    |
 
 A breaking change adds `!` after the scope, `feat(api)!: ...`, and a `BREAKING CHANGE:` footer explaining the
 migration.
