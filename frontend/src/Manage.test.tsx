@@ -248,7 +248,7 @@ describe("categories", () => {
     expect(ai).toHaveTextContent("Models");
     expect(ai).toHaveTextContent("fed by blog");
     const dev = within(panel).getByRole("button", { name: "Edit Dev" }).closest("li") as HTMLElement;
-    expect(dev).toHaveTextContent("1 items");
+    expect(dev).toHaveTextContent("1 item");
     expect(dev).toHaveTextContent("any source may file items here");
     const rust = within(panel).getByRole("button", { name: "Edit Dev > Rust" }).closest("li") as HTMLElement;
     expect(rust.style.paddingLeft).toBe("1.5rem");
