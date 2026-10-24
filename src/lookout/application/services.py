@@ -1,13 +1,14 @@
 """What the entry points (CLI, HTTP) can ask of the application, assembled by bootstrap."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from pathlib import Path
 
-from lookout.application.enrich import EnrichReport
-from lookout.application.ingest import IngestReport
 from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.reassess import Reassess
+from lookout.application.runs import RunCoordinator, RunReport
+from lookout.application.sources import SourceDirectory
 from lookout.application.triage import Inbox, Triage
 
 
@@ -21,14 +22,6 @@ class Check:
 
 
 @dataclass(frozen=True, slots=True)
-class RunReport:
-    """What one run did: sources fetched, then items read."""
-
-    ingest: IngestReport
-    enrich: EnrichReport
-
-
-@dataclass(frozen=True, slots=True)
 class Services:
     """The use cases, plus the few operations that need wiring knowledge."""
 
@@ -37,8 +30,13 @@ class Services:
     inbox: Inbox
     reassess: Reassess
     personalize: Personalize
+    sources: SourceDirectory
+    runs: RunCoordinator
     clock: Clock
     run: Callable[[], RunReport]
     doctor: Callable[[], tuple[Check, ...]]
     seed_demo: Callable[[], int]
+    export: Callable[[], Iterable[str]]
+    schedule_minutes: int
+    dashboard_dir: Path
     close: Callable[[], None]

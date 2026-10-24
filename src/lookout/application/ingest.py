@@ -64,6 +64,8 @@ class Ingest:
     def _run_one(self, fetcher: SourceFetcher) -> SourceReport:
         now = self._clock.now()
         status = self._statuses.get(fetcher.name)
+        if status.disabled:
+            return SourceReport(fetcher.name, skipped=True)
         if status.next_attempt is not None and status.next_attempt > now:
             return SourceReport(fetcher.name, skipped=True, error=status.last_error)
         try:

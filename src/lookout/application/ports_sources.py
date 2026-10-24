@@ -46,6 +46,7 @@ class SourceStatus:
     failures: int = 0
     next_attempt: datetime | None = None
     items_seen: int = 0
+    disabled: bool = False
 
 
 class SourceStatusRepository(Protocol):

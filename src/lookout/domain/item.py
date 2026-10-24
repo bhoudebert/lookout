@@ -76,6 +76,10 @@ class Item:
             return replace(self, state=State.NEW, snoozed_until=None)
         return self
 
+    def restored(self, state: State, snoozed_until: datetime | None, *, starred: bool) -> Self:
+        """Put the triage fields back as they were, for undo."""
+        return replace(self, state=state, snoozed_until=snoozed_until, starred=starred)
+
     def star(self, *, starred: bool = True) -> Self:
         """Set or clear the star, in any state."""
         return replace(self, starred=starred)

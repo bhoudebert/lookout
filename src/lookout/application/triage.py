@@ -45,21 +45,26 @@ class Triage:
 
     def act(self, item_id: str, action: Action, *, until: datetime | None = None) -> Outcome:
         """Apply ``action``; ``until`` is required for snoozing."""
-        before = self._items.get(item_id)
-        if before is None:
-            raise ItemNotFoundError(item_id)
-        after = _apply(before, action, until)
-        self._items.save(after)
-        kind = _SIGNALS.get(action)
-        if kind is not None and (action is not Action.OPEN or before.state is State.NEW):
-            self._feedback.record(after, kind)
-        return Outcome(before, after)
+        return self.act_many((item_id,), action, until=until)[0]
 
     def act_many(
         self, item_ids: tuple[str, ...], action: Action, *, until: datetime | None = None
     ) -> tuple[Outcome, ...]:
-        """Apply one action to several items; stops at the first unknown id, leaving earlier ones applied."""
-        return tuple(self.act(item_id, action, until=until) for item_id in item_ids)
+        """Apply one action to several items, all or none: a bad id or transition changes nothing."""
+        befores = [self._existing(item_id) for item_id in item_ids]
+        outcomes = tuple(Outcome(before, _apply(before, action, until)) for before in befores)
+        kind = _SIGNALS.get(action)
+        for outcome in outcomes:
+            self._items.save(outcome.after)
+            if kind is not None and (action is not Action.OPEN or outcome.before.state is State.NEW):
+                self._feedback.record(outcome.after, kind)
+        return outcomes
+
+    def _existing(self, item_id: str) -> Item:
+        item = self._items.get(item_id)
+        if item is None:
+            raise ItemNotFoundError(item_id)
+        return item
 
     def mark_seen_below(self, urgent: Priority) -> int:
         """Mark every new item less urgent than ``urgent`` as seen; returns how many changed."""
@@ -70,6 +75,12 @@ class Triage:
         for item in page.items:
             self._items.save(item.open())
         return len(page.items)
+
+    def restore(self, item_id: str, state: State, snoozed_until: datetime | None, *, starred: bool) -> Item:
+        """Put an item's triage fields back as a client remembered them (undo across requests)."""
+        restored = self._existing(item_id).restored(state, snoozed_until, starred=starred)
+        self._items.save(restored)
+        return restored
 
     def undo(self, outcome: Outcome) -> Item:
         """Put an item back as it was before an action."""

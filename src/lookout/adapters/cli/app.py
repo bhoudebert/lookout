@@ -10,7 +10,6 @@ from typing import Annotated, NoReturn
 
 import typer
 
-from lookout.adapters.store.codec import encode
 from lookout.application.errors import ConfigError
 from lookout.application.ports import InboxQuery
 from lookout.application.services import Services
@@ -20,16 +19,18 @@ from lookout.domain.priority import Priority
 from lookout.domain.state import State
 
 Opener = Callable[[Path], Services]
+Server = Callable[[Services, str, int], None]
 DEFAULT_CONFIG = Path("lookout.yaml")
 
 
 @dataclass
 class _Context:
     open_services: Opener
+    serve: Server
     config: Path
 
 
-def create_app(open_services: Opener) -> typer.Typer:
+def create_app(open_services: Opener, serve: Server) -> typer.Typer:
     """Build the command group around a function that opens the application from a config file."""
     app = typer.Typer(
         help="Lookout: a watch tower for the feeds, releases and advisories that matter.",
@@ -44,7 +45,7 @@ def create_app(open_services: Opener) -> typer.Typer:
         ] = DEFAULT_CONFIG,
     ) -> None:
         """Keep ``lookout`` a command group and remember which configuration to use."""
-        ctx.obj = _Context(open_services, config)
+        ctx.obj = _Context(open_services, serve, config)
 
     @app.command()
     def version() -> None:
@@ -116,6 +117,16 @@ def create_app(open_services: Opener) -> typer.Typer:
                 _die(str(error))
         typer.echo(_line(outcome.after))
 
+    @app.command(name="serve")
+    def serve_command(
+        ctx: typer.Context,
+        host: Annotated[str, typer.Option("--host", help="Address to listen on.")] = "127.0.0.1",
+        port: Annotated[int, typer.Option("--port")] = 8899,
+    ) -> None:
+        """Serve the API and the dashboard, and run on the configured schedule."""
+        with _open(ctx) as services:
+            ctx.obj.serve(services, host, port)
+
     @app.command()
     def doctor(ctx: typer.Context) -> None:
         """Check the database, the model endpoint and every source."""
@@ -164,8 +175,8 @@ def create_app(open_services: Opener) -> typer.Typer:
     def export(ctx: typer.Context) -> None:
         """Print every item as JSON lines."""
         with _open(ctx) as services:
-            for item in services.items.all():
-                typer.echo(encode(item))
+            for line in services.export():
+                typer.echo(line)
 
     return app
 

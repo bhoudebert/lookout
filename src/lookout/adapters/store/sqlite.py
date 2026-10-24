@@ -46,7 +46,8 @@ def _v1(db: sqlite3.Connection) -> None:
             last_error TEXT,
             failures INTEGER NOT NULL,
             next_attempt TEXT,
-            items_seen INTEGER NOT NULL
+            items_seen INTEGER NOT NULL,
+            disabled INTEGER NOT NULL DEFAULT 0
         )
         """
     )
@@ -70,7 +71,7 @@ class Database:
 
     def __init__(self, path: Path | str) -> None:
         self._path = Path(path)
-        self._db = sqlite3.connect(str(path), isolation_level=None)
+        self._db = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
         self._migrate()
 
@@ -225,17 +226,18 @@ class SqliteSourceStatusRepository:
             failures=row["failures"],
             next_attempt=_read(row["next_attempt"]),
             items_seen=row["items_seen"],
+            disabled=bool(row["disabled"]),
         )
 
     def save(self, status: SourceStatus) -> None:
         """Insert or replace a status."""
         self._db.execute(
             """
-            INSERT INTO sources (name, last_run, last_error, failures, next_attempt, items_seen)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO sources (name, last_run, last_error, failures, next_attempt, items_seen, disabled)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(name) DO UPDATE SET last_run = excluded.last_run, last_error = excluded.last_error,
                 failures = excluded.failures, next_attempt = excluded.next_attempt,
-                items_seen = excluded.items_seen
+                items_seen = excluded.items_seen, disabled = excluded.disabled
             """,
             (
                 status.name,
@@ -244,6 +246,7 @@ class SqliteSourceStatusRepository:
                 status.failures,
                 _write(status.next_attempt),
                 status.items_seen,
+                int(status.disabled),
             ),
         )
 
