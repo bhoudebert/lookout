@@ -38,7 +38,7 @@ describe("sources", () => {
     const backend = world();
     const { user } = mount(backend, "/sources");
     const group = await screen.findByRole("group", { name: "Suggested sources" });
-    expect(within(group).queryByRole("button", { name: "+ Lobsters" })).toBeInTheDocument();
+    expect(within(group).queryByRole("button", { name: "+ Lobsters: hottest" })).toBeInTheDocument();
     await user.click(within(group).getByRole("button", { name: "+ Inside Java" }));
     expect(await screen.findByRole("row", { name: /Inside Java/ })).toHaveTextContent("Dev > Java");
     expect(calls(backend, "POST", "/api/channels")[0]?.body).toEqual({
@@ -89,10 +89,10 @@ describe("sources", () => {
     const backend = world();
     const { user } = mount(backend, "/sources");
     await screen.findByRole("group", { name: "Suggested sources" });
-    backend.failWith = { status: 409, detail: "a source named 'Lobsters' already exists" };
-    await user.click(screen.getByRole("button", { name: "+ Lobsters" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("a source named 'Lobsters' already exists");
-    expect(screen.getByRole("button", { name: "+ Lobsters" })).toBeEnabled();
+    backend.failWith = { status: 409, detail: "a source named 'Lobsters: hottest' already exists" };
+    await user.click(screen.getByRole("button", { name: "+ Lobsters: hottest" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("a source named 'Lobsters: hottest' already exists");
+    expect(screen.getByRole("button", { name: "+ Lobsters: hottest" })).toBeEnabled();
   });
 
   it("groups the suggestions by theme and hides a theme once all of it is there", async () => {
@@ -140,7 +140,7 @@ describe("sources", () => {
       PRESETS.map((p) => makeSource({ name: p.name, settings: p.settings })),
     );
     mount(backend, "/sources");
-    await screen.findByRole("row", { name: /Lobsters/ });
+    await screen.findByRole("row", { name: /Lobsters: hottest/ });
     expect(screen.queryByRole("group", { name: "Suggested sources" })).not.toBeInTheDocument();
   });
 

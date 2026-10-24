@@ -96,7 +96,18 @@ export const PRESETS: Preset[] = [
     blurb: "Front page stories with at least 100 points",
     group: "links",
   },
-  feed("links", "Lobsters", "https://lobste.rs/rss", "The hottest stories of the programmers' link site"),
+  feed(
+    "links",
+    "Lobsters: hottest",
+    "https://lobste.rs/rss",
+    "The 25 stories Lobsters ranks highest now. A new story shows up only once it gains votes",
+  ),
+  feed(
+    "links",
+    "Lobsters: newest",
+    "https://lobste.rs/newest.rss",
+    'The 25 most recent stories, in order, whatever their votes (the site\'s "newest" tab)',
+  ),
 
   feed("rust", "Rust Blog", "https://blog.rust-lang.org/feed.xml", "Official: releases and announcements", RUST),
   feed(

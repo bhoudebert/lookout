@@ -88,6 +88,14 @@ Severity is a fact, never the model's opinion: the database's own rating, else c
 
 Without a `version`, every recent vulnerability of the package is shown. Entries of other ecosystems (such as a database) are skipped; a stack with none OSV can use fails the source with a message saying so.
 
+## What a feed gives you
+
+A feed is a window, not an archive: a fixed number of entries (often 25), chosen by the site. Which entries depends on the
+address. Lobsters' `/rss` is its **hottest** ranking, so a story posted a minute ago is missing until it gets votes; its
+`/newest.rss` lists the most recent ones in order. Reddit's `hot` and `new` differ the same way. If a site has both, choose by
+what you want: hottest for what the community found worth reading, newest to miss nothing. Lookout stores each entry once, so
+watching both costs nothing in duplicates.
+
 ## Hacker News
 
 The `hackernews` type reads stories through [Hacker News's search API](https://hn.algolia.com/api), with their points and comments (the item carries the link to the discussion; an Ask HN, which has no address of its own, is the discussion itself).
@@ -138,7 +146,7 @@ A channel is a person or an organisation; there is no "all of YouTube". Add one 
 The **Sources** page suggests sources to start with, grouped by theme and collapsed until you open one. Each address was
 checked. One click adds the source and, if it does not exist yet, the category it files in.
 
-- **Link sites:** Hacker News (100+ points), Lobsters.
+- **Link sites:** Hacker News (100+ points), and Lobsters twice: **hottest** (what the site ranks highest, a story appears once it gains votes) and **newest** (the most recent stories in order). Pick the one you mean, or both.
 - **Rust, Java, AI blogs:** the official Rust blog, Inside Rust and This Week in Rust; Inside Java and the Spring blog;
   Simon Willison, Hugging Face, OpenAI, Latent Space and Google Research.
 - **Security:** OSV vulnerabilities (filed in `Security`; it needs your `stack` in `lookout.yaml`).
