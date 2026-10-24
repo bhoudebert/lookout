@@ -51,6 +51,9 @@ class Network:
             200, json={"vulns": []}
         )
         self.kev: bytes | int = json.dumps({"vulnerabilities": []}).encode()
+        self.hackernews: Callable[[httpx.Request], httpx.Response] = lambda _request: httpx.Response(
+            200, json={"hits": []}
+        )
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -59,6 +62,8 @@ class Network:
             return self._model(request, url)
         if url == "https://api.osv.dev/v1/query":
             return self.osv(request)
+        if url.startswith("https://hn.algolia.com/"):
+            return self.hackernews(request)
         if url.startswith("https://www.cisa.gov/"):
             return self._served(self.kev)
         if url == FEED_URL:

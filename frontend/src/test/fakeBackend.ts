@@ -270,7 +270,12 @@ export class FakeBackend {
     return this.json({ changed: low.length });
   }
 
+  /** Like the server: a source may only feed categories that exist. */
   private addSource(body: Partial<Source>): Response {
+    const unknown = (body.channels ?? []).find((c) => !this.taxonomy.channels.some((k) => k.name === c));
+    if (unknown !== undefined) {
+      return this.json({ detail: `source '${body.name}' feeds the channel '${unknown}', which does not exist` }, 422);
+    }
     const source = makeSource({ items_seen: 0, last_run: null, ...body });
     this.sources.push(source);
     return this.json(source, 201);

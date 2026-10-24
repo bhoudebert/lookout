@@ -50,7 +50,7 @@ def sources(api: Api) -> list[dict[str, Any]]:
 
 def test_the_api_publishes_the_types_and_their_fields(api: Api) -> None:
     types = {t["name"]: t for t in api.client.get("/api/source-types").json()}
-    assert set(types) == {"rss", "github", "osv"}
+    assert set(types) == {"rss", "github", "osv", "hackernews"}
     assert [(f["name"], f["kind"], f["required"]) for f in types["rss"]["fields"]] == [("url", "text", True)]
     github = {f["name"]: f for f in types["github"]["fields"]}
     assert (github["repos"]["kind"], github["repos"]["required"]) == ("list", True)
@@ -87,7 +87,7 @@ def test_a_name_is_unique_ignoring_case_and_is_trimmed(api: Api) -> None:
     ("body", "message"),
     [
         ({**RUST_BLOG, "name": "  "}, "needs a name"),
-        ({**RUST_BLOG, "type": "ftp"}, "supported types: rss, github, osv"),
+        ({**RUST_BLOG, "type": "ftp"}, "supported types: rss, github, hackernews, osv"),
         ({**RUST_BLOG, "settings": {}}, "needs a 'url'"),
         ({**RUST_BLOG, "settings": {"url": "ftp://x"}}, "'url' must start with http"),
         ({**RUST_BLOG, "channels": ["Gardening"]}, "feeds the channel 'Gardening', which does not exist"),

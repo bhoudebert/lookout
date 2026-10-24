@@ -30,6 +30,78 @@ describe("sources", () => {
     expect(within(blog).getByRole("button", { name: "Delete blog" })).toBeInTheDocument();
   });
 
+  it("suggests sources, and adds one with the category it files in", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    const group = await screen.findByRole("group", { name: "Suggested sources" });
+    expect(within(group).queryByRole("button", { name: "+ Lobsters" })).toBeInTheDocument();
+    await user.click(within(group).getByRole("button", { name: "+ Inside Java" }));
+    expect(await screen.findByRole("row", { name: /Inside Java/ })).toHaveTextContent("Dev > Java");
+    expect(calls(backend, "POST", "/api/channels")[0]?.body).toEqual({
+      name: "Dev > Java",
+      description: "Java, the JVM and its ecosystem",
+    });
+    expect(calls(backend, "POST", "/api/sources")[0]?.body).toMatchObject({
+      name: "Inside Java",
+      type: "rss",
+      channels: ["Dev > Java"],
+      settings: { url: "https://inside.java/feed.xml" },
+    });
+    expect(within(group).queryByRole("button", { name: "+ Inside Java" })).not.toBeInTheDocument();
+  });
+
+  it("adds a suggested source into a category that exists without creating it again", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await user.click(await screen.findByRole("button", { name: "+ Hugging Face Blog" }));
+    expect(await screen.findByRole("row", { name: /Hugging Face Blog/ })).toHaveTextContent("AI");
+    expect(calls(backend, "POST", "/api/channels")).toHaveLength(0);
+  });
+
+  it("adds a suggested source that lets the model choose the category", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await user.click(await screen.findByRole("button", { name: "+ Hacker News" }));
+    expect(await screen.findByRole("row", { name: /Hacker News/ })).toHaveTextContent("model decides");
+    expect(calls(backend, "POST", "/api/sources")[0]?.body).toMatchObject({
+      type: "hackernews",
+      channels: [],
+      settings: { feed: "front_page", min_points: 100 },
+    });
+  });
+
+  it("does not suggest a source already there under another name", async () => {
+    const backend = new FakeBackend(
+      [],
+      [makeSource({ name: "my rust", settings: { url: "https://blog.rust-lang.org/feed.xml" } })],
+    );
+    mount(backend, "/sources");
+    await screen.findByRole("row", { name: /my rust/ });
+    expect(screen.queryByRole("button", { name: "+ Rust Blog" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Inside Rust" })).toBeInTheDocument();
+  });
+
+  it("shows why a suggested source was refused", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await screen.findByRole("group", { name: "Suggested sources" });
+    backend.failWith = { status: 409, detail: "a source named 'Lobsters' already exists" };
+    await user.click(screen.getByRole("button", { name: "+ Lobsters" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("a source named 'Lobsters' already exists");
+    expect(screen.getByRole("button", { name: "+ Lobsters" })).toBeEnabled();
+  });
+
+  it("stops suggesting once every suggestion is there", async () => {
+    const { PRESETS } = await import("./presets");
+    const backend = new FakeBackend(
+      [],
+      PRESETS.map((p) => makeSource({ name: p.name, settings: p.settings })),
+    );
+    mount(backend, "/sources");
+    await screen.findByRole("row", { name: /Lobsters/ });
+    expect(screen.queryByRole("group", { name: "Suggested sources" })).not.toBeInTheDocument();
+  });
+
   it("adds an RSS source with its channels and keywords", async () => {
     const backend = world();
     const { user } = mount(backend, "/sources");

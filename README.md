@@ -5,9 +5,9 @@ A self-hosted watch tower for the feeds, releases and advisories that matter to 
 Plug in sources, let an LLM summarise, classify and prioritise each item, and work an inbox: seen, done, snoozed,
 dismissed. Lookout learns from what you act on.
 
-- **Sources as adapters:** RSS and Atom today (which covers blogs, GitHub releases, Reddit, Hacker News and YouTube
-  channels); GitHub advisories and Dependabot alerts (through your local `gh` login), OSV and NVD are next. Each is one
-  adapter away.
+- **Sources as adapters:** RSS and Atom (blogs, GitHub releases, Reddit, YouTube channels), Hacker News with its points,
+  GitHub releases, advisories and Dependabot alerts (through your local `gh` login), and OSV vulnerabilities for your
+  stack. The sources page suggests good ones to start with. Each source type is one adapter.
 - **Any LLM:** one OpenAI-compatible port. Starts on Ollama (free, local); point it at any compatible endpoint later.
 - **Priority you can trust:** P0 to P3, from deterministic rules first (a critical advisory on a dependency you
   declared is never below P1), the model second. Every priority carries its reason.
