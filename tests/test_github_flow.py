@@ -7,6 +7,7 @@ import yaml
 from tests.cli_support import Lookout, reading
 from tests.github_support import FakeGitHub
 
+from lookout.adapters.sources.github import repo_path
 from lookout.application.errors import ConfigError
 from lookout.application.github import GitHubError
 from lookout.bootstrap.container import build, load
@@ -110,6 +111,43 @@ def test_github_sources_are_validated_when_wiring(
 ) -> None:
     with pytest.raises(ConfigError, match=message):
         build(load(write(tmp_path, source), {}), github=FakeGitHub())
+
+
+@pytest.mark.parametrize(
+    ("typed", "repo"),
+    [
+        ("https://github.com/bhoudebert/agent-motoride/", "bhoudebert/agent-motoride"),
+        ("https://github.com/bhoudebert/mobile-motoride", "bhoudebert/mobile-motoride"),
+        ("http://www.github.com/o/r/issues/12?x=1#top", "o/r"),
+        ("github.com/o/r.git", "o/r"),
+        ("git@github.com:o/r.git", "o/r"),
+        ("  o/r  ", "o/r"),
+        ("o/r.js", "o/r.js"),
+    ],
+)
+def test_repo_path_reads_what_people_paste(typed: str, repo: str) -> None:
+    assert repo_path(typed) == repo
+
+
+def test_pasted_urls_are_what_gets_asked_of_github_and_twice_the_same_repo_is_asked_once(
+    tmp_path: Path,
+) -> None:
+    fake = FakeGitHub()
+    urls = ["https://github.com/o/a/", "git@github.com:o/b.git", "o/a"]
+    lookout = Lookout(
+        tmp_path, github=fake, sources=[{"name": "g", "type": "github", "repos": urls, "watch": ["releases"]}]
+    )
+    lookout.network.chat = lambda _request: reading(score=5)
+    lookout("run")
+    assert fake.asked == ["o/a", "o/b"]
+
+
+@pytest.mark.parametrize(
+    "typed", ["https://example.com/o/r", "https://github.com/onlyowner", "https://github.com/"]
+)
+def test_a_url_that_is_not_a_repository_is_still_refused(tmp_path: Path, typed: str) -> None:
+    with pytest.raises(ConfigError, match="is not of the form owner/name"):
+        build(load(write(tmp_path, {"repos": [typed]}), {}), github=FakeGitHub())
 
 
 def test_github_sources_default_to_releases_and_advisories(tmp_path: Path) -> None:

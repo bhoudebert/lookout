@@ -1,5 +1,7 @@
 """Releases, security advisories and Dependabot alerts of declared repositories (openspec: github-sources)."""
 
+import re
+
 from lookout.application.github import GitHubError, GitHubGateway, Release, SecurityAdvisory
 from lookout.application.ports_sources import SourceError
 from lookout.domain.advisory import Advisory
@@ -7,6 +9,25 @@ from lookout.domain.raw import RawItem
 from lookout.domain.severity import Severity
 
 WATCHABLE = ("releases", "advisories", "dependabot")
+
+_ADDRESS = re.compile(
+    r"^(?:(?:https?://)?(?:www\.)?github\.com[/:]|git@github\.com:)(?P<path>.*)$", re.IGNORECASE
+)
+
+
+def repo_path(text: str) -> str:
+    """``owner/name`` from what a person pastes: a web address, an SSH address or the name itself.
+
+    Anything that is not recognisably a GitHub address is returned trimmed, for the caller to refuse.
+    """
+    text = text.strip()
+    found = _ADDRESS.match(text)
+    if found is None:
+        return text
+    parts = re.split(r"[/?#]", found.group("path"))
+    owner, name = [*parts, "", ""][:2]
+    name = name.removesuffix(".git")
+    return f"{owner}/{name}" if owner and name else text
 
 
 class GitHubFetcher:
