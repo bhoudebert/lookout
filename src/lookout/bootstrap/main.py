@@ -15,7 +15,7 @@ from lookout.bootstrap.container import build, load
 
 def open_services(path: Path) -> Services:
     """Read the configuration at ``path`` and wire the application."""
-    return build(load(path, dict(os.environ))).services()
+    return build(load(path, dict(os.environ)), environ=os.environ).services()
 
 
 def serve(

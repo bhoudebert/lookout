@@ -1,0 +1,20 @@
+[
+  {
+    "number": 12,
+    "html_url": "https://github.com/o/r/security/dependabot/12",
+    "created_at": "2026-10-24T06:00:00Z",
+    "security_advisory": {
+      "ghsa_id": "GHSA-gggg-hhhh-iiii",
+      "cve_id": "CVE-2026-9999",
+      "summary": "PKCS12 parsing flaw",
+      "description": "Memory corruption.",
+      "severity": "high"
+    },
+    "security_vulnerability": {
+      "package": { "ecosystem": "pip", "name": "cryptography" },
+      "vulnerable_version_range": "< 44.0.1",
+      "first_patched_version": { "identifier": "44.0.1" }
+    }
+  },
+  { "number": 13, "html_url": "https://github.com/o/r/security/dependabot/13", "security_advisory": "broken" }
+]

@@ -67,16 +67,21 @@ class PriorityPolicy:
 
 def _floor(advisory: Advisory | None, stack_matches: tuple[str, ...]) -> tuple[Priority, str] | None:
     """The minimum priority imposed by facts; ``None`` when no rule applies."""
-    if advisory is None or not stack_matches:
+    if advisory is None or not (stack_matches or advisory.watched):
         return None
     ids = ", ".join(advisory.identifiers) or advisory.package
+    use = (
+        f"{advisory.package}, which you use"
+        if stack_matches
+        else f"{advisory.package} in a repository you watch"
+    )
     if advisory.known_exploited:
         return (
             Priority.P0,
-            f"rule: {ids} is known to be exploited and affects {advisory.package}, which you use",
+            f"rule: {ids} is known to be exploited and affects {use}",
         )
     if advisory.severity is Severity.CRITICAL:
-        return Priority.P0, f"rule: critical advisory {ids} affects {advisory.package}, which you use"
+        return Priority.P0, f"rule: critical advisory {ids} affects {use}"
     if advisory.severity is Severity.HIGH:
-        return Priority.P1, f"rule: high severity advisory {ids} affects {advisory.package}, which you use"
+        return Priority.P1, f"rule: high severity advisory {ids} affects {use}"
     return None

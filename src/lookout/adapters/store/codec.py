@@ -74,6 +74,7 @@ def _advisory(advisory: Advisory | None) -> dict[str, Any] | None:
         "package": advisory.package,
         "ecosystem": advisory.ecosystem,
         "known_exploited": advisory.known_exploited,
+        "watched": advisory.watched,
         "identifiers": list(advisory.identifiers),
     }
 
@@ -86,6 +87,7 @@ def _read_advisory(raw: dict[str, Any] | None) -> Advisory | None:
         package=raw["package"],
         ecosystem=raw["ecosystem"],
         known_exploited=raw["known_exploited"],
+        watched=raw.get("watched", False),
         identifiers=tuple(raw["identifiers"]),
     )
 

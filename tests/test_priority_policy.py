@@ -115,3 +115,22 @@ def test_enrichment_rejects_invalid_values() -> None:
         Enrichment("s", "c", (), 101, action_needed=False, reason="r")
     with pytest.raises(ValueError, match="tags"):
         Enrichment("s", "c", ("a", "b", "c", "d", "e", "f"), 10, action_needed=False, reason="r")
+
+
+def test_alert_on_a_watched_repository_counts_as_using_it() -> None:
+    watched = Advisory(Severity.HIGH, "cryptography", "pip", identifiers=("GHSA-1",), watched=True)
+    decision = policy.decide(advisory=watched, stack_matches=(), enrichment=enrichment(5))
+    assert decision.priority is Priority.P1
+    assert "in a repository you watch" in decision.reason
+
+
+def test_critical_alert_on_a_watched_repository_is_p0() -> None:
+    watched = Advisory(Severity.CRITICAL, "x", "pip", watched=True)
+    assert policy.decide(advisory=watched, stack_matches=(), enrichment=None).priority is Priority.P0
+
+
+def test_moderate_alert_on_a_watched_repository_has_no_floor() -> None:
+    watched = Advisory(Severity.MODERATE, "x", "pip", watched=True)
+    assert (
+        policy.decide(advisory=watched, stack_matches=(), enrichment=enrichment(10)).priority is Priority.P3
+    )

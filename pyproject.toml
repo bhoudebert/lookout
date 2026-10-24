@@ -93,6 +93,7 @@ name = "Adapter families do not know each other"
 type = "independence"
 modules = [
     "lookout.adapters.cli",
+    "lookout.adapters.github",
     "lookout.adapters.http",
     "lookout.adapters.llm",
     "lookout.adapters.scheduler",

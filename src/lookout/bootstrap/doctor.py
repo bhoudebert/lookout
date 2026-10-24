@@ -5,6 +5,7 @@ from typing import Any, cast
 
 import httpx
 
+from lookout.adapters.github.unavailable import REASON
 from lookout.adapters.store.sqlite import MIGRATIONS, Database
 from lookout.application.ports_sources import SourceError, SourceFetcher
 from lookout.application.services import Check
@@ -12,10 +13,16 @@ from lookout.bootstrap.config import Config
 
 
 def run_checks(
-    config: Config, database: Database, llm_http: httpx.Client, fetchers: tuple[SourceFetcher, ...]
+    config: Config,
+    database: Database,
+    llm_http: httpx.Client,
+    fetchers: tuple[SourceFetcher, ...],
+    github_via: str,
 ) -> tuple[Check, ...]:
     """Check the database, the model endpoint and every enabled source."""
     checks = [_database(config, database), _llm(config, llm_http)]
+    if any(s.kind == "github" for s in config.sources):
+        checks.append(_github(github_via))
     checks.extend(_source(fetcher.name, fetcher.fetch) for fetcher in fetchers)
     if not fetchers:
         checks.append(Check("sources", ok=False, detail="no source is enabled; declare some in lookout.yaml"))
@@ -57,3 +64,9 @@ def _source(name: str, fetch: Callable[[], tuple[object, ...]]) -> Check:
     except SourceError as error:
         return Check(f"source {name}", ok=False, detail=str(error))
     return Check(f"source {name}", ok=True, detail=f"{count} entries")
+
+
+def _github(via: str) -> Check:
+    if via == "unavailable":
+        return Check("github", ok=False, detail=f"{REASON}.")
+    return Check("github", ok=True, detail=f"reading through {'your gh login' if via == 'gh' else 'a token'}")

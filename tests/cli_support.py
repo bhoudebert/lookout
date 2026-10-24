@@ -8,13 +8,16 @@ import httpx
 import yaml
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from tests.github_support import FakeGitHub
 from tests.support import FixedClock
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
 from typer.testing import CliRunner
 
 from lookout.adapters.cli.app import create_app
+from lookout.application.github import GitHubGateway
 from lookout.application.services import Services
 from lookout.bootstrap.container import build, load
 
@@ -66,7 +69,8 @@ class Network:
 class Lookout:
     """A configured instance in a temporary directory, driven through the command line."""
 
-    def __init__(self, tmp_path: Path, **config: Any) -> None:
+    def __init__(self, tmp_path: Path, github: GitHubGateway | None = None, **config: Any) -> None:
+        self.github = github or FakeGitHub()
         self.network = Network()
         self.clock = FixedClock()
         self.path = tmp_path / "lookout.yaml"
@@ -91,7 +95,9 @@ class Lookout:
         self.path.write_text(yaml.safe_dump(self.config))
 
     def _open(self, path: Path) -> Services:
-        container = build(load(path, {}), transport=httpx.MockTransport(self.network), clock=self.clock)
+        container = build(
+            load(path, {}), transport=httpx.MockTransport(self.network), clock=self.clock, github=self.github
+        )
         return container.services()
 
     def __call__(self, *args: str, exit_code: int = 0) -> str:

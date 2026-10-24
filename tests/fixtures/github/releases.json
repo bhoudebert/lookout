@@ -1,0 +1,31 @@
+[
+  {
+    "tag_name": "v2.1.0",
+    "name": "Release 2.1.0",
+    "body": "Fixes and a faster parser.",
+    "html_url": "https://github.com/o/r/releases/tag/v2.1.0",
+    "published_at": "2026-10-22T10:00:00Z",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "v2.2.0-rc1",
+    "name": "",
+    "body": "",
+    "html_url": "https://github.com/o/r/releases/tag/v2.2.0-rc1",
+    "published_at": "not a date",
+    "draft": false,
+    "prerelease": true
+  },
+  {
+    "tag_name": "v3.0.0",
+    "name": "Secret draft",
+    "body": "",
+    "html_url": "https://github.com/o/r/releases/tag/v3.0.0",
+    "published_at": null,
+    "draft": true,
+    "prerelease": false
+  },
+  { "tag_name": "no-url", "name": "Broken entry", "body": "", "draft": false },
+  "not an object"
+]

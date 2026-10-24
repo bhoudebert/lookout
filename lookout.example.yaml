@@ -30,3 +30,10 @@ sources:
     kind: rss
     url: https://lobste.rs/rss
     keywords: [python, postgres, rust, security]
+
+  # Releases, security advisories and (with access) Dependabot alerts of your repositories.
+  # Uses your `gh` login if you have one, else LOOKOUT_GITHUB_TOKEN. Remove this block if you use neither.
+  # - name: my-repos
+  #   kind: github
+  #   repos: [owner/name]
+  #   kinds: [releases, advisories, dependabot]

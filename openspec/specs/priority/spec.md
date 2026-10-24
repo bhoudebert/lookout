@@ -14,8 +14,14 @@ Priority SHALL be one of P0 (act today), P1 (this week), P2 (read when free), P3
 
 Deterministic rules SHALL set a minimum priority: an advisory or alert of critical severity affecting a declared
 package SHALL be at least P0; high severity at least P1; any advisory in the CISA KEV catalogue affecting a declared
-package at least P0; a release of a declared package that changes its major version at least P1; a Dependabot alert on
-a watched repository at least P1.
+package at least P0; a release of a declared package that changes its major version at least P1. An advisory or alert on a repository the
+user **watches** (a declared GitHub source) SHALL count as affecting the stack, with the same floors by severity: a
+Dependabot alert that is critical is at least P0, high at least P1.
+
+#### Scenario: Dependabot alert on a watched repository
+
+- **WHEN** a high severity Dependabot alert arrives for a repository declared as a GitHub source
+- **THEN** the item is at least P1 even when the package is not named in the declared stack, and its reason says the repository is watched
 
 #### Scenario: Critical advisory on a declared package
 
