@@ -144,6 +144,55 @@ describe("sources", () => {
     expect(screen.queryByRole("group", { name: "Suggested sources" })).not.toBeInTheDocument();
   });
 
+  it("says in words where the items will go, for what is ticked", async () => {
+    const { user } = mount(world(), "/sources");
+    await user.click(await screen.findByRole("button", { name: "Add a source" }));
+    const form = screen.getByRole("form", { name: "Add a source" });
+    expect(within(form).getByText(/None ticked: the model chooses a category for each item/)).toBeInTheDocument();
+    await user.click(within(form).getByRole("checkbox", { name: "AI" }));
+    expect(
+      within(form).getByText("Every item goes straight to AI. The model is not asked to choose."),
+    ).toBeInTheDocument();
+    await user.click(within(form).getByRole("checkbox", { name: "Dev > Rust" }));
+    expect(within(form).getByText("The model chooses for each item, among these 2.")).toBeInTheDocument();
+  });
+
+  it("creates a category from the form, ticks it and files the source in it", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await user.click(await screen.findByRole("button", { name: "Add a source" }));
+    const form = screen.getByRole("form", { name: "Add a source" });
+    await user.type(within(form).getByLabelText("Name"), "moto");
+    await user.type(within(form).getByLabelText("Feed address"), "https://moto.test/feed");
+    await user.type(within(form).getByLabelText("New category"), "Hobbies > Motorcycles");
+    await user.type(within(form).getByLabelText("Description"), "riding and my CB750");
+    await user.click(within(form).getByRole("button", { name: "Create and tick" }));
+    expect(await within(form).findByRole("checkbox", { name: "Hobbies > Motorcycles" })).toBeChecked();
+    expect(within(form).getByLabelText("New category")).toHaveValue("");
+    expect(
+      within(form).getByText("Every item goes straight to Hobbies > Motorcycles. The model is not asked to choose."),
+    ).toBeInTheDocument();
+    await user.click(within(form).getByRole("button", { name: "Add" }));
+    expect(await screen.findByRole("row", { name: /moto/ })).toHaveTextContent("Hobbies > Motorcycles");
+    expect(calls(backend, "POST", "/api/channels")[0]?.body).toEqual({
+      name: "Hobbies > Motorcycles",
+      description: "riding and my CB750",
+    });
+    expect(calls(backend, "POST", "/api/sources")[0]?.body).toMatchObject({ channels: ["Hobbies > Motorcycles"] });
+  });
+
+  it("shows why a category could not be created from the form and keeps what was typed", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await user.click(await screen.findByRole("button", { name: "Add a source" }));
+    const form = screen.getByRole("form", { name: "Add a source" });
+    await user.type(within(form).getByLabelText("New category"), "AI");
+    backend.failWith = { status: 409, detail: "a category named 'AI' already exists" };
+    await user.click(within(form).getByRole("button", { name: "Create and tick" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent("a category named 'AI' already exists");
+    expect(within(form).getByLabelText("New category")).toHaveValue("AI");
+  });
+
   it("adds an RSS source with its channels and keywords", async () => {
     const backend = world();
     const { user } = mount(backend, "/sources");

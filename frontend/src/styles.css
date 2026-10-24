@@ -827,3 +827,16 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+.new-category {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+  margin-top: 0.5rem;
+}
+@media (max-width: 700px) {
+  .new-category {
+    grid-template-columns: 1fr;
+  }
+}

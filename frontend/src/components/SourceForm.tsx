@@ -12,6 +12,19 @@ interface Props {
   busy: boolean;
   onSave: (name: string, body: SourceBody) => void;
   onCancel: () => void;
+  /** Create a category from the form; resolves to its name, or rejects with why not. */
+  onCreateCategory: (name: string, description: string) => Promise<string>;
+}
+
+/** What happens to the items, in words, for the categories ticked now. */
+function routing(picked: string[]): string {
+  if (picked.length === 0) {
+    return "None ticked: the model chooses a category for each item, among all of them. That uses your daily model limit, and an item goes to Other when no category fits.";
+  }
+  if (picked.length === 1) {
+    return `Every item goes straight to ${picked[0] as string}. The model is not asked to choose.`;
+  }
+  return `The model chooses for each item, among these ${picked.length}.`;
 }
 
 const asText = (value: unknown): string =>
@@ -44,7 +57,7 @@ function read(field: SourceField, value: string | boolean): unknown {
   return text.trim();
 }
 
-export function SourceForm({ types, channels, source, error, busy, onSave, onCancel }: Props) {
+export function SourceForm({ types, channels, source, error, busy, onSave, onCancel, onCreateCategory }: Props) {
   const [name, setName] = useState(source?.name ?? "");
   const [typeIndex, setTypeIndex] = useState(
     Math.max(
@@ -57,6 +70,20 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
   const [picked, setPicked] = useState<string[]>(source?.channels ?? []);
   const [keywords, setKeywords] = useState((source?.keywords ?? []).join(", "));
   const [enabled, setEnabled] = useState(source?.enabled ?? true);
+  const [fresh, setFresh] = useState({ name: "", description: "" });
+  const [freshError, setFreshError] = useState<string | null>(null);
+  const createCategory = () => {
+    setFreshError(null);
+    onCreateCategory(fresh.name, fresh.description).then(
+      (created) => {
+        setPicked((current) => [...current, created]);
+        setFresh({ name: "", description: "" });
+      },
+      (problem: unknown) => {
+        setFreshError((problem as Error).message);
+      },
+    );
+  };
 
   const changeType = (index: number) => {
     setTypeIndex(index);
@@ -175,7 +202,7 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
         );
       })}
       <fieldset>
-        <legend>File its items in these categories (a category includes those under it)</legend>
+        <legend>Where its items go (a category includes those under it)</legend>
         {channels.map((channel) => (
           <label key={channel} className="check">
             <input
@@ -188,9 +215,37 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
             {channel}
           </label>
         ))}
-        <span className="hint">
-          Tick one and every item goes straight there. Tick several, or none, and the model chooses among them.
-        </span>
+        <p className="hint">{routing(picked)}</p>
+        <div className="new-category">
+          <label>
+            New category
+            <input
+              value={fresh.name}
+              placeholder="Motorcycles, or Hobbies > Motorcycles"
+              onChange={(e) => {
+                setFresh({ ...fresh, name: e.target.value });
+              }}
+            />
+          </label>
+          <label>
+            Description
+            <input
+              value={fresh.description}
+              placeholder="helps the model choose, e.g. riding and my CB750"
+              onChange={(e) => {
+                setFresh({ ...fresh, description: e.target.value });
+              }}
+            />
+          </label>
+          <button type="button" onClick={createCategory}>
+            Create and tick
+          </button>
+        </div>
+        {freshError && (
+          <p role="alert" className="form-error">
+            {freshError}
+          </p>
+        )}
       </fieldset>
       <label>
         Keywords

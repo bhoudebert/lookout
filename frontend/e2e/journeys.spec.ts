@@ -350,6 +350,29 @@ test("the list can be read in date order, by age, and a whole selection cleared 
   await expect(items(page)).toHaveCount(total);
 });
 
+test("a category can be created from the source form and the source files straight into it", async ({ page }) => {
+  await page.goto("/sources");
+  await page.getByRole("button", { name: "Add a source" }).click();
+  const form = page.getByRole("form", { name: "Add a source" });
+  await expect(form).toContainText("None ticked: the model chooses");
+  await form.getByLabel("Name").fill("moto feed");
+  await form.getByLabel("Feed address").fill("http://127.0.0.1:8902/feed.xml");
+  await form.getByLabel("New category").fill("Hobbies > Motorcycles");
+  await form.getByLabel("Description", { exact: true }).fill("riding and my CB750");
+  await form.getByRole("button", { name: "Create and tick" }).click();
+  await expect(form.getByRole("checkbox", { name: "Hobbies > Motorcycles" })).toBeChecked();
+  await expect(form).toContainText("Every item goes straight to Hobbies > Motorcycles");
+  await form.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByRole("row", { name: /moto feed/ })).toContainText("Hobbies > Motorcycles");
+
+  await page.getByRole("button", { name: "Delete moto feed" }).click();
+  await expect(page.getByRole("row", { name: /moto feed/ })).toHaveCount(0);
+  await page.goto("/categories");
+  await page.getByRole("button", { name: "Delete Hobbies > Motorcycles", exact: true }).click();
+  await page.getByRole("button", { name: "Delete Hobbies", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Edit Hobbies", exact: true })).toHaveCount(0);
+});
+
 test("the single-page app answers on any path, and the API still answers its own", async ({ page, request }) => {
   await page.goto("/sources");
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
