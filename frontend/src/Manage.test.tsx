@@ -350,6 +350,58 @@ describe("categories", () => {
     expect(calls(backend, "PATCH", "/api/channels/AI")[0]?.body).toEqual({ description: "Models and agents" });
   });
 
+  it("shows the parent of a path the server stored without one", async () => {
+    const backend = world();
+    backend.taxonomy.channels = [{ name: "Dev > Web", description: "", items: 2, sources: [] }];
+    mount(backend, "/categories");
+    const dev = (await screen.findByRole("button", { name: "Edit Dev" })).closest("li") as HTMLElement;
+    expect(dev).toHaveTextContent("2 items");
+    expect(screen.getByRole("button", { name: "Edit Dev > Web" })).toBeInTheDocument();
+  });
+
+  it("offers no move when there is nowhere to go", async () => {
+    const backend = world();
+    backend.taxonomy.channels = [{ name: "AI", description: "", items: 0, sources: [] }];
+    mount(backend, "/categories");
+    expect(await screen.findByRole("button", { name: "Edit AI" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Move AI" })).not.toBeInTheDocument();
+  });
+
+  it("moves a category inside another, or back to the top level, or cancels", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/categories");
+    expect(await screen.findByRole("button", { name: "Edit Other" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Move Other" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Move AI" }));
+    await user.click(within(screen.getByRole("group", { name: "Move AI" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("group", { name: "Move AI" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Move AI" }));
+    const group = screen.getByRole("group", { name: "Move AI" });
+    expect(
+      within(group)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Dev", "Dev > Rust"]);
+    await user.selectOptions(within(group).getByLabelText("Move AI inside"), "Dev");
+    await user.click(within(group).getByRole("button", { name: "Move here" }));
+    expect(await screen.findByRole("button", { name: "Edit Dev > AI" })).toBeInTheDocument();
+    expect(calls(backend, "POST", "/api/channels/AI/move")[0]?.body).toEqual({ parent: "Dev" });
+
+    await user.click(screen.getByRole("button", { name: "Move Dev > Rust" }));
+    expect(
+      within(screen.getByRole("group", { name: "Move Dev > Rust" }))
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["(top level)", "Dev > AI"]);
+    await user.click(
+      within(screen.getByRole("group", { name: "Move Dev > Rust" })).getByRole("button", { name: "Move here" }),
+    );
+    expect(await screen.findByRole("button", { name: "Edit Rust" })).toBeInTheDocument();
+    expect(calls(backend, "POST", "/api/channels/Dev%20%3E%20Rust/move")[0]?.body).toEqual({ parent: "" });
+  });
+
   it("deletes a category", async () => {
     const { user } = mount(world(), "/categories");
     await user.click(await screen.findByRole("button", { name: "Delete Dev > Rust" }));

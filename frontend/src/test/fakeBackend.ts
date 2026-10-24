@@ -170,6 +170,8 @@ export class FakeBackend {
       return this.changeSource(method, decodeURIComponent(path.slice(13)), body as Partial<Source>);
     if (path === "/api/channels" && method === "POST") return this.addChannel(body as Channel);
     if (path === "/api/refile") return this.json(this.refiled);
+    if (path.startsWith("/api/channels/") && path.endsWith("/move"))
+      return this.moveChannel(decodeURIComponent(path.slice(14, -5)), (body as { parent: string }).parent);
     if (path.startsWith("/api/channels/"))
       return this.changeChannel(method, decodeURIComponent(path.slice(14)), body as Partial<Channel>);
     if (path === "/api/run" && method === "POST") {
@@ -288,6 +290,19 @@ export class FakeBackend {
   private addChannel(body: Channel): Response {
     this.taxonomy.channels.push({ ...body, items: 0, sources: [] });
     return this.json(body, 201);
+  }
+
+  private moveChannel(name: string, parent: string): Response {
+    const target = parent ? `${parent} > ${name.split(" > ").pop() as string}` : (name.split(" > ").pop() as string);
+    for (const channel of this.taxonomy.channels) {
+      if (channel.name === name || channel.name.startsWith(`${name} > `))
+        channel.name = target + channel.name.slice(name.length);
+    }
+    for (const item of this.items) {
+      if (item.channel === name || item.channel.startsWith(`${name} > `))
+        item.channel = target + item.channel.slice(name.length);
+    }
+    return this.json({ name: target, description: "" });
   }
 
   private changeChannel(method: string, name: string, body: Partial<Channel>): Response {

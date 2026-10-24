@@ -4,8 +4,10 @@ from collections.abc import Callable
 from dataclasses import replace
 from typing import Protocol
 
+from lookout.application.ports import ItemRepository
 from lookout.domain.channel import (
     OTHER,
+    SEP,
     Channel,
     ChannelCatalogue,
     InvalidCategoryError,
@@ -53,6 +55,8 @@ class ChannelDefinitions(Protocol):
 
     def save(self, channel: Channel) -> None: ...
 
+    def rename(self, old: str, new: str) -> None: ...
+
     def delete(self, name: str) -> None: ...
 
 
@@ -76,7 +80,9 @@ class Registry:
         channels: ChannelDefinitions,
         flags: Flags,
         validate: Callable[[SourceDef], None],
+        items: ItemRepository,
     ) -> None:
+        self._items = items
         self._flags = flags
         self._sources = sources
         self._channels = channels
@@ -222,6 +228,58 @@ class Registry:
             msg = f"the category '{existing.name}' is fed by {', '.join(feeders)}: change those sources first"
             raise InUseError(msg)
         self._channels.delete(existing.name)
+
+    def move_channel(self, name: str, parent: str) -> Channel:
+        """Move a category, with everything under it, inside ``parent`` (empty: to the top level).
+
+        Items filed in it and the sources that name it follow. Nothing is lost: a clash with an existing
+        category, a move into itself and a path that gets too deep are refused.
+        """
+        existing = self._channel(name)
+        if existing is None:
+            raise NotFoundError(name)
+        if existing.name.lower() == OTHER.lower():
+            msg = f"the category {OTHER} stays where it is"
+            raise InUseError(msg)
+        target = existing.name.rsplit(SEP, 1)[-1]
+        if parent.strip():
+            home = self._channel(parent)
+            if home is None:
+                raise NotFoundError(parent)
+            if is_within(home.name, existing.name):
+                msg = f"'{existing.name}' cannot move inside itself"
+                raise InvalidError(msg)
+            target = f"{home.name}{SEP}{target}"
+        moved = [c for c in self._channels.all() if is_within(c.name, existing.name)]
+        renames = {c.name: target + c.name[len(existing.name) :] for c in moved}
+        try:
+            for new in renames.values():
+                normalize(new)
+        except InvalidCategoryError as error:
+            raise InvalidError(str(error)) from error
+        taken = {c.name.lower() for c in self._channels.all() if c.name not in renames}
+        clash = [new for new in renames.values() if new.lower() in taken]
+        if clash:
+            msg = f"a category named '{clash[0]}' already exists"
+            raise DuplicateError(msg)
+        if renames[existing.name] == existing.name:
+            return existing
+        for old, new in renames.items():
+            self._channels.rename(old, new)
+        self._follow(renames)
+        return Channel(renames[existing.name], existing.description)
+
+    def _follow(self, renames: dict[str, str]) -> None:
+        """Point the sources and the items that named a moved category at its new path."""
+        lowered = {old.lower(): new for old, new in renames.items()}
+        for source in self._sources.all():
+            if any(c.lower() in lowered for c in source.channels):
+                self._sources.save(
+                    replace(source, channels=tuple(lowered.get(c.lower(), c) for c in source.channels))
+                )
+        for item in self._items.all():
+            if item.channel.lower() in lowered:
+                self._items.save(item.filed_in(lowered[item.channel.lower()]))
 
     def _channel(self, name: str) -> Channel | None:
         wanted = " > ".join(part.strip() for part in name.split(">")).lower()

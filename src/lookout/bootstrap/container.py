@@ -326,6 +326,7 @@ def _assemble(
         SqliteChannelDefinitions(database),
         SqliteFlags(database),
         _validator(ways),
+        items,
     )
     try:
         registry.seed(config.sources, config.channels)

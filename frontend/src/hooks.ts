@@ -96,6 +96,10 @@ export function useManage() {
         api.updateChannel(name, description),
       ...options,
     }),
+    moveChannel: useMutation({
+      mutationFn: ({ name, parent }: { name: string; parent: string }) => api.moveChannel(name, parent),
+      ...options,
+    }),
     deleteChannel: useMutation({ mutationFn: api.deleteChannel, ...options }),
     refile: useMutation({ mutationFn: () => api.refile(false), ...options }),
     previewRefile: useMutation({ mutationFn: () => api.refile(true) }),

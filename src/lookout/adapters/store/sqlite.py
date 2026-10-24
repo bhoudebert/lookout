@@ -447,6 +447,10 @@ class SqliteChannelDefinitions:
             (channel.name, channel.description),
         )
 
+    def rename(self, old: str, new: str) -> None:
+        """Give a channel another path, keeping its description and its place."""
+        self._db.run("UPDATE channel_defs SET name = ? WHERE name = ?", (new, old))
+
     def delete(self, name: str) -> None:
         """Forget a channel; items already filed in it keep its name."""
         self._db.run("DELETE FROM channel_defs WHERE name = ?", (name,))

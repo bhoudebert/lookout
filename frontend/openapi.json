@@ -138,6 +138,18 @@
         "title": "ChannelIn",
         "type": "object"
       },
+      "ChannelMove": {
+        "description": "Where to move a category: inside this one, or to the top level when empty.",
+        "properties": {
+          "parent": {
+            "default": "",
+            "title": "Parent",
+            "type": "string"
+          }
+        },
+        "title": "ChannelMove",
+        "type": "object"
+      },
       "ChannelOut": {
         "description": "A category (channel) the user follows, with how much it holds and who feeds it.",
         "properties": {
@@ -1106,6 +1118,55 @@
           }
         },
         "summary": "Change Channel"
+      }
+    },
+    "/api/channels/{name}/move": {
+      "post": {
+        "operationId": "move_channel_api_channels__name__move_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Move Channel"
       }
     },
     "/api/health": {

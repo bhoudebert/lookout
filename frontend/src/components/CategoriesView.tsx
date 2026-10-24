@@ -20,13 +20,20 @@ const SUGGESTIONS: { path: string; description: string }[] = [
 
 function Category({
   row,
+  destinations,
   onSave,
+  onMove,
   onDelete,
 }: {
   row: CategoryRow;
+  /** Where this category could go: the paths it may sit inside, "" being the top level. */
+  destinations: string[];
   onSave: (description: string) => void;
+  onMove: (parent: string) => void;
   onDelete: () => void;
 }) {
+  const [moving, setMoving] = useState(false);
+  const [destination, setDestination] = useState(destinations[0] as string);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(row.description);
   return (
@@ -73,10 +80,58 @@ function Category({
           >
             Edit
           </button>
+          {row.path !== "Other" && destinations.length > 0 && (
+            <button
+              type="button"
+              aria-label={`Move ${row.path}`}
+              onClick={() => {
+                setDestination(destinations[0] as string);
+                setMoving(true);
+              }}
+            >
+              Move
+            </button>
+          )}
           <button type="button" aria-label={`Delete ${row.path}`} onClick={onDelete}>
             Delete
           </button>
         </>
+      )}
+      {moving && (
+        <span className="moving" role="group" aria-label={`Move ${row.path}`}>
+          <label>
+            Move {row.name} inside
+            <select
+              value={destination}
+              onChange={(e) => {
+                setDestination(e.target.value);
+              }}
+            >
+              {destinations.map((d) => (
+                <option key={d} value={d}>
+                  {d || "(top level)"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              onMove(destination);
+              setMoving(false);
+            }}
+          >
+            Move here
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMoving(false);
+            }}
+          >
+            Cancel
+          </button>
+        </span>
       )}
       <span className="hint feeders">
         {row.sources.length > 0 ? `fed by ${row.sources.join(", ")}` : "any source may file items here"}
@@ -88,7 +143,7 @@ function Category({
 /** Categories, as one tree (ADR 0015): what you look at, from broad to specific. */
 export function CategoriesView() {
   const taxonomy = useTaxonomy();
-  const { addChannel, updateChannel, deleteChannel, refile, previewRefile } = useManage();
+  const { addChannel, updateChannel, moveChannel, deleteChannel, refile, previewRefile } = useManage();
   const [name, setName] = useState("");
   const [parent, setParent] = useState("");
   const [description, setDescription] = useState("");
@@ -110,6 +165,17 @@ export function CategoriesView() {
   const channels = taxonomy.data.channels;
   const rows = categoryRows(channels);
   const missing = SUGGESTIONS.filter((s) => !channels.some((c) => c.name.toLowerCase() === s.path.toLowerCase()));
+
+  /** The places a category could move to: the top level and every other category outside its own branch. */
+  const destinationsOf = (row: CategoryRow): string[] => {
+    const current = row.path.includes(SEP) ? row.path.slice(0, row.path.lastIndexOf(SEP)) : "";
+    return [
+      "",
+      ...rows
+        .filter((r) => r.path !== "Other" && r.path !== row.path && !r.path.startsWith(row.path + SEP))
+        .map((r) => r.path),
+    ].filter((d) => d !== current);
+  };
 
   /** Run one action; only the latest outcome is shown, so an old refusal never lingers. */
   const attempt = (action: Promise<unknown>, then?: () => void) => {
@@ -194,6 +260,10 @@ export function CategoriesView() {
               row={row}
               onSave={(text) => {
                 attempt(updateChannel.mutateAsync({ name: row.path, description: text }));
+              }}
+              destinations={destinationsOf(row)}
+              onMove={(parent) => {
+                attempt(moveChannel.mutateAsync({ name: row.path, parent }));
               }}
               onDelete={() => {
                 attempt(deleteChannel.mutateAsync(row.path));

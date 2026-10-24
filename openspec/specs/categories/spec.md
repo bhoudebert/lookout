@@ -33,6 +33,18 @@ it and its subcategories, and `All` clears it.
 The user SHALL be able to add a category inside another. A category that has subcategories or is named by a source SHALL
 NOT be deleted, and neither SHALL `Other`.
 
+### Requirement: Moving a category
+
+The user SHALL be able to move a category, with its subcategories, inside another category or to the top level. The items
+filed in it and the sources that name it SHALL follow. A move onto an existing category, inside itself, of `Other`, or
+that makes a path deeper than four levels SHALL be refused and change nothing. A path whose parent is missing SHALL
+still be shown under that parent.
+
+#### Scenario: Reorganising
+
+- **WHEN** the user moves `Languages` inside `Dev`
+- **THEN** `Languages > Rust` becomes `Dev > Languages > Rust`, its items and its sources with it
+
 ### Requirement: Filing existing items again
 
 The user SHALL be able to file existing items again. An item whose sources allow exactly one category SHALL be filed
