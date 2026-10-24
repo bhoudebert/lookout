@@ -135,6 +135,12 @@ def test_doctor_says_what_to_do_when_ollama_is_not_running(tmp_path: Path) -> No
     assert "ollama serve" in output
 
 
+def test_doctor_accepts_a_model_that_ollama_lists_with_its_latest_tag(tmp_path: Path) -> None:
+    lookout = Lookout(tmp_path)
+    lookout.network.models = {"data": [{"id": "llama3.1:latest"}]}
+    assert "ok   llm: http://localhost:11434/v1 serves llama3.1" in lookout("doctor")
+
+
 def test_doctor_names_the_model_to_pull(tmp_path: Path) -> None:
     lookout = Lookout(tmp_path)
     lookout.network.models = {"data": [{"id": "other"}]}
