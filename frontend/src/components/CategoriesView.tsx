@@ -39,9 +39,7 @@ function Category({
   return (
     <li style={{ paddingLeft: `${row.depth * 1.5}rem` }}>
       <strong title={row.path}>{row.name}</strong>
-      <span className="count">
-        {row.total} {row.total === 1 ? "item" : "items"}
-      </span>
+      <span className="count">{row.total} in the inbox</span>
       {editing ? (
         <>
           <input

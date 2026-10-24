@@ -65,15 +65,24 @@ const DAYS: Record<Exclude<Filters["age"], "">, { key: "older_than_days" | "newe
   newer7: { key: "newer_than_days", days: 7 },
 };
 
-export function itemsQuery(filters: Filters, limit = PAGE, offset = 0): string {
+/** What the filters select, as query parameters; the list and the category counts must read it the same way. */
+function selection(filters: Filters, { withCategory }: { withCategory: boolean }): URLSearchParams {
   const params = new URLSearchParams();
   for (const priority of filters.priorities) params.append("priority", priority);
-  if (filters.channel) params.set("channel", filters.channel);
+  if (withCategory && filters.channel) params.set("channel", filters.channel);
   if (filters.source) params.set("source", filters.source);
   for (const state of STATES[filters.view]) params.append("state", state);
   if (filters.starred) params.set("starred", "true");
   if (filters.text) params.set("text", filters.text);
   if (filters.age) params.set(DAYS[filters.age].key, String(DAYS[filters.age].days));
+  return params;
+}
+
+/** The categories with how many items these filters would list in each (the category itself aside). */
+export const taxonomyQuery = (filters: Filters): string => selection(filters, { withCategory: false }).toString();
+
+export function itemsQuery(filters: Filters, limit = PAGE, offset = 0): string {
+  const params = selection(filters, { withCategory: true });
   if (filters.order !== "priority") params.set("order", filters.order);
   params.set("limit", String(limit));
   if (offset > 0) params.set("offset", String(offset));
@@ -113,7 +122,7 @@ export const api = {
     }),
   restoreMany: (entries: UndoEntry[]) =>
     call<{ changed: number }>("/api/items/restore-many", { method: "POST", body: JSON.stringify({ entries }) }),
-  taxonomy: () => call<Taxonomy>("/api/taxonomy"),
+  taxonomy: (filters: Filters) => call<Taxonomy>(`/api/taxonomy?${taxonomyQuery(filters)}`),
   sourceTypes: () => call<SourceType[]>("/api/source-types"),
   addSource: (source: SourceCreate) => call<Source>("/api/sources", { method: "POST", body: JSON.stringify(source) }),
   updateSource: (name: string, source: SourceBody) =>

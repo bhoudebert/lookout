@@ -9,7 +9,11 @@ afterEach(() => {
 
 const world = () =>
   new FakeBackend(
-    [],
+    [
+      makeItem({ id: "x1", channel: "AI" }),
+      makeItem({ id: "x2", channel: "AI" }),
+      makeItem({ id: "x3", channel: "Dev > Rust" }),
+    ],
     [
       makeSource({ name: "blog", channels: ["AI"], keywords: ["llm"] }),
       makeSource({ name: "gh", type: "github", settings: { repos: ["o/r"], watch: ["releases"] }, enabled: false }),
@@ -316,11 +320,11 @@ describe("categories", () => {
     mount(world(), "/categories");
     const panel = await screen.findByRole("region", { name: "Categories" });
     const ai = within(panel).getByRole("button", { name: "Edit AI" }).closest("li") as HTMLElement;
-    expect(ai).toHaveTextContent("2 items");
+    expect(ai).toHaveTextContent("2 in the inbox");
     expect(ai).toHaveTextContent("Models");
     expect(ai).toHaveTextContent("fed by blog");
     const dev = within(panel).getByRole("button", { name: "Edit Dev" }).closest("li") as HTMLElement;
-    expect(dev).toHaveTextContent("1 item");
+    expect(dev).toHaveTextContent("1 in the inbox");
     expect(dev).toHaveTextContent("any source may file items here");
     const rust = within(panel).getByRole("button", { name: "Edit Dev > Rust" }).closest("li") as HTMLElement;
     expect(rust.style.paddingLeft).toBe("1.5rem");

@@ -192,7 +192,7 @@ describe("categories, tags and authors", () => {
   });
 
   it("shows every declared category as a tree with counts that include what is under it", async () => {
-    mount(new FakeBackend([]));
+    mount(new FakeBackend(three()));
     const tree = within(await screen.findByRole("navigation", { name: "Categories" }));
     const rows = tree.getAllByRole("listitem").map((li) => li.textContent);
     expect(rows).toEqual(["All3", "AI2", "Dev1", "Rust1", "Other0"]);

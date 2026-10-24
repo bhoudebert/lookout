@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "./api/client";
+import { api, taxonomyQuery } from "./api/client";
+import { NO_FILTERS } from "./api/types";
 import type { Action, Filters, SourceBody, UndoEntry } from "./api/types";
 
 /** The items of a selection, a page at a time: the next page starts after what is already loaded. */
@@ -17,7 +18,13 @@ export const useItems = (filters: Filters) =>
 export const useItem = (id: string | null) =>
   useQuery({ queryKey: ["item", id], queryFn: () => api.item(id as string), enabled: id !== null });
 
-export const useTaxonomy = () => useQuery({ queryKey: ["taxonomy"], queryFn: api.taxonomy, staleTime: 60_000 });
+/** The categories, counted for the same filters as the list beside them (none: what is in the inbox). */
+export const useTaxonomy = (filters: Filters = NO_FILTERS) =>
+  useQuery({
+    queryKey: ["taxonomy", taxonomyQuery(filters)],
+    queryFn: () => api.taxonomy(filters),
+    staleTime: 60_000,
+  });
 
 export const useSourceTypes = () =>
   useQuery({ queryKey: ["source-types"], queryFn: api.sourceTypes, staleTime: Infinity });

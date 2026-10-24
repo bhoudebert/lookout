@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from importlib.metadata import version as package_version
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -68,29 +68,12 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
         return Health(status="ok", version=package_version("lookout"))
 
     @app.get("/api/items")
-    def list_items(  # noqa: PLR0913, PLR0917 - one parameter per query-string key
-        priority: Annotated[list[Literal["P0", "P1", "P2", "P3"]] | None, Query()] = None,
-        channel: Annotated[list[str] | None, Query()] = None,
-        source: Annotated[list[str] | None, Query()] = None,
-        state: Annotated[list[State] | None, Query()] = None,
-        starred: bool | None = None,
-        text: str = "",
-        older_than_days: Annotated[int | None, Query(ge=0)] = None,
-        newer_than_days: Annotated[int | None, Query(ge=0)] = None,
+    def list_items(
+        selection: Annotated[ItemFilter, Query()],
         order: Order = Order.PRIORITY,
         limit: Annotated[int, Query(ge=1, le=500)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> ItemPage:
-        selection = ItemFilter(
-            priority=priority or [],
-            channel=channel or [],
-            source=source or [],
-            state=state or [],
-            starred=starred,
-            text=text,
-            older_than_days=older_than_days,
-            newer_than_days=newer_than_days,
-        )
         page = services.inbox.list(
             replace(_query(selection, services.clock.now()), order=order, limit=limit, offset=offset)
         )
@@ -182,8 +165,10 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
         return BulkOut(changed=services.triage.mark_seen_below(Priority[body.priority]))
 
     @app.get("/api/taxonomy")
-    def taxonomy() -> TaxonomyOut:
-        counts = services.items.count_by_channel()
+    def taxonomy(selection: Annotated[ItemFilter, Query()]) -> TaxonomyOut:
+        """The categories, each with how many items the same filters would list in it (the category aside)."""
+        everywhere = replace(_query(selection, services.clock.now()), channels=frozenset())
+        counts = services.items.count_by_channel(everywhere)
         feeders = services.registry.sources()
         return TaxonomyOut(
             channels=[

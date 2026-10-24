@@ -175,7 +175,7 @@ export class FakeBackend {
     if (id && path.endsWith("/restore"))
       return this.restore(id, body as Pick<Item, "state" | "snoozed_until" | "starred">);
     if (id && method === "GET") return this.one(id);
-    if (path === "/api/taxonomy") return this.json(this.taxonomy);
+    if (path === "/api/taxonomy") return this.json(this.counted(url.searchParams));
     if (path === "/api/sources" && method === "GET") return this.json(this.sources);
     if (path === "/api/source-types") return this.json(this.sourceTypes);
     if (path === "/api/sources" && method === "POST") return this.addSource(body as Partial<Source>);
@@ -230,6 +230,27 @@ export class FakeBackend {
     const offset = Number(params.get("offset") ?? 0);
     const limit = Number(params.get("limit") ?? 50);
     return this.json({ items: matches.slice(offset, offset + limit), total: matches.length });
+  }
+
+  /** The categories with the items the same filters would list in each, like the server. */
+  private counted(params: URLSearchParams): Taxonomy {
+    const wanted = params.getAll("state");
+    const older = params.get("older_than_days");
+    const newer = params.get("newer_than_days");
+    const source = params.get("source");
+    const found = this.matching({
+      state: wanted,
+      priority: params.getAll("priority"),
+      channel: [],
+      source: source ? [source] : [],
+      starred: params.get("starred") === "true" ? true : null,
+      text: params.get("text") ?? "",
+      older_than_days: older ? Number(older) : null,
+      newer_than_days: newer ? Number(newer) : null,
+    });
+    return {
+      channels: this.taxonomy.channels.map((c) => ({ ...c, items: found.filter((i) => i.channel === c.name).length })),
+    };
   }
 
   /** What a filter selects, as the server reads it. Time is the fake clock, 2026-10-24 09:00 UTC. */

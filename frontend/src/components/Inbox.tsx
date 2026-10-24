@@ -38,7 +38,7 @@ interface Message {
 export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   const items = useItems(filters);
   const sources = useSources();
-  const taxonomy = useTaxonomy();
+  const taxonomy = useTaxonomy(filters);
   const act = useAct();
   const bulk = useBulk();
   const restore = useRestore();
