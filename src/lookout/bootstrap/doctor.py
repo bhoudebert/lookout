@@ -49,7 +49,7 @@ def _llm(config: Config, http: httpx.Client) -> Check:
     except (httpx.HTTPError, ValueError, AttributeError) as error:
         hint = " Is Ollama running? Start it with `ollama serve`." if "localhost" in llm.base_url else ""
         return Check("llm", ok=False, detail=f"{url}: {error}.{hint}")
-    if llm.model not in models:
+    if llm.model not in models and f"{llm.model}:latest" not in models:
         return Check(
             "llm",
             ok=False,
