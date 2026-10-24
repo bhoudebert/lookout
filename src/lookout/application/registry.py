@@ -106,6 +106,14 @@ class Registry:
             self._flags.set(SEEDED)
         if not any(c.name.lower() == OTHER.lower() for c in self._channels.all()):
             self._channels.save(Channel(OTHER))
+        self._create_missing_parents()
+
+    def _create_missing_parents(self) -> None:
+        """Every category has its parents stored, even in a database that kept a path without them."""
+        for channel in self._channels.all():
+            for parent in ancestors(channel.name):
+                if self._channel(parent) is None:
+                    self._channels.save(Channel(parent))
 
     # Sources
 

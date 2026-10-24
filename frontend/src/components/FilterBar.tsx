@@ -31,20 +31,25 @@ export function FilterBar({ filters, sources, onChange }: Props) {
         e.preventDefault();
       }}
     >
-      <div className="chips" role="group" aria-label="Priority">
-        {PRIORITIES.map((priority) => (
-          <button
-            key={priority}
-            type="button"
-            className={`chip ${priority.toLowerCase()}`}
-            aria-pressed={filters.priorities.includes(priority)}
-            onClick={() => {
-              togglePriority(priority);
-            }}
-          >
-            {priority}
-          </button>
-        ))}
+      <div className="field">
+        <span className="caption" aria-hidden="true">
+          Priority
+        </span>
+        <div className="chips" role="group" aria-label="Priority">
+          {PRIORITIES.map((priority) => (
+            <button
+              key={priority}
+              type="button"
+              className={`chip ${priority.toLowerCase()}`}
+              aria-pressed={filters.priorities.includes(priority)}
+              onClick={() => {
+                togglePriority(priority);
+              }}
+            >
+              {priority}
+            </button>
+          ))}
+        </div>
       </div>
       <label>
         View

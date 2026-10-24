@@ -292,7 +292,11 @@ export class FakeBackend {
     return this.json(body, 201);
   }
 
+  /** Like the server: only categories that exist can be moved, or moved into. */
   private moveChannel(name: string, parent: string): Response {
+    const known = (path: string) => this.taxonomy.channels.some((c) => c.name === path);
+    const unknown = [name, parent].find((path) => path !== "" && !known(path));
+    if (unknown !== undefined) return this.json({ detail: `no such source or channel: ${unknown}` }, 404);
     const target = parent ? `${parent} > ${name.split(" > ").pop() as string}` : (name.split(" > ").pop() as string);
     for (const channel of this.taxonomy.channels) {
       if (channel.name === name || channel.name.startsWith(`${name} > `))

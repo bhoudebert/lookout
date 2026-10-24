@@ -37,8 +37,9 @@ NOT be deleted, and neither SHALL `Other`.
 
 The user SHALL be able to move a category, with its subcategories, inside another category or to the top level. The items
 filed in it and the sources that name it SHALL follow. A move onto an existing category, inside itself, of `Other`, or
-that makes a path deeper than four levels SHALL be refused and change nothing. A path whose parent is missing SHALL
-still be shown under that parent.
+that makes a path deeper than four levels SHALL be refused and change nothing. Every category SHALL have its parents
+stored: opening a database that holds a path without its parent SHALL create the parent, and the dashboard SHALL show
+only categories the server has.
 
 #### Scenario: Reorganising
 

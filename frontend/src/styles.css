@@ -55,23 +55,23 @@ h1 {
   font-size: 1.25rem;
   color: var(--accent);
 }
-nav {
+header nav {
   display: flex;
   gap: 1rem;
   flex: 1;
 }
-nav a {
+header nav a {
   color: var(--fg);
   text-decoration: none;
   padding: 0.25rem 0;
   border-bottom: 2px solid transparent;
 }
-nav a[aria-current="page"] {
+header nav a[aria-current="page"] {
   border-bottom-color: var(--accent);
 }
 main {
   padding: 1rem;
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
 }
 button,
@@ -104,25 +104,55 @@ button:disabled {
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
+  gap: 0.75rem 1.25rem;
   align-items: end;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
   margin-bottom: 0.75rem;
 }
-.filters label {
+.filters label,
+.filters .field {
   display: flex;
   flex-direction: column;
-  font-size: 0.8rem;
+  gap: 0.25rem;
+}
+.filters .caption,
+.filters label {
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   color: var(--muted);
-  gap: 0.15rem;
+}
+.filters label:has(input[type="search"]) {
+  flex: 1 1 14rem;
+}
+.filters select,
+.filters input[type="search"],
+.filters .chip {
+  height: 2.25rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.filters input[type="search"] {
+  width: 100%;
+  text-transform: none;
 }
 .filters label.check {
   flex-direction: row;
   align-items: center;
   gap: 0.4rem;
+  height: 2.25rem;
+  text-transform: none;
+  font-size: 0.9rem;
 }
 .chips {
   display: flex;
   gap: 0.35rem;
+}
+.chip {
+  min-width: 2.5rem;
 }
 .chip[aria-pressed="true"] {
   background: var(--fg);
@@ -136,7 +166,11 @@ button:disabled {
   gap: 0.75rem;
   align-items: center;
   color: var(--muted);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.toolbar span {
+  margin-right: auto;
+  font-size: 0.9rem;
 }
 .bulk {
   background: var(--card);
@@ -471,30 +505,52 @@ td button + button {
 }
 @media (min-width: 900px) {
   .with-tree {
-    grid-template-columns: 14rem minmax(0, 1fr);
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: 1.5rem;
     align-items: start;
+  }
+  .tree {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
   }
 }
 .tree {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 0.5rem;
+  padding: 0.5rem 0.5rem 0.75rem;
+  display: block;
+}
+.tree-title {
+  margin: 0.25rem 0.6rem 0.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .tree ul {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  gap: 1px;
 }
 .tree button {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.5rem;
+  align-items: center;
   width: 100%;
   border: 0;
   background: none;
   text-align: left;
-  padding: 0.25rem 0.5rem;
+  padding: 0.35rem 0.6rem;
   border-radius: 6px;
+}
+.tree button[data-depth]:not([data-depth="0"]) {
+  font-size: 0.95rem;
+  color: var(--muted);
 }
 .tree button:hover {
   background: var(--bg);
@@ -505,13 +561,16 @@ td button + button {
   font-weight: 700;
 }
 .tree .count {
+  text-align: right;
   color: var(--muted);
   font-size: 0.85rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 .tree button[aria-current="true"] .count {
   color: var(--bg);
 }
-.chips {
+.tags {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
