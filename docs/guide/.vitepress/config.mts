@@ -7,6 +7,15 @@ export default defineConfig({
   base: "/lookout/guide/",
   cleanUrls: true,
   lastUpdated: false,
+  head: [
+    [
+      "link",
+      {
+        rel: "icon",
+        href: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' rx='2' fill='%23a63a32' transform='rotate(-5 16 16)'/%3E%3C/svg%3E",
+      },
+    ],
+  ],
   themeConfig: {
     nav: [
       { text: "Guide", link: "/getting-started" },
