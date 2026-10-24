@@ -7,11 +7,11 @@ Not commitments. Ordered by expected value for one person tracking the news, rel
 - Core: RSS/Atom ingestion, enrichment through any OpenAI-compatible model, priority rules, triage, personalization.
 - CLI, HTTP API, dashboard, user guide and website.
 - GitHub releases, advisories and Dependabot alerts, through `gh` or a token.
+- OSV vulnerabilities for the declared stack, with CVSS severity and CISA's known-exploited flag.
 
 ## Now
 
-- OSV and NVD adapters, with version-range matching against the declared stack, so advisories for packages you use
-  arrive from repositories you do not watch.
+- Website-change watching and a YouTube transcript source.
 - Dedicated Hacker News and Reddit adapters (scores, comment counts).
 - Container image and a NixOS module.
 

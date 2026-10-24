@@ -1,0 +1,21 @@
+{
+  "vulns": [
+    {
+      "id": "PYSEC-2026-77",
+      "aliases": ["CVE-2026-5555", "other-alias"],
+      "details": "Only details here, no summary.\nMore.",
+      "published": "2026-10-22T10:00:00Z",
+      "severity": [{ "type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H" }]
+    },
+    {
+      "id": "GHSA-low-vector",
+      "aliases": [],
+      "summary": "Odd severity data",
+      "published": "2026-10-22T10:00:00Z",
+      "database_specific": { "severity": "weird" },
+      "severity": [{ "type": "CVSS_V4", "score": "CVSS:4.0/AV:N" }, "junk", { "score": 5 }]
+    },
+    { "id": "GHSA-nodate", "summary": "No dates at all", "aliases": ["CVE-2026-0007"] },
+    { "id": "GHSA-bad-date", "summary": "Unreadable date", "published": "yesterday", "modified": "also not a date" }
+  ]
+}

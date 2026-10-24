@@ -13,6 +13,7 @@ class StackEntry:
     name: str
     ecosystem: str = "other"
     aliases: tuple[str, ...] = ()
+    version: str = ""
 
     @property
     def names(self) -> tuple[str, ...]:

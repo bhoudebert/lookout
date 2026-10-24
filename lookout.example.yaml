@@ -17,6 +17,7 @@ categories: [security, release, breaking-change, tooling, ai, industry, other]
 stack:
   - name: django
     ecosystem: pypi
+    version: "5.1.0" # optional; lets OSV return only what affects this version
   - name: postgresql
     aliases: [postgres]
   - name: react
@@ -37,3 +38,7 @@ sources:
   #   kind: github
   #   repos: [owner/name]
   #   kinds: [releases, advisories, dependabot]
+
+  # Vulnerabilities for the packages in your stack, with CISA's "known exploited" flag.
+  # - name: osv
+  #   kind: osv
