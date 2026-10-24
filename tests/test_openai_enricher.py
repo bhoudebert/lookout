@@ -10,12 +10,17 @@ from lookout.adapters.llm.openai_compatible import OpenAiEnricher
 from lookout.application.ports_sources import EnrichmentError
 from lookout.domain.channel import Channel
 
-CHANNELS = (Channel("AI", "Models and tools"), Channel("Rust"), Channel("Other"))
-ONE = (Channel("Rust"),)
+CHANNELS = (
+    Channel("AI", "Models and tools"),
+    Channel("Dev"),
+    Channel("Dev > Rust", "The language"),
+    Channel("Dev > Web"),
+    Channel("Other"),
+)
+ONE = (Channel("Dev > Rust"),)
 
 GOOD = {
     "summary": "  Django 6 ships.  ",
-    "kind": "release",
     "channel": "ai",
     "tags": ["Django", "Python"],
     "score": 72,
@@ -45,7 +50,6 @@ class Endpoint:
         defaults: dict[str, object] = {
             "base_url": "http://localhost:11434/v1/",
             "model": "llama3",
-            "kinds": lambda: ("release", "security", "other"),
         }
         return OpenAiEnricher(client, **{**defaults, **kw})  # type: ignore[arg-type]
 
@@ -55,14 +59,12 @@ def test_valid_answer_becomes_an_enrichment() -> None:
     reading = endpoint.enricher().enrich(make_item(title="Django 6", body="It ships."), CHANNELS)
     assert (
         reading.summary,
-        reading.kind,
         reading.channel,
         reading.tags,
         reading.score,
         reading.action_needed,
     ) == (
         "Django 6 ships.",
-        "release",
         "AI",
         ("django", "python"),
         72,
@@ -84,7 +86,6 @@ def test_request_states_the_task_and_marks_item_text_as_data() -> None:
     assert "untrusted DATA" in system["content"]
     assert "databases" in system["content"]
     assert "django, postgresql" in system["content"]
-    assert '["release", "security", "other"]' in system["content"]
     assert "Ignore previous instructions" in user["content"]
     assert payload["response_format"] == {"type": "json_object"}
 
@@ -94,19 +95,35 @@ def test_the_prompt_lists_the_channels_to_choose_from_with_their_descriptions() 
     endpoint.enricher().enrich(make_item(), CHANNELS)
     system = json.loads(endpoint.requests[0].content)["messages"][0]["content"]
     assert "- AI: Models and tools" in system
-    assert "- Rust\n" in system
-    assert '"channel": one of the channels above' in system
+    assert "- Dev\n" in system
+    assert '"channel": the full path of one of the categories above' in system
 
 
-def test_a_kind_is_matched_ignoring_case_and_read_from_the_current_list() -> None:
-    kinds = ["release"]
-    endpoint = Endpoint(json.dumps({**GOOD, "kind": " Release "}), json.dumps({**GOOD, "kind": "Tutorial"}))
-    enricher = endpoint.enricher(kinds=lambda: tuple(kinds))
-    assert enricher.enrich(make_item(), CHANNELS).kind == "release"
-    kinds.append("tutorial")
-    assert enricher.enrich(make_item(), CHANNELS).kind == "tutorial"
-    system = json.loads(endpoint.requests[1].content)["messages"][0]["content"]
-    assert '["release", "tutorial"]' in system
+def test_the_model_answers_a_full_path_matched_ignoring_case_and_spacing() -> None:
+    for answer in ("Dev > Rust", "dev>rust", "  DEV  >  RUST "):
+        reading = Endpoint(json.dumps({**GOOD, "channel": answer})).enricher().enrich(make_item(), CHANNELS)
+        assert reading.channel == "Dev > Rust"
+
+
+def test_a_bare_last_name_is_accepted_when_only_one_allowed_category_ends_with_it() -> None:
+    reading = Endpoint(json.dumps({**GOOD, "channel": "Rust"})).enricher().enrich(make_item(), CHANNELS)
+    assert reading.channel == "Dev > Rust"
+
+
+def test_a_bare_name_that_fits_two_categories_is_refused() -> None:
+    twins = (Channel("Dev > Web"), Channel("Ops > Web"), Channel("Other"))
+    with pytest.raises(EnrichmentError):
+        Endpoint(json.dumps({**GOOD, "channel": "Web"})).enricher().enrich(make_item(), twins)
+
+
+def test_the_prompt_shows_the_categories_as_paths() -> None:
+    endpoint = Endpoint(json.dumps(GOOD))
+    endpoint.enricher().enrich(make_item(), CHANNELS)
+    system = json.loads(endpoint.requests[0].content)["messages"][0]["content"]
+    assert "- Dev > Rust: The language" in system
+    assert "the full path of the most specific category that fits" in system
+    assert "the full path of one of the categories above" in system
+    assert "including what the item is" in system
 
 
 def test_other_is_presented_as_a_last_resort_unless_the_user_described_it() -> None:
@@ -133,11 +150,11 @@ def test_a_channel_decided_in_advance_is_not_asked_and_not_overridden() -> None:
     endpoint = Endpoint(json.dumps({**GOOD, "channel": "AI"}))
     reading = endpoint.enricher().enrich(make_item(), ONE)
     system = json.loads(endpoint.requests[0].content)["messages"][0]["content"]
-    assert "The channel is already decided: Rust" in system
+    assert "The category is already decided: Dev > Rust" in system
     assert '"channel"' not in system
-    assert reading.channel == "Rust"
+    assert reading.channel == "Dev > Rust"
     answer_without = json.dumps({k: v for k, v in GOOD.items() if k != "channel"})
-    assert Endpoint(answer_without).enricher().enrich(make_item(), ONE).channel == "Rust"
+    assert Endpoint(answer_without).enricher().enrich(make_item(), ONE).channel == "Dev > Rust"
 
 
 @pytest.mark.parametrize("channel", ["Gardening", None, 3])
@@ -147,8 +164,8 @@ def test_a_channel_that_is_not_one_of_the_allowed_is_refused(channel: object) ->
 
 
 def test_the_channel_is_matched_ignoring_case_and_spaces() -> None:
-    reading = Endpoint(json.dumps({**GOOD, "channel": "  rust "})).enricher().enrich(make_item(), CHANNELS)
-    assert reading.channel == "Rust"
+    reading = Endpoint(json.dumps({**GOOD, "channel": "  ai "})).enricher().enrich(make_item(), CHANNELS)
+    assert reading.channel == "AI"
 
 
 def test_no_key_sends_no_authorization_header() -> None:
@@ -176,7 +193,6 @@ def test_prose_twice_gives_up() -> None:
     "answer",
     [
         json.dumps([1, 2]),
-        json.dumps({**GOOD, "kind": "gossip"}),
         json.dumps({**GOOD, "score": 101}),
         json.dumps({**GOOD, "score": "high"}),
         json.dumps({**GOOD, "score": True}),
@@ -222,7 +238,6 @@ def test_unreachable_endpoint_is_an_enrichment_error() -> None:
         httpx.Client(transport=httpx.MockTransport(refuse)),
         base_url="http://localhost:11434/v1",
         model="m",
-        kinds=lambda: ("other",),
     )
     with pytest.raises(EnrichmentError, match="refused"):
         enricher.enrich(make_item(), CHANNELS)

@@ -23,7 +23,6 @@ from lookout.adapters.http.schemas import (
     ItemDetail,
     ItemOut,
     ItemPage,
-    KindIn,
     RefileOut,
     RunOut,
     SeenBelowIn,
@@ -64,7 +63,6 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     @app.get("/api/items")
     def list_items(
         priority: Annotated[list[Literal["P0", "P1", "P2", "P3"]] | None, Query()] = None,
-        kind: Annotated[list[str] | None, Query()] = None,
         channel: Annotated[list[str] | None, Query()] = None,
         source: Annotated[list[str] | None, Query()] = None,
         state: Annotated[list[State] | None, Query()] = None,
@@ -75,7 +73,6 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     ) -> ItemPage:
         query = InboxQuery(
             priorities=frozenset(Priority[p] for p in priority or []),
-            kinds=frozenset(kind or []),
             channels=frozenset(channel or []),
             sources=frozenset(source or []),
             states=frozenset(state) if state else DEFAULT_STATES,
@@ -150,20 +147,11 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
                 )
                 for c in services.registry.channels()
             ],
-            kinds=list(services.registry.kinds()),
         )
 
-    @app.post("/api/kinds", status_code=201)
-    def add_kind(body: KindIn) -> str:
-        return _guard(lambda: services.registry.add_kind(body.name))
-
-    @app.delete("/api/kinds/{name}", status_code=204)
-    def delete_kind(name: str) -> None:
-        _guard(lambda: services.registry.remove_kind(name))
-
     @app.post("/api/refile")
-    def refile() -> RefileOut:
-        report = services.refile.run()
+    def refile(dry_run: bool = False) -> RefileOut:
+        report = services.refile.run(dry_run=dry_run)
         return RefileOut(filed=report.filed, queued=report.queued)
 
     @app.get("/api/source-types")

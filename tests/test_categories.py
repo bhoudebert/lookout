@@ -1,4 +1,4 @@
-"""Scenarios of openspec/specs/categories: managed kinds, filing items again, counted categories."""
+"""Scenarios of openspec/specs/categories: one hierarchy, counted categories, filing existing items again."""
 
 import sqlite3
 from collections.abc import Iterator
@@ -11,6 +11,7 @@ from tests.support import database, make_item
 from tests.test_http import Api
 
 from lookout.adapters.store import sqlite as store
+from lookout.adapters.store.codec import decode, encode
 from lookout.adapters.store.sqlite import SqliteItemRepository
 from lookout.application.refile import Refile
 from lookout.domain.channel import OTHER, Channel, ChannelCatalogue
@@ -24,99 +25,183 @@ def api(tmp_path: Path) -> Iterator[Api]:
     instance.services.close()
 
 
-def kinds(api: Api) -> list[str]:
-    return api.client.get("/api/taxonomy").json()["kinds"]
+def names(api: Api) -> list[str]:
+    return [c["name"] for c in api.client.get("/api/taxonomy").json()["channels"]]
 
 
 def categories(api: Api) -> dict[str, dict[str, Any]]:
     return {c["name"]: c for c in api.client.get("/api/taxonomy").json()["channels"]}
 
 
-# --- kinds ------------------------------------------------------------------------------------------------
+# --- the hierarchy ---
 
 
-def test_the_kinds_of_the_file_are_seeded_and_other_always_exists(tmp_path: Path) -> None:
-    instance = Api(Lookout(tmp_path, kinds=["release", "schedule"]))
-    try:
-        assert kinds(instance) == ["release", "schedule", "other"]
-    finally:
-        instance.services.close()
+def test_a_nested_category_creates_its_parents(api: Api) -> None:
+    created = api.client.post(
+        "/api/channels", json={"name": "  Dev>  Rust > Async ", "description": " Futures "}
+    )
+    assert (created.status_code, created.json()["name"], created.json()["description"]) == (
+        201,
+        "Dev > Rust > Async",
+        "Futures",
+    )
+    assert names(api) == [OTHER, "Dev", "Dev > Rust", "Dev > Rust > Async"]
 
 
-def test_a_kind_can_be_added_normalised_and_removed(api: Api) -> None:
-    created = api.client.post("/api/kinds", json={"name": "  Weekly   DIGEST "})
-    assert (created.status_code, created.json()) == (201, "weekly digest")
-    assert "weekly digest" in kinds(api)
-    assert api.client.delete("/api/kinds/Weekly Digest").status_code == 204
-    assert "weekly digest" not in kinds(api)
+def test_an_existing_parent_keeps_its_description_when_a_child_is_added(api: Api) -> None:
+    api.client.post("/api/channels", json={"name": "Dev", "description": "Software"})
+    api.client.post("/api/channels", json={"name": "Dev > Rust"})
+    assert categories(api)["Dev"]["description"] == "Software"
 
 
 @pytest.mark.parametrize(
-    ("method", "path", "body", "status", "text"),
+    ("name", "status", "text"),
     [
-        ("post", "/api/kinds", {"name": "RELEASE"}, 409, "already exists"),
-        ("post", "/api/kinds", {"name": "   "}, 422, "needs a name"),
-        ("post", "/api/kinds", {"name": "x" * 41}, 422, "1 to 40"),
-        ("delete", "/api/kinds/ghost", None, 404, "ghost"),
-        ("delete", "/api/kinds/OTHER", None, 409, "always exists"),
+        ("Dev >", 422, "none of them empty"),
+        ("> Rust", 422, "none of them empty"),
+        ("A > > B", 422, "none of them empty"),
+        ("A > B > C > D > E", 422, "at most 4 levels"),
+        ("x" * 41, 422, "at most 40 characters"),
+        ("dev > rust", 409, "already exists"),
     ],
 )
-def test_kinds_are_protected(api: Api, method: str, path: str, body: Any, status: int, text: str) -> None:
-    response = api.client.post(path, json=body) if method == "post" else api.client.delete(path)
-    assert response.status_code == status
-    assert text in response.json()["detail"]
+def test_bad_paths_are_refused_and_duplicates_ignore_case(
+    api: Api, name: str, status: int, text: str
+) -> None:
+    api.client.post("/api/channels", json={"name": "Dev > Rust"})
+    refused = api.client.post("/api/channels", json={"name": name})
+    assert (refused.status_code, text in refused.json()["detail"]) == (status, True)
 
 
-def test_the_model_chooses_among_the_kinds_as_they_are_now(api: Api) -> None:
-    api.client.post("/api/kinds", json={"name": "weekly digest"})
-    api.lookout.network.chat = lambda _r: reading(kind="Weekly Digest")
-    api.run()
-    assert {i["kind"] for i in api.items()} == {"weekly digest"}
+def test_a_category_with_subcategories_cannot_be_deleted_until_they_are_gone(api: Api) -> None:
+    api.client.post("/api/channels", json={"name": "Dev > Rust"})
+    refused = api.client.delete("/api/channels/dev")
+    assert (refused.status_code, "has subcategories (Dev > Rust)" in refused.json()["detail"]) == (409, True)
+    assert api.client.delete("/api/channels/Dev > Rust").status_code == 204
+    assert api.client.delete("/api/channels/Dev").status_code == 204
+    assert names(api) == [OTHER]
 
 
-def test_a_database_that_was_already_seeded_still_gets_its_kinds_from_the_file(tmp_path: Path) -> None:
-    path = tmp_path / "lookout.db"
-    with sqlite3.connect(path) as db:
-        for step in (store.migrate_v1, store.migrate_v2, store.migrate_v3):
-            step(db)
-        db.execute("PRAGMA user_version = 3")
-        db.execute("INSERT INTO flags (name) VALUES ('seeded')")
-        db.execute("INSERT INTO channel_defs (name, description, position) VALUES ('Other', '', 1)")
-    instance = Api(Lookout(tmp_path, kinds=["release", "security"]))
+def test_a_source_feeding_a_parent_feeds_everything_under_it(tmp_path: Path) -> None:
+    instance = Api(
+        Lookout(
+            tmp_path,
+            channels=[{"name": "Dev > Rust"}, {"name": "Dev > Web"}, {"name": "AI"}],
+            sources=[{"name": "blog", "type": "rss", "url": FEED_URL, "channels": ["Dev"]}],
+        )
+    )
     try:
-        assert kinds(instance) == ["release", "security", "other"]
-        assert (tmp_path / "lookout.db.bak-v3").exists()
+        offered: list[bool] = []
+
+        def answer(request: Any) -> str:
+            system = request.content.decode()
+            offered.append("Dev > Web" in system and "AI:" not in system and "- AI" not in system)
+            return reading(channel="Dev > Web")
+
+        instance.lookout.network.chat = answer
+        instance.run()
+        assert set(offered) == {True}
+        assert {i["channel"] for i in instance.items()} == {"Dev > Web"}
     finally:
         instance.services.close()
 
 
-# --- categories with their counts -----------------------------------------------------------------------
+def test_a_source_feeding_one_leaf_files_straight_there_and_one_with_children_does_not() -> None:
+    catalogue = ChannelCatalogue(
+        (Channel("Dev"), Channel("Dev > Rust"), Channel("Dev > Web")),
+        {"leaf": ("Dev > Rust",), "branch": ("Dev",)},
+    )
+    assert catalogue.initial(("leaf",)) == "Dev > Rust"
+    assert catalogue.initial(("branch",)) == OTHER
+    assert [c.name for c in catalogue.allowed(("branch",))] == ["Dev", "Dev > Rust", "Dev > Web"]
+    assert [c.name for c in catalogue.children_of("dev")] == ["Dev > Rust", "Dev > Web"]
+    assert catalogue.children_of("Dev > Rust") == ()
 
 
-def test_each_category_says_how_many_items_it_holds_and_who_feeds_it(tmp_path: Path) -> None:
+def test_a_source_may_name_a_category_by_any_spacing(api: Api) -> None:
+    api.client.post("/api/channels", json={"name": "Dev > Rust"})
+    created = api.client.post(
+        "/api/sources",
+        json={"name": "s", "type": "rss", "settings": {"url": FEED_URL}, "channels": ["dev>rust"]},
+    )
+    assert created.json()["channels"] == ["Dev > Rust"]
+
+
+# --- counted categories ---
+
+
+def test_each_category_says_how_many_items_it_holds_and_who_names_it(tmp_path: Path) -> None:
     instance = Api(
         Lookout(
             tmp_path,
-            channels=[{"name": "Rust"}, {"name": "AI"}],
-            sources=[{"name": "blog", "type": "rss", "url": FEED_URL, "channels": ["Rust"]}],
+            channels=[{"name": "Dev > Rust"}, {"name": "AI"}],
+            sources=[{"name": "blog", "type": "rss", "url": FEED_URL, "channels": ["Dev > Rust"]}],
         )
     )
     try:
         instance.run()
         found = categories(instance)
-        assert (found["Rust"]["items"], found["Rust"]["sources"]) == (3, ["blog"])
+        assert (found["Dev > Rust"]["items"], found["Dev > Rust"]["sources"]) == (3, ["blog"])
+        assert (found["Dev"]["items"], found["Dev"]["sources"]) == (0, [])
         assert (found["AI"]["items"], found["AI"]["sources"]) == (0, [])
-        assert (found[OTHER]["items"], found[OTHER]["sources"]) == (0, [])
     finally:
         instance.services.close()
 
 
-# --- filing existing items again ------------------------------------------------------------------------
+# --- tags carry what kinds used to ---
+
+
+def test_what_an_item_is_comes_back_as_tags(api: Api) -> None:
+    api.lookout.network.chat = lambda _r: reading(tags=["release", "python"])
+    api.run()
+    assert {tuple(i["tags"]) for i in api.items()} == {("release", "python")}
+
+
+def test_a_database_with_kinds_keeps_them_as_tags_and_drops_the_columns(tmp_path: Path) -> None:
+    path = tmp_path / "lookout.db"
+    legacy = (
+        '{"id": "k1", "url": "https://old.test/k", "title": "Old", "body": "", "published_at": '
+        '"2026-10-20T08:00:00+00:00", "sources": ["blog"], "advisory": null, "enrichment": {"summary": "s", '
+        '"kind": "release", "channel": "AI", "tags": ["a", "b", "c", "d", "e"], "score": 50, '
+        '"action_needed": false, "reason": "r"}, "enrichment_failed": false, "stack_matches": [], '
+        '"priority": 2, "priority_reason": "old", "state": "new", "snoozed_until": null, "starred": false, '
+        '"boost": 0, "author": "", "channel": "AI", "feed_tags": [], "extra": {}}'
+    )
+    with sqlite3.connect(path) as db:
+        for step in (store.migrate_v1, store.migrate_v2, store.migrate_v3, store.migrate_v4):
+            step(db)
+        db.execute("PRAGMA user_version = 4")
+        db.execute(
+            "INSERT INTO items (id, priority, state, starred, kind, channel, author, sources, search, rank, "
+            "pending, published_at, snoozed_until, data) VALUES ('k1', 2, 'new', 0, 'release', 'AI', '', "
+            "'|blog|', 'old', 50, 0, '2026-10-20T08:00:00+00:00', NULL, ?)",
+            (legacy,),
+        )
+    repo = SqliteItemRepository(database(path))
+    (item,) = repo.all()
+    assert item.enrichment is not None
+    assert item.enrichment.tags == ("a", "b", "c", "d", "e")  # already five: the kind does not overflow
+    assert (tmp_path / "lookout.db.bak-v4").exists()
+    with sqlite3.connect(path) as raw:
+        columns = [row[1] for row in raw.execute("PRAGMA table_info(items)")]
+        tables = [row[0] for row in raw.execute("SELECT name FROM sqlite_master WHERE type = 'table'")]
+    assert "kind" not in columns
+    assert "kind_defs" not in tables
+
+
+def test_a_legacy_kind_becomes_a_tag_when_there_is_room() -> None:
+    item = make_item(score=50)
+    raw = encode(item).replace('"tags":[]', '"tags":["x"],"kind":"release"')
+    assert decode(raw).enrichment is not None
+    assert decode(raw).enrichment.tags == ("x", "release")  # type: ignore[union-attr]
+
+
+# --- filing existing items again ---
 
 
 def world(**routes: tuple[str, ...]) -> tuple[Refile, SqliteItemRepository]:
     items = SqliteItemRepository(database())
-    catalogue = ChannelCatalogue((Channel("AI"), Channel("Rust")), routes)
+    catalogue = ChannelCatalogue((Channel("AI"), Channel("Dev"), Channel("Dev > Rust")), routes)
     return Refile(items, lambda: catalogue), items
 
 
@@ -127,35 +212,50 @@ def stored(items: SqliteItemRepository, item: Item) -> Item:
 
 
 def test_an_item_whose_source_allows_one_category_is_filed_there_by_rule() -> None:
-    refile, items = world(**{"rust-blog": ("Rust",)})
+    refile, items = world(**{"rust-blog": ("Dev > Rust",)})
     item = make_item(sources=("rust-blog",), score=60)
     items.save(item)
     report = refile.run()
     moved = stored(items, item)
     assert (report.filed, report.queued) == (1, 0)
-    assert (moved.channel, moved.enrichment.channel if moved.enrichment else None) == ("Rust", "Rust")
+    assert moved.channel == "Dev > Rust"
     assert moved.enrichment is not None
+    assert moved.enrichment.channel == "Dev > Rust"
     assert moved.priority == item.priority
 
 
-def test_an_item_in_other_whose_sources_allow_several_is_queued_for_the_model() -> None:
+def test_an_item_in_other_or_in_a_category_that_now_has_children_is_queued_for_the_model() -> None:
     refile, items = world()
-    read = make_item(sources=("anywhere",), score=60)
-    items.save(read)
+    in_other = make_item("https://a.test/1", sources=("anywhere",), score=60)
+    broad = make_item("https://a.test/2", sources=("anywhere",), score=60, channel="Dev")
+    items.save(in_other)
+    items.save(broad)
     report = refile.run()
-    again = stored(items, read)
-    assert (report.filed, report.queued) == (0, 1)
-    assert again.enrichment is None
-    assert again.enrichment_failed is False
-    assert [i.id for i in items.pending_enrichment()] == [read.id]
+    assert (report.filed, report.queued) == (0, 2)
+    assert stored(items, in_other).enrichment is None
+    assert stored(items, broad).enrichment_failed is False
+    assert {i.id for i in items.pending_enrichment()} == {in_other.id, broad.id}
+
+
+def test_a_dry_run_says_what_would_happen_and_changes_nothing() -> None:
+    refile, items = world(**{"rust-blog": ("Dev > Rust",)})
+    rust = make_item("https://a.test/1", sources=("rust-blog",), score=60)
+    other = make_item("https://a.test/2", sources=("anywhere",), score=60)
+    items.save(rust)
+    items.save(other)
+    report = refile.run(dry_run=True)
+    assert (report.filed, report.queued) == (1, 1)
+    assert stored(items, rust) == rust
+    assert stored(items, other) == other
 
 
 def test_items_that_are_fine_are_left_alone() -> None:
-    refile, items = world(**{"rust-blog": ("Rust",)})
-    placed = make_item("https://a.test/1", sources=("rust-blog",), channel="Rust", score=60)
-    elsewhere = make_item("https://a.test/2", sources=("anywhere",), channel="AI", score=60)
-    unread = make_item("https://a.test/3", sources=("anywhere",))
-    for item in (placed, elsewhere, unread):
+    refile, items = world(**{"rust-blog": ("Dev > Rust",)})
+    placed = make_item("https://a.test/1", sources=("rust-blog",), channel="Dev > Rust", score=60)
+    deep = make_item("https://a.test/2", sources=("anywhere",), channel="Dev > Rust", score=60)
+    elsewhere = make_item("https://a.test/3", sources=("anywhere",), channel="AI", score=60)
+    unread = make_item("https://a.test/4", sources=("anywhere",))
+    for item in (placed, deep, elsewhere, unread):
         items.save(item)
     assert (refile.run().filed, refile.run().queued) == (0, 0)
     assert stored(items, elsewhere) == elsewhere
@@ -174,31 +274,35 @@ def test_adding_categories_then_filing_again_then_running_files_what_is_already_
     api.run()
     assert {i["channel"] for i in api.items()} == {OTHER}
 
-    api.client.post("/api/channels", json={"name": "Rust", "description": "The Rust language"})
+    api.client.post("/api/channels", json={"name": "Dev > Rust", "description": "The Rust language"})
     api.client.post("/api/channels", json={"name": "AI"})
-    report = api.client.post("/api/refile").json()
-    assert report == {"filed": 0, "queued": 3}
+    preview = api.client.post("/api/refile", params={"dry_run": "true"}).json()
+    assert preview == {"filed": 0, "queued": 3}
+    assert {i["unread"] for i in api.items()} == {False}
+    assert api.client.post("/api/refile").json() == {"filed": 0, "queued": 3}
     assert {i["unread"] for i in api.items()} == {True}
 
-    api.lookout.network.chat = lambda _r: reading(channel="Rust", score=92)
+    api.lookout.network.chat = lambda _r: reading(channel="Dev > Rust", score=92)
     api.run()
-    assert {i["channel"] for i in api.items()} == {"Rust"}
+    assert {i["channel"] for i in api.items()} == {"Dev > Rust"}
     assert {i["priority"] for i in api.items()} == {"P0"}
-    assert categories(api)["Rust"]["items"] == 3
+    assert categories(api)["Dev > Rust"]["items"] == 3
+    assert len(api.items(channel="Dev")) == 3
 
 
-def test_a_source_that_now_names_one_category_files_its_items_without_the_model(api: Api) -> None:
+def test_a_source_that_now_names_one_leaf_files_its_items_without_the_model(api: Api) -> None:
     api.run()
-    api.client.post("/api/channels", json={"name": "Rust"})
+    api.client.post("/api/channels", json={"name": "Dev > Rust"})
     api.client.put(
-        "/api/sources/blog", json={"type": "rss", "settings": {"url": FEED_URL}, "channels": ["Rust"]}
+        "/api/sources/blog", json={"type": "rss", "settings": {"url": FEED_URL}, "channels": ["Dev > Rust"]}
     )
     assert api.client.post("/api/refile").json() == {"filed": 3, "queued": 0}
-    assert {i["channel"] for i in api.items()} == {"Rust"}
+    assert {i["channel"] for i in api.items()} == {"Dev > Rust"}
 
 
-def test_the_command_line_can_file_items_again(tmp_path: Path) -> None:
-    lookout = Lookout(tmp_path, channels=[{"name": "Rust"}])
+def test_the_command_line_can_file_items_again_and_preview(tmp_path: Path) -> None:
+    lookout = Lookout(tmp_path, channels=[{"name": "Dev > Rust"}])
     lookout.network.chat = lambda _r: reading(channel="Other")
     lookout("run")
+    assert "would file 0 by rule, 3 queued for the model's next run" in lookout("refile", "--dry-run")
     assert "filed 0 by rule, 3 queued for the model's next run" in lookout("refile")

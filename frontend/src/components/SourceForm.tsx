@@ -175,7 +175,7 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
         );
       })}
       <fieldset>
-        <legend>File its items in these categories</legend>
+        <legend>File its items in these categories (a category includes those under it)</legend>
         {channels.map((channel) => (
           <label key={channel} className="check">
             <input

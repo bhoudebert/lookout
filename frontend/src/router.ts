@@ -17,8 +17,7 @@ export function parseLocation(path: string, search: string): Location {
     path,
     filters: {
       priorities: params.getAll("priority").filter((p): p is Priority => PRIORITIES.includes(p as Priority)),
-      channel: params.get("channel") ?? "",
-      kind: params.get("kind") ?? "",
+      channel: params.get("category") ?? "",
       source: params.get("source") ?? "",
       view: view && VIEWS.includes(view) ? view : NO_FILTERS.view,
       starred: params.get("starred") === "true",
@@ -31,8 +30,7 @@ export function parseLocation(path: string, search: string): Location {
 export function buildSearch(filters: Filters, item: string | null): string {
   const params = new URLSearchParams();
   for (const priority of filters.priorities) params.append("priority", priority);
-  if (filters.channel) params.set("channel", filters.channel);
-  if (filters.kind) params.set("kind", filters.kind);
+  if (filters.channel) params.set("category", filters.channel);
   if (filters.source) params.set("source", filters.source);
   if (filters.view !== NO_FILTERS.view) params.set("view", filters.view);
   if (filters.starred) params.set("starred", "true");

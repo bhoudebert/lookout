@@ -1,6 +1,6 @@
 # 0012. Channels and kinds are two axes, set by the source and refined by the model
 
-- Status: accepted
+- Status: partly superseded by 0015 (kinds are gone; categories are one hierarchy)
 - Date: 2026-10-24
 
 ## Context

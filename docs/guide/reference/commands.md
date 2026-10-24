@@ -50,7 +50,6 @@ List items, most urgent first.
 | Option | |
 | --- | --- |
 | `--priority`, `-p` | P0 to P3, repeatable. |
-| `--kind` | What it is: release, security, ... |
 | `--channel` | The topic: AI, Rust, ... |
 | `--source` |  |
 | `--state` | Default: new and seen. One of: `new`, `seen`, `done`, `snoozed`, `dismissed`. |
@@ -65,6 +64,10 @@ Recompute priorities after changing the stack or the thresholds (no model call).
 ## `lookout refile`
 
 File existing items again after changing categories (by rule, or queued for the model).
+
+| Option | |
+| --- | --- |
+| `--dry-run` | Only say what would change. |
 
 ## `lookout run`
 

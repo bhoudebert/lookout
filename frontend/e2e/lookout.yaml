@@ -8,12 +8,12 @@ interests: Python and security.
 channels:
   - name: AI
     description: Models, agents and tooling around them
-  - name: Rust
+  - name: Dev > Rust
+  - name: Dev > Web
+  - name: Dev > Python
+    description: Python and its ecosystem
   - name: Security
     description: Vulnerabilities and fixes in what I run
-  - name: Web
-  - name: Languages
-    description: Python and other languages I write
 
 stack:
   - name: django
@@ -24,4 +24,4 @@ sources:
   - name: fake-feed
     type: rss
     url: http://127.0.0.1:8902/feed.xml
-    channels: [Languages, Other]
+    channels: [Dev > Python, Other]

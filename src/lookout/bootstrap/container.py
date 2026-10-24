@@ -24,7 +24,6 @@ from lookout.adapters.store.sqlite import (
     SqliteChannelDefinitions,
     SqliteFlags,
     SqliteItemRepository,
-    SqliteKindDefinitions,
     SqliteSignalRepository,
     SqliteSourceDefinitions,
     SqliteSourceStatusRepository,
@@ -246,7 +245,7 @@ class Container:
                 self.clock.now(),
                 PriorityPolicy(self.config.thresholds),
                 self.config.stack,
-                tuple(c.name for c in self.registry.channels()),
+                self.registry.channels(),
             ),
             export=lambda: (encode(item) for item in self.items.all()),
             schedule_minutes=self.config.schedule.interval_minutes,
@@ -325,12 +324,11 @@ def _assemble(
     registry = Registry(
         SqliteSourceDefinitions(database),
         SqliteChannelDefinitions(database),
-        SqliteKindDefinitions(database),
         SqliteFlags(database),
         _validator(ways),
     )
     try:
-        registry.seed(config.sources, config.channels, config.kinds)
+        registry.seed(config.sources, config.channels)
     except (UnknownChannelError, InvalidError) as error:
         raise ConfigError(str(error)) from error
     enricher = OpenAiEnricher(
@@ -338,7 +336,6 @@ def _assemble(
         base_url=config.llm.base_url,
         model=config.llm.model,
         api_key=config.llm.api_key,
-        kinds=registry.kinds,
         interests=config.interests,
         stack=tuple(e.name for e in config.stack.entries),
         summary_chars=config.llm.summary_chars,

@@ -51,7 +51,6 @@ def api(tmp_path: Path) -> Iterator[Api]:
 def filled(api: Api) -> Api:
     api.lookout.network.chat = lambda request: reading(
         score=95 if "Django" in request.content.decode() else 10,
-        kind="security" if "Django" in request.content.decode() else "other",
     )
     api.run()
     return api
@@ -65,12 +64,7 @@ def test_run_fills_the_inbox_with_prioritised_items(filled: Api) -> None:
     items = filled.items()
     assert [i["priority"] for i in items] == ["P0", "P3", "P3"]
     top = items[0]
-    assert (top["title"], top["kind"], top["score"], top["unread"]) == (
-        "Django 6.0 released",
-        "security",
-        95,
-        False,
-    )
+    assert (top["title"], top["score"], top["unread"]) == ("Django 6.0 released", 95, False)
     assert top["stack_matches"] == ["django"]
     assert top["summary"] == "A summary."
     assert top["priority_label"] == "act today"
@@ -80,7 +74,7 @@ def test_run_fills_the_inbox_with_prioritised_items(filled: Api) -> None:
 def test_filters(filled: Api) -> None:
     assert len(filled.items(priority="P0")) == 1
     assert len(filled.items(priority=["P0", "P3"])) == 3
-    assert len(filled.items(kind="security")) == 1
+    assert len(filled.items(channel="Other")) == 3
     assert len(filled.items(source="blog")) == 3
     assert len(filled.items(source="nope")) == 0
     assert len(filled.items(text="django")) == 1
@@ -257,9 +251,9 @@ def test_dashboard_without_an_assets_folder(tmp_path: Path) -> None:
 
 CHANNELS = [
     {"name": "AI", "description": "Models and tools"},
-    {"name": "Rust"},
+    {"name": "Dev > Rust"},
+    {"name": "Dev>Web"},
     {"name": "Security"},
-    {"name": "Web"},
 ]
 
 
@@ -272,33 +266,42 @@ def sorted_api(tmp_path: Path) -> Iterator[Api]:
     instance.services.close()
 
 
-def test_the_taxonomy_lists_the_channels_with_other_and_the_kinds(sorted_api: Api) -> None:
+def test_the_taxonomy_lists_the_categories_as_a_tree_with_other(sorted_api: Api) -> None:
     taxonomy = sorted_api.client.get("/api/taxonomy").json()
-    assert [c["name"] for c in taxonomy["channels"]] == ["AI", "Rust", "Security", "Web", "Other"]
-    assert taxonomy["channels"][0]["description"] == "Models and tools"
-    assert "security" in taxonomy["kinds"]
-    assert "schedule" in taxonomy["kinds"]
-
-
-def test_items_carry_their_channel_kind_author_and_the_articles_tags(sorted_api: Api) -> None:
-    django = next(i for i in sorted_api.items() if i["title"].startswith("Django"))
-    assert (django["channel"], django["kind"], django["author"]) == (
+    assert [c["name"] for c in taxonomy["channels"]] == [
+        "AI",
+        "Dev",
+        "Dev > Rust",
+        "Dev > Web",
         "Security",
-        "security",
-        "Django Security Team",
-    )
-    assert django["feed_tags"] == ["django"]
-    assert django["tags"] == ["django", "sql-injection"]
+        "Other",
+    ]
+    assert taxonomy["channels"][0]["description"] == "Models and tools"
+    assert "kinds" not in taxonomy
 
 
-def test_the_inbox_filters_by_channel_and_by_kind_independently(sorted_api: Api) -> None:
-    assert {i["channel"] for i in sorted_api.items()} == {"Security", "Web", "Other", "Rust", "AI"}
-    assert [i["title"][:6] for i in sorted_api.items(channel="Rust")] == ["Show H"]
+def test_items_carry_their_category_author_and_the_articles_tags(sorted_api: Api) -> None:
+    django = next(i for i in sorted_api.items() if i["title"].startswith("Django"))
+    assert (django["channel"], django["author"]) == ("Security", "Django Security Team")
+    assert django["feed_tags"] == ["security"]
+    assert django["tags"] == ["security", "django", "sql-injection"]
+    assert "kind" not in django
+
+
+def test_filtering_by_a_category_includes_what_is_under_it(sorted_api: Api) -> None:
+    assert {i["channel"] for i in sorted_api.items()} == {
+        "Security",
+        "Dev > Web",
+        "Other",
+        "Dev > Rust",
+        "AI",
+    }
+    assert [i["title"][:6] for i in sorted_api.items(channel="Dev > Rust")] == ["Show H"]
+    assert sorted(i["channel"] for i in sorted_api.items(channel="Dev")) == ["Dev > Rust", "Dev > Web"]
     assert len(sorted_api.items(channel=["Security", "AI"])) == 3
-    assert len(sorted_api.items(kind="security")) == 2
-    assert len(sorted_api.items(kind="release")) == 2
-    assert [i["channel"] for i in sorted_api.items(kind="release", channel="Web")] == ["Web"]
-    assert sorted_api.items(kind="release", channel="Rust") == []
+    assert len(sorted_api.items(channel=["Dev", "Security"])) == 4
+    assert sorted_api.items(channel="Dev > Rus") == []
+    assert sorted_api.items(channel="Developers") == []
 
 
 def test_the_text_filter_also_searches_the_author(sorted_api: Api) -> None:

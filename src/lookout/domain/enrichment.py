@@ -8,10 +8,9 @@ MAX_SCORE = 100
 
 @dataclass(frozen=True, slots=True)
 class Enrichment:
-    """Summary, kind, channel, tags and importance score of one item, as validated from the model's answer."""
+    """Summary, category, tags and importance score of one item, as validated from the model's answer."""
 
     summary: str
-    kind: str
     channel: str
     tags: tuple[str, ...]
     score: int

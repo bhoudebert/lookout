@@ -19,8 +19,8 @@ def build(
     return Enrich(items, enricher, usage, clock, PriorityPolicy(), daily_limit=limit), items, usage, clock
 
 
-def test_reading_sets_category_summary_and_a_priority_from_the_score() -> None:
-    enrich, items, _, _ = build(ScriptedEnricher({"Big news": enrichment(92, "release", summary="Huge")}))
+def test_reading_sets_the_summary_and_a_priority_from_the_score() -> None:
+    enrich, items, _, _ = build(ScriptedEnricher({"Big news": enrichment(92, summary="Huge")}))
     item = make_item(title="Big news")
     items.save(item)
     report = enrich.run()
@@ -28,7 +28,7 @@ def test_reading_sets_category_summary_and_a_priority_from_the_score() -> None:
     assert stored is not None
     assert (report.enriched, stored.priority) == (1, Priority.P0)
     assert stored.enrichment is not None
-    assert (stored.enrichment.kind, stored.enrichment.summary) == ("release", "Huge")
+    assert stored.enrichment.summary == "Huge"
     assert "score 92" in stored.priority_reason
 
 

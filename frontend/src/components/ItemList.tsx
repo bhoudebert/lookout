@@ -51,12 +51,19 @@ export function ItemList({ items, focusedId, selected, now, onFocus, onOpen, onT
               </button>
             </div>
             <p className="meta">
-              <span className="channel">{item.channel}</span> · {item.kind ?? "unread"} · {item.sources.join(", ")}
+              <span className="channel">{item.channel}</span> · {item.sources.join(", ")}
               {item.author && <> · by {item.author}</>} · {timeAgo(item.published_at, now)}
               {item.state !== "new" && item.state !== "seen" && <> · {item.state}</>}
               {item.unread && <> · waiting for the model</>}
               {item.enrichment_failed && <> · the model could not read it</>}
             </p>
+            {item.tags.length > 0 && (
+              <p className="chips" aria-label="Tags">
+                {item.tags.slice(0, 4).map((tag) => (
+                  <span key={tag}>#{tag}</span>
+                ))}
+              </p>
+            )}
             {item.summary && <p className="summary">{item.summary}</p>}
           </div>
         </li>

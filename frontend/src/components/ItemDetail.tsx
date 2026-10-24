@@ -43,7 +43,8 @@ export function ItemDetail({ id, onAction, onSnooze, onClose }: Props) {
       {item.action_needed && <p className="action-needed">Action needed</p>}
       {item.summary && <p className="summary">{item.summary}</p>}
       <p className="facets">
-        <span className="channel">{item.channel}</span> · {item.kind ?? "not read yet"}
+        <span className="channel">{item.channel}</span>
+        {item.unread && <> · not read yet</>}
         {item.author && <> · by {item.author}</>}
       </p>
       {tags.length > 0 && (

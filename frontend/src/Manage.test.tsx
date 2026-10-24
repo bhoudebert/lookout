@@ -37,7 +37,7 @@ describe("sources", () => {
     const form = screen.getByRole("form", { name: "Add a source" });
     await user.type(within(form).getByLabelText("Name"), "rust-blog");
     await user.type(within(form).getByLabelText("Feed address"), " https://rust.test/feed.xml ");
-    await user.click(within(form).getByRole("checkbox", { name: "Rust" }));
+    await user.click(within(form).getByRole("checkbox", { name: "Dev > Rust" }));
     await user.click(within(form).getByRole("checkbox", { name: "AI" }));
     await user.click(within(form).getByRole("checkbox", { name: "AI" }));
     await user.type(within(form).getByLabelText("Keywords"), "rust, , async");
@@ -50,7 +50,7 @@ describe("sources", () => {
       name: "rust-blog",
       type: "rss",
       settings: { url: "https://rust.test/feed.xml" },
-      channels: ["Rust"],
+      channels: ["Dev > Rust"],
       keywords: ["rust", "async"],
       enabled: true,
     });
@@ -240,89 +240,105 @@ describe("categories", () => {
   const calls = (backend: FakeBackend, method: string, prefix: string) =>
     backend.calls.filter((c) => c.method === method && c.path.startsWith(prefix));
 
-  it("lists each category with its description, its item count and who feeds it", async () => {
+  it("lists the categories as a tree with descriptions, counts and who feeds each", async () => {
     mount(world(), "/categories");
     const panel = await screen.findByRole("region", { name: "Categories" });
-    const ai = within(panel).getByText("AI").closest("li") as HTMLElement;
+    const ai = within(panel).getByRole("button", { name: "Edit AI" }).closest("li") as HTMLElement;
     expect(ai).toHaveTextContent("2 items");
     expect(ai).toHaveTextContent("Models");
     expect(ai).toHaveTextContent("fed by blog");
-    const rust = within(panel).getByText("Rust").closest("li") as HTMLElement;
-    expect(rust).toHaveTextContent("any source may file items here");
-    expect(rust).toHaveTextContent("no description");
+    const dev = within(panel).getByRole("button", { name: "Edit Dev" }).closest("li") as HTMLElement;
+    expect(dev).toHaveTextContent("1 items");
+    expect(dev).toHaveTextContent("any source may file items here");
+    const rust = within(panel).getByRole("button", { name: "Edit Dev > Rust" }).closest("li") as HTMLElement;
+    expect(rust.style.paddingLeft).toBe("1.5rem");
+    expect(within(rust).getByText("Rust")).toHaveAttribute("title", "Dev > Rust");
   });
 
   it("copes with a category the server sends without its sources", async () => {
     const backend = world();
     backend.taxonomy.channels = [{ name: "Web", description: "", items: 0 }];
     mount(backend, "/categories");
-    const web = (await screen.findByText("Web")).closest("li") as HTMLElement;
+    const web = (await screen.findByRole("button", { name: "Edit Web" })).closest("li") as HTMLElement;
     expect(web).toHaveTextContent("any source may file items here");
   });
 
   it("is reachable from the navigation", async () => {
     const { user } = mount(world(), "/");
-    await user.click(await screen.findByRole("link", { name: "Categories" }));
+    await user.click(
+      within(await screen.findByRole("navigation", { name: "Main" })).getByRole("link", { name: "Categories" }),
+    );
     expect(await screen.findByRole("region", { name: "Categories" })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/categories");
-    expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("suggests starting categories and adds one with a click", async () => {
+  it("suggests starting categories, including nested ones, and adds one with a click", async () => {
     const backend = world();
     const { user } = mount(backend, "/categories");
     const suggestions = await screen.findByRole("group", { name: "Suggested categories" });
     expect(within(suggestions).queryByRole("button", { name: "+ AI" })).not.toBeInTheDocument();
-    await user.click(within(suggestions).getByRole("button", { name: "+ Security" }));
-    expect(await screen.findByRole("button", { name: "Edit Security" })).toBeInTheDocument();
-    expect(calls(backend, "POST", "/api/channels")[0]?.body).toMatchObject({ name: "Security" });
-    await waitFor(() => {
-      expect(
-        within(screen.getByRole("group", { name: "Suggested categories" })).queryByRole("button", {
-          name: "+ Security",
-        }),
-      ).not.toBeInTheDocument();
-    });
+    expect(within(suggestions).queryByRole("button", { name: "+ Dev > Rust" })).not.toBeInTheDocument();
+    await user.click(within(suggestions).getByRole("button", { name: "+ Dev > Python" }));
+    expect(await screen.findByRole("button", { name: "Edit Dev > Python" })).toBeInTheDocument();
+    expect(calls(backend, "POST", "/api/channels")[0]?.body).toMatchObject({ name: "Dev > Python" });
   });
 
   it("stops suggesting when every suggestion exists", async () => {
     const backend = world();
-    backend.taxonomy.channels = ["AI", "Rust", "Security", "Web", "Languages", "Cloud", "Data", "Other"].map(
-      (name) => ({
-        name,
-        description: "",
-        items: 0,
-        sources: [],
-      }),
-    );
+    backend.taxonomy.channels = [
+      "AI",
+      "Dev",
+      "Dev > Rust",
+      "Dev > Python",
+      "Dev > Web",
+      "Security",
+      "Cloud",
+      "Data",
+      "Other",
+    ].map((name) => ({ name, description: "", items: 0, sources: [] }));
     mount(backend, "/categories");
     await screen.findByRole("region", { name: "Categories" });
     expect(screen.queryByRole("group", { name: "Suggested categories" })).not.toBeInTheDocument();
   });
 
-  it("adds a category of your own and empties the form", async () => {
+  it("adds a category inside another one, and empties the form", async () => {
     const backend = world();
     const { user } = mount(backend, "/categories");
     const form = await screen.findByRole("form", { name: "Add a category" });
+    const inside = within(form).getByLabelText("Inside");
+    expect(
+      within(inside)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["(top level)", "AI", "Dev", "Dev > Rust"]);
+    await user.selectOptions(inside, "Dev");
     await user.type(within(form).getByLabelText("New category"), "Gardening");
     await user.type(within(form).getByLabelText("Description"), "Plants");
     await user.click(within(form).getByRole("button", { name: "Add category" }));
-    expect(await screen.findByRole("button", { name: "Edit Gardening" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Edit Dev > Gardening" })).toBeInTheDocument();
     expect(within(form).getByLabelText("New category")).toHaveValue("");
-    expect(calls(backend, "POST", "/api/channels")[0]?.body).toEqual({ name: "Gardening", description: "Plants" });
-    await user.click(screen.getByRole("link", { name: "Sources" }));
-    await user.click(await screen.findByRole("button", { name: "Add a source" }));
-    expect(
-      within(screen.getByRole("form", { name: "Add a source" })).getByRole("checkbox", { name: "Gardening" }),
-    ).toBeInTheDocument();
+    expect(calls(backend, "POST", "/api/channels")[0]?.body).toEqual({
+      name: "Dev > Gardening",
+      description: "Plants",
+    });
+  });
+
+  it("adds a top-level category when nothing is chosen to put it in", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/categories");
+    const form = await screen.findByRole("form", { name: "Add a category" });
+    await user.type(within(form).getByLabelText("New category"), "Cloud");
+    await user.click(within(form).getByRole("button", { name: "Add category" }));
+    expect(await screen.findByRole("button", { name: "Edit Cloud" })).toBeInTheDocument();
+    expect(calls(backend, "POST", "/api/channels")[0]?.body).toEqual({ name: "Cloud", description: "" });
   });
 
   it("changes a description, or cancels", async () => {
     const backend = world();
     const { user } = mount(backend, "/categories");
-    await user.click(await screen.findByRole("button", { name: "Edit Rust" }));
+    await user.click(await screen.findByRole("button", { name: "Edit Dev > Rust" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByLabelText("Description of Rust")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Description of Dev > Rust")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Edit AI" }));
     const input = screen.getByLabelText("Description of AI");
@@ -336,9 +352,9 @@ describe("categories", () => {
 
   it("deletes a category", async () => {
     const { user } = mount(world(), "/categories");
-    await user.click(await screen.findByRole("button", { name: "Delete Rust" }));
+    await user.click(await screen.findByRole("button", { name: "Delete Dev > Rust" }));
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Edit Rust" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit Dev > Rust" })).not.toBeInTheDocument();
     });
   });
 
@@ -346,10 +362,10 @@ describe("categories", () => {
     const backend = world();
     const { user } = mount(backend, "/categories");
     const form = await screen.findByRole("form", { name: "Add a category" });
-    backend.failWith = { status: 409, detail: "the channel 'AI' is fed by blog: change those sources first" };
+    backend.failWith = { status: 409, detail: "the category 'AI' is fed by blog: change those sources first" };
     await user.click(screen.getByRole("button", { name: "Delete AI" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("fed by blog");
-    backend.failWith = { status: 409, detail: "a channel named 'rust' already exists" };
+    backend.failWith = { status: 409, detail: "a category named 'rust' already exists" };
     await user.type(within(form).getByLabelText("New category"), "rust");
     await user.click(within(form).getByRole("button", { name: "Add category" }));
     await waitFor(() => {
@@ -358,12 +374,42 @@ describe("categories", () => {
     expect(within(form).getByLabelText("New category")).toHaveValue("rust");
   });
 
-  it("files existing items again and says what will happen", async () => {
+  it("offers to file existing items right after a category is created, and files them on request", async () => {
+    const backend = world();
+    backend.refiled = { filed: 2, queued: 5 };
+    const { user } = mount(backend, "/categories");
+    await user.click(await screen.findByRole("button", { name: "+ Security" }));
+    const offer = await screen.findByRole("note");
+    expect(offer).toHaveTextContent("7 items you already have could move: 2 by rule, 5 to be read again");
+    expect(calls(backend, "POST", "/api/refile?dry_run=true")).toHaveLength(1);
+    expect(calls(backend, "POST", "/api/refile?dry_run=false")).toHaveLength(0);
+    await user.click(within(offer).getByRole("button", { name: "File them now" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    });
+    expect(calls(backend, "POST", "/api/refile?dry_run=false")).toHaveLength(1);
+    expect(screen.getByText(/Filed 2 by rule\. 5 will be read again/)).toBeInTheDocument();
+  });
+
+  it("lets the offer go when you say not now, and stays quiet when nothing could move", async () => {
+    const backend = world();
+    backend.refiled = { filed: 0, queued: 1 };
+    const { user } = mount(backend, "/categories");
+    await user.click(await screen.findByRole("button", { name: "+ Security" }));
+    await user.click(await screen.findByRole("button", { name: "Not now" }));
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    backend.refiled = { filed: 0, queued: 0 };
+    await user.click(screen.getByRole("button", { name: "+ Cloud" }));
+    await screen.findByRole("button", { name: "Edit Cloud" });
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+  });
+
+  it("files existing items again by hand, and says what will happen", async () => {
     const backend = world();
     const { user } = mount(backend, "/categories");
     await user.click(await screen.findByRole("button", { name: "File existing items again" }));
     expect(await screen.findByText(/Filed 2 by rule\. 5 will be read again by the model/)).toBeInTheDocument();
-    expect(calls(backend, "POST", "/api/refile")).toHaveLength(1);
+    expect(calls(backend, "POST", "/api/refile?dry_run=false")).toHaveLength(1);
   });
 
   it("shows when filing again fails", async () => {
@@ -373,23 +419,6 @@ describe("categories", () => {
     backend.failWith = { status: 500, detail: "disk full" };
     await user.click(button);
     expect(await screen.findByRole("alert")).toHaveTextContent("disk full");
-  });
-
-  it("manages the kinds, and keeps other", async () => {
-    const backend = world();
-    const { user } = mount(backend, "/categories");
-    const kinds = await screen.findByRole("region", { name: "Kinds" });
-    expect(within(kinds).getByText("other")).toBeInTheDocument();
-    expect(within(kinds).queryByRole("button", { name: "Delete kind other" })).not.toBeInTheDocument();
-    const form = screen.getByRole("form", { name: "Add a kind" });
-    await user.type(within(form).getByLabelText("New kind"), "Weekly Digest");
-    await user.click(within(form).getByRole("button", { name: "Add kind" }));
-    expect(await within(kinds).findByText("weekly digest")).toBeInTheDocument();
-    expect(within(form).getByLabelText("New kind")).toHaveValue("");
-    await user.click(within(kinds).getByRole("button", { name: "Delete kind weekly digest" }));
-    await waitFor(() => {
-      expect(within(kinds).queryByText("weekly digest")).not.toBeInTheDocument();
-    });
   });
 
   it("says when categories cannot be read, and recovers", async () => {

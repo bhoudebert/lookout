@@ -128,7 +128,7 @@ class Choosing(ScriptedEnricher):
 
     def enrich(self, item, channels):  # type: ignore[no-untyped-def]
         self.offered.append(tuple(c.name for c in channels))
-        return enrichment(60, "release", channel=self.answer)
+        return enrichment(60, channel=self.answer)
 
 
 def enrich_world(cat: ChannelCatalogue, enricher: ScriptedEnricher) -> tuple[Enrich, SqliteItemRepository]:

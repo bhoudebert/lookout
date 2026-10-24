@@ -73,9 +73,6 @@ def create_app(open_services: Opener, serve: Server) -> typer.Typer:
         priority: Annotated[
             list[str] | None, typer.Option("--priority", "-p", help="P0 to P3, repeatable.")
         ] = None,
-        kind: Annotated[
-            list[str] | None, typer.Option("--kind", help="What it is: release, security, ...")
-        ] = None,
         channel: Annotated[
             list[str] | None, typer.Option("--channel", help="The topic: AI, Rust, ...")
         ] = None,
@@ -88,7 +85,6 @@ def create_app(open_services: Opener, serve: Server) -> typer.Typer:
         """List items, most urgent first."""
         query = InboxQuery(
             priorities=frozenset(_priority(p) for p in priority or []),
-            kinds=frozenset(kind or []),
             channels=frozenset(channel or []),
             sources=frozenset(source or []),
             states=frozenset(state) if state else frozenset({State.NEW, State.SEEN}),
@@ -172,11 +168,15 @@ def create_app(open_services: Opener, serve: Server) -> typer.Typer:
         typer.echo("profile reset")
 
     @app.command()
-    def refile(ctx: typer.Context) -> None:
+    def refile(
+        ctx: typer.Context,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help="Only say what would change.")] = False,
+    ) -> None:
         """File existing items again after changing categories (by rule, or queued for the model)."""
         with _open(ctx) as services:
-            report = services.refile.run()
-        typer.echo(f"filed {report.filed} by rule, {report.queued} queued for the model's next run")
+            report = services.refile.run(dry_run=dry_run)
+        verb = "would file" if dry_run else "filed"
+        typer.echo(f"{verb} {report.filed} by rule, {report.queued} queued for the model's next run")
 
     @app.command()
     def reassess(ctx: typer.Context) -> None:
@@ -231,7 +231,6 @@ def _wake(now: datetime, hours: float, until: str | None) -> datetime:
 
 
 def _line(item: Item) -> str:
-    kind = item.enrichment.kind if item.enrichment else "unread"
     star = "*" if item.starred else "-"
-    where = f"{', '.join(item.sources)}, {item.channel}, {kind}"
+    where = f"{', '.join(item.sources)}, {item.channel}"
     return f"{item.priority.name} {star} {item.id} [{item.state.value}] {item.title} ({where})"

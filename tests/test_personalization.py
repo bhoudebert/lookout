@@ -26,9 +26,14 @@ class World:
         )
         self.triage = Triage(self.items, self.personalize)
 
-    def add(self, n: int, *, source: str, kind: str, score: int = 50, tags: tuple[str, ...] = ()) -> Item:
-        item = make_item(f"https://a.test/{source}-{kind}-{n}", title=f"{source} {n}", sources=(source,))
-        item = item.enriched(enrichment(score, kind, tags)).assessed(Priority.P2, "x", ())
+    def add(self, n: int, *, source: str, channel: str, score: int = 50, tags: tuple[str, ...] = ()) -> Item:
+        item = make_item(
+            f"https://a.test/{source}-{channel}-{n}",
+            title=f"{source} {n}",
+            sources=(source,),
+            channel=channel,
+        )
+        item = item.enriched(enrichment(score, tags, channel=channel)).assessed(Priority.P2, "x", ())
         self.items.save(item)
         return item
 
@@ -41,9 +46,9 @@ class World:
 def test_dismissing_a_source_and_category_lowers_later_items_inside_their_band() -> None:
     world = World()
     for n in range(5):
-        world.triage.act(world.add(n, source="noisy", kind="industry").id, Action.DISMISS)
-    liked = world.add(10, source="quiet", kind="release")
-    noisy = world.add(11, source="noisy", kind="industry")
+        world.triage.act(world.add(n, source="noisy", channel="industry").id, Action.DISMISS)
+    liked = world.add(10, source="quiet", channel="release")
+    noisy = world.add(11, source="noisy", channel="industry")
     world.personalize.rerank()
     assert world.stored(noisy).boost < 0
     assert world.stored(noisy).priority is world.stored(liked).priority is Priority.P2
@@ -64,7 +69,6 @@ def test_dismissing_an_author_and_a_channel_lowers_later_items_by_them() -> None
             sources=(f"s{n}",),
             author="Spammy Writer",
             channel="Gossip",
-            kind="release",
             score=50,
         )
         world.items.save(item)
@@ -74,7 +78,6 @@ def test_dismissing_an_author_and_a_channel_lowers_later_items_by_them() -> None
         sources=("fresh",),
         author="Good Writer",
         channel="Rust",
-        kind="research",
         score=50,
     )
     disliked = make_item(
@@ -82,7 +85,6 @@ def test_dismissing_an_author_and_a_channel_lowers_later_items_by_them() -> None
         sources=("fresh",),
         author="spammy writer",
         channel="Gossip",
-        kind="research",
         score=50,
     )
     world.items.save(liked)
@@ -91,23 +93,21 @@ def test_dismissing_an_author_and_a_channel_lowers_later_items_by_them() -> None
     assert world.stored(liked).boost == 0
     assert world.stored(disliked).boost < 0
     features = {c.feature for c in world.personalize.explain(disliked.id).contributions}
-    assert {"author:spammy writer", "channel:Gossip"} <= features
+    assert {"author:spammy writer", "category:Gossip"} <= features
 
 
 def test_the_articles_own_tags_count_once_with_the_models() -> None:
-    item = make_item(feed_tags=("rust", "async"), score=50).enriched(
-        enrichment(50, "release", ("rust", "web"))
-    )
+    item = make_item(feed_tags=("rust", "async"), score=50).enriched(enrichment(50, ("rust", "web")))
     assert [f for f in features(item) if f.startswith("tag:")] == ["tag:rust", "tag:async", "tag:web"]
 
 
 def test_starring_and_finishing_teaches_the_opposite() -> None:
     world = World()
     for n in range(3):
-        world.triage.act(world.add(n, source="gold", kind="release", tags=("python",)).id, Action.STAR)
+        world.triage.act(world.add(n, source="gold", channel="release", tags=("python",)).id, Action.STAR)
     for n in range(3, 5):
-        world.triage.act(world.add(n, source="gold", kind="release").id, Action.DONE)
-    fresh = world.add(9, source="gold", kind="release", tags=("python",))
+        world.triage.act(world.add(n, source="gold", channel="release").id, Action.DONE)
+    fresh = world.add(9, source="gold", channel="release", tags=("python",))
     world.personalize.rerank()
     assert world.stored(fresh).boost > 0
 
@@ -115,7 +115,7 @@ def test_starring_and_finishing_teaches_the_opposite() -> None:
 def test_nothing_is_learnt_before_the_minimum_number_of_signals() -> None:
     world = World(minimum=5)
     for n in range(4):
-        world.triage.act(world.add(n, source="noisy", kind="industry").id, Action.DISMISS)
+        world.triage.act(world.add(n, source="noisy", channel="industry").id, Action.DISMISS)
     assert world.personalize.profile().weights == {}
     assert world.personalize.rerank() == 0
 
@@ -123,8 +123,8 @@ def test_nothing_is_learnt_before_the_minimum_number_of_signals() -> None:
 def test_the_boost_is_bounded_and_never_changes_the_priority() -> None:
     world = World()
     for n in range(40):
-        world.triage.act(world.add(n, source="s", kind="c", tags=("a", "b", "c")).id, Action.STAR)
-    item = world.add(99, source="s", kind="c", tags=("a", "b", "c"))
+        world.triage.act(world.add(n, source="s", channel="c", tags=("a", "b", "c")).id, Action.STAR)
+    item = world.add(99, source="s", channel="c", tags=("a", "b", "c"))
     world.personalize.rerank()
     stored = world.stored(item)
     assert stored.boost == MAX_BOOST
@@ -133,7 +133,7 @@ def test_the_boost_is_bounded_and_never_changes_the_priority() -> None:
 
 def test_old_signals_count_less() -> None:
     world = World(minimum=1, half_life=10.0)
-    old = world.add(1, source="s", kind="c")
+    old = world.add(1, source="s", channel="c")
     world.triage.act(old.id, Action.STAR)
     fresh_weight = world.personalize.profile().weights["source:s"]
     world.clock.advance(days=10)
@@ -142,7 +142,7 @@ def test_old_signals_count_less() -> None:
 
 def test_opening_counts_once_and_snoozing_teaches_nothing() -> None:
     world = World(minimum=1)
-    item = world.add(1, source="s", kind="c")
+    item = world.add(1, source="s", channel="c")
     world.triage.act(item.id, Action.OPEN)
     world.triage.act(item.id, Action.OPEN)
     world.triage.act(item.id, Action.SNOOZE, until=NOW + timedelta(days=1))
@@ -153,7 +153,7 @@ def test_opening_counts_once_and_snoozing_teaches_nothing() -> None:
 
 def test_reopening_and_unstarring_record_nothing() -> None:
     world = World()
-    item = world.add(1, source="s", kind="c")
+    item = world.add(1, source="s", channel="c")
     world.triage.act(item.id, Action.DONE)
     world.triage.act(item.id, Action.REOPEN)
     world.triage.act(item.id, Action.UNSTAR)
@@ -163,8 +163,8 @@ def test_reopening_and_unstarring_record_nothing() -> None:
 def test_explanation_shows_priority_reason_score_and_each_contribution() -> None:
     world = World(minimum=1)
     for n in range(2):
-        world.triage.act(world.add(n, source="gold", kind="release", tags=("python",)).id, Action.STAR)
-    target = world.add(9, source="gold", kind="release", score=64, tags=("python",))
+        world.triage.act(world.add(n, source="gold", channel="release", tags=("python",)).id, Action.STAR)
+    target = world.add(9, source="gold", channel="release", score=64, tags=("python",))
     world.personalize.rerank()
     explanation = world.personalize.explain(target.id)
     assert (explanation.priority, explanation.priority_reason, explanation.model_score) == (
@@ -175,8 +175,7 @@ def test_explanation_shows_priority_reason_score_and_each_contribution() -> None
     assert explanation.boost == world.stored(target).boost > 0
     assert {c.feature for c in explanation.contributions} == {
         "source:gold",
-        "channel:Other",
-        "kind:release",
+        "category:release",
         "tag:python",
     }
     strengths = [abs(c.points) for c in explanation.contributions]
@@ -198,8 +197,8 @@ def test_explanation_of_an_unread_item_has_no_model_score() -> None:
 def test_resetting_forgets_the_profile_and_keeps_the_items() -> None:
     world = World()
     for n in range(5):
-        world.triage.act(world.add(n, source="noisy", kind="industry").id, Action.DISMISS)
-    victim = world.add(9, source="noisy", kind="industry")
+        world.triage.act(world.add(n, source="noisy", channel="industry").id, Action.DISMISS)
+    victim = world.add(9, source="noisy", channel="industry")
     world.personalize.rerank()
     assert world.stored(victim).boost < 0
     world.personalize.reset()
@@ -215,4 +214,4 @@ def test_signals_for_deleted_items_are_ignored() -> None:
 
 
 def test_features_of_an_unread_item_are_its_sources_and_channel() -> None:
-    assert features(make_item(sources=("a", "b"))) == ("source:a", "source:b", "channel:Other")
+    assert features(make_item(sources=("a", "b"))) == ("source:a", "source:b", "category:Other")
