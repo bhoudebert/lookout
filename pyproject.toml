@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-lookout = "lookout.adapters.cli.app:main"
+lookout = "lookout.bootstrap.main:main"
 
 [dependency-groups]
 dev = [
@@ -55,6 +55,7 @@ ignore = ["PLR2004"]
 
 [tool.ruff.lint.pylint]
 max-args = 8
+max-statements = 80
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "ANN", "PLR0913"]
