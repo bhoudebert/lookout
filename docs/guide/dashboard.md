@@ -11,6 +11,8 @@ Filters are kept in the address, so a filtered inbox can be bookmarked:
 - priority chips, order (Triage or Latest), view (Inbox, Snoozed, Done, Dismissed, **Expired**, Everything) and age (newer than a week, older than a week, two weeks, a month)
 - category (picked in the tree beside the list, subcategories included; the numbers in the tree are what the list would show with the other filters, so they change with the view, age and the rest), source, starred, and free text over title, summary, tags and author
 
+A search only looks where you are: in the Inbox view, done, dismissed, snoozed and expired items are not searched. When you type a search outside **Everything**, a note says so and **Search everything** widens it in one click (every state, every age). Search reads the title, summary, tags and author, not the full text, and cannot find entries that were older than the source's age limit when they arrived.
+
 The list loads 50 items at a time: **Load more** fetches the next 50, and the count always says the real total ("50 of 2329").
 
 **Mark P2 and P3 as seen** clears the quiet items in one click. **Act on all N…** acts on everything the current filters match, not only what is loaded: it counts first, shows a few examples, asks you to choose (done, dismissed or seen), and offers Undo. It teaches your profile nothing, and nothing is deleted. See [keeping the inbox small](/inbox-size).
