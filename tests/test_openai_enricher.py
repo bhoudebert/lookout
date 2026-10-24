@@ -45,7 +45,7 @@ class Endpoint:
         defaults: dict[str, object] = {
             "base_url": "http://localhost:11434/v1/",
             "model": "llama3",
-            "kinds": ("release", "security", "other"),
+            "kinds": lambda: ("release", "security", "other"),
         }
         return OpenAiEnricher(client, **{**defaults, **kw})  # type: ignore[arg-type]
 
@@ -96,6 +96,28 @@ def test_the_prompt_lists_the_channels_to_choose_from_with_their_descriptions() 
     assert "- AI: Models and tools" in system
     assert "- Rust\n" in system
     assert '"channel": one of the channels above' in system
+
+
+def test_a_kind_is_matched_ignoring_case_and_read_from_the_current_list() -> None:
+    kinds = ["release"]
+    endpoint = Endpoint(json.dumps({**GOOD, "kind": " Release "}), json.dumps({**GOOD, "kind": "Tutorial"}))
+    enricher = endpoint.enricher(kinds=lambda: tuple(kinds))
+    assert enricher.enrich(make_item(), CHANNELS).kind == "release"
+    kinds.append("tutorial")
+    assert enricher.enrich(make_item(), CHANNELS).kind == "tutorial"
+    system = json.loads(endpoint.requests[1].content)["messages"][0]["content"]
+    assert '["release", "tutorial"]' in system
+
+
+def test_other_is_presented_as_a_last_resort_unless_the_user_described_it() -> None:
+    endpoint = Endpoint(json.dumps(GOOD))
+    endpoint.enricher().enrich(make_item(), (Channel("AI"), Channel("Other")))
+    system = json.loads(endpoint.requests[0].content)["messages"][0]["content"]
+    assert "pick Other only when none of the others fits at all" in system
+    assert "- Other: everything that fits none of the other channels, a last resort" in system
+    endpoint = Endpoint(json.dumps(GOOD))
+    endpoint.enricher().enrich(make_item(), (Channel("AI"), Channel("Other", "Misc")))
+    assert "- Other: Misc" in json.loads(endpoint.requests[0].content)["messages"][0]["content"]
 
 
 def test_the_item_facts_the_source_gave_go_to_the_model() -> None:
@@ -200,7 +222,7 @@ def test_unreachable_endpoint_is_an_enrichment_error() -> None:
         httpx.Client(transport=httpx.MockTransport(refuse)),
         base_url="http://localhost:11434/v1",
         model="m",
-        kinds=("other",),
+        kinds=lambda: ("other",),
     )
     with pytest.raises(EnrichmentError, match="refused"):
         enricher.enrich(make_item(), CHANNELS)

@@ -175,7 +175,7 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
         );
       })}
       <fieldset>
-        <legend>Feeds these channels</legend>
+        <legend>File its items in these categories</legend>
         {channels.map((channel) => (
           <label key={channel} className="check">
             <input
@@ -189,7 +189,7 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
           </label>
         ))}
         <span className="hint">
-          One channel files its items there directly. Several, or none, let the model choose among them.
+          Tick one and every item goes straight there. Tick several, or none, and the model chooses among them.
         </span>
       </fieldset>
       <label>

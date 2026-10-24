@@ -1,21 +1,21 @@
-# Sources and channels
+# Sources
 
-Sources are the **rivers** that flow into your inbox; [channels](/concepts) are the places they flow to. Both are managed in the dashboard, on the **Sources** page.
+Sources are the **rivers** that flow into your inbox; [categories](/concepts) are the places they flow to. Sources are managed on the **Sources** page, categories on the **Categories** page.
 
 ## In the dashboard
 
-- **Add a source**: pick its type, fill the settings that type needs (the form is built from the type), tick the channels it may feed, add keywords if you want to keep only some entries. A source is checked when you save it: a bad address or an unknown repository is refused with the reason, and nothing is stored.
+- **Add a source**: pick its type, fill the settings that type needs (the form is built from the type), tick the categories it may feed, add keywords if you want to keep only some entries. A source is checked when you save it: a bad address or an unknown repository is refused with the reason, and nothing is stored.
 - **Edit** any setting except the name and the type. **Switch** a source on or off. **Delete** a source: its items stay in your inbox.
-- **Channels**: add one with a description (it helps the model choose), change a description, delete one. A channel a source still feeds cannot be deleted, and the message names those sources. `Other` always exists.
+- **Categories** are managed on their own page. A category a source still feeds cannot be deleted, and the message names those sources.
 - A new or changed source is used by the **next run**, with no restart.
 
 ### The file only seeds
 
-`lookout.yaml` is read for its `sources` and `channels` **once**, on the very first start, to fill the dashboard. After that the dashboard is the truth, and changing those lists in the file does nothing (deleting every source does not bring them back either). The rest of the file (the model, your stack, thresholds, kinds) is still read at every start.
+`lookout.yaml` is read for its `sources`, `channels` (your categories) and `kinds` **once**, on the very first start, to fill the dashboard. After that the dashboard is the truth, and changing those lists in the file does nothing (deleting every source does not bring them back either). The rest of the file (the model, your stack, thresholds, kinds) is still read at every start.
 
 The examples below are what the file and the dashboard both accept.
 
-A source is a river that flows into your inbox. It is declared in `lookout.yaml` with a unique name and a `type`, and says which [channels](/concepts) it may feed.
+A source is a river that flows into your inbox. It is declared in `lookout.yaml` with a unique name and a `type`, and says which [categories](/concepts) it may feed.
 
 ```yaml
 sources:
@@ -32,7 +32,7 @@ sources:
 
 `keywords` keeps only entries whose title or text contains one of them. `enabled: false` turns a source off.
 
-`channels` lists the topics the source may feed: one means every item is filed there without asking the model, several (or none) lets the model choose among them. Each name must be declared under `channels`.
+`channels` lists the categories the source may feed (the file and the API call them channels): one means every item is filed there without asking the model, several (or none) lets the model choose among them. Each name must be declared under `channels`.
 
 ## What is supported today
 

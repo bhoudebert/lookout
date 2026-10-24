@@ -172,6 +172,13 @@ def create_app(open_services: Opener, serve: Server) -> typer.Typer:
         typer.echo("profile reset")
 
     @app.command()
+    def refile(ctx: typer.Context) -> None:
+        """File existing items again after changing categories (by rule, or queued for the model)."""
+        with _open(ctx) as services:
+            report = services.refile.run()
+        typer.echo(f"filed {report.filed} by rule, {report.queued} queued for the model's next run")
+
+    @app.command()
     def reassess(ctx: typer.Context) -> None:
         """Recompute priorities after changing the stack or the thresholds (no model call)."""
         with _open(ctx) as services:

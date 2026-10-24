@@ -102,6 +102,15 @@ class Item:
         """Set the personal rank adjustment; it orders items inside a priority band."""
         return replace(self, boost=boost)
 
+    def filed_in(self, channel: str) -> Self:
+        """Put the item in a channel by rule, keeping what the model said about it."""
+        reading = replace(self.enrichment, channel=channel) if self.enrichment is not None else None
+        return replace(self, channel=channel, enrichment=reading)
+
+    def to_read_again(self) -> Self:
+        """Forget the model's reading so the next run reads it again; the priority is recomputed then."""
+        return replace(self, enrichment=None, enrichment_failed=False)
+
     def assessed(self, priority: Priority, reason: str, stack_matches: tuple[str, ...]) -> Self:
         """Record the priority decided by the policy, why, and the stack entries matched."""
         return replace(self, priority=priority, priority_reason=reason, stack_matches=stack_matches)

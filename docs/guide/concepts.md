@@ -8,18 +8,22 @@ Text from the internet is **data, never instructions**. Markup is stripped, size
 
 ## Reading
 
-For each new item the model returns a summary, one kind from your list, a channel, up to five tags, an importance score from 0 to 100, whether you must act, and one sentence of reasoning. The answer is validated; one invalid answer gets one repair attempt, then the item stays in the inbox, flagged as not read. Nothing is ever dropped.
+For each new item the model returns a summary, one kind from your list, a category, up to five tags, an importance score from 0 to 100, whether you must act, and one sentence of reasoning. The answer is validated; one invalid answer gets one repair attempt, then the item stays in the inbox, flagged as not read. Nothing is ever dropped.
 
 A daily call limit protects a paid model. When it is spent, items wait, and the rules below still apply to them.
 
-## Channels and kinds
+## Categories and kinds
 
 Two questions, kept apart:
 
-- A **channel** is a topic you look at: AI, Rust, Security. You declare them, with a one-line description the model can use. `Other` always exists.
-- A **kind** is what the item _is_: a release, a security fix, an API change, a deprecation, a schedule, an outage. You can edit the list.
+- A **category** is a topic you look at: AI, Rust, Security. You define them on the **Categories** page, with a one-line description the model can use. `Other` always exists. (The code and the API call a category a _channel_.)
+- A **kind** is what the item _is_: a release, a security fix, an API change, a deprecation, a schedule, an outage. You edit the list on the same page.
 
-Each source says which channels it may feed. With **one** channel, its items are filed there before any model sees them (a Rust blog feeds `Rust`). With several, or none, the model chooses among them, and its answer must be one of those. An item never leaves its source's channels.
+Each source says which categories it may feed. With **one**, its items are filed there before any model sees them (a Rust blog feeds `Rust`). With several, or none, the model chooses among them, picking the most specific that fits and `Other` only as a last resort. An item never leaves its source's categories.
+
+### New categories and the items you already have
+
+**Run now reads new items only**: an item already stored is never fetched or read again, and there is no "from date". So categories you add later apply to new items. To move what is already in your inbox, press **File existing items again** on the Categories page: items from a source that feeds exactly one category go there at once, and items the model left in `Other` are queued to be read again at the next run, within your daily model limit.
 
 The **author** and the **tags the article itself carries** are facts from the source: the model never changes them, and its own tags are kept alongside. All of them, plus the source, feed [what Lookout learns about you](/personalization).
 

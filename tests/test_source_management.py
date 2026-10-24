@@ -14,6 +14,7 @@ from lookout.adapters.store import sqlite as store
 from lookout.adapters.store.sqlite import (
     SqliteChannelDefinitions,
     SqliteFlags,
+    SqliteKindDefinitions,
     SqliteSourceDefinitions,
     SqliteSourceStatusRepository,
 )
@@ -199,10 +200,8 @@ def test_deleting_a_source_keeps_its_items_and_forgets_its_history(api: Api) -> 
 
 
 def test_channels_can_be_added_described_and_removed(api: Api) -> None:
-    assert post(api, "/api/channels", {"name": " Web ", "description": " Frontend "}).json() == {
-        "name": "Web",
-        "description": "Frontend",
-    }
+    created = post(api, "/api/channels", {"name": " Web ", "description": " Frontend "}).json()
+    assert (created["name"], created["description"]) == ("Web", "Frontend")
     names = [c["name"] for c in api.client.get("/api/taxonomy").json()["channels"]]
     assert names == ["Rust", "AI", "Other", "Web"]
     assert (
@@ -309,7 +308,11 @@ def test_the_statuses_of_a_deleted_source_are_gone_from_the_database() -> None:
 def test_other_is_added_when_the_file_declares_channels_without_it() -> None:
     db = database()
     registry = Registry(
-        SqliteSourceDefinitions(db), SqliteChannelDefinitions(db), SqliteFlags(db), lambda _s: None
+        SqliteSourceDefinitions(db),
+        SqliteChannelDefinitions(db),
+        SqliteKindDefinitions(db),
+        SqliteFlags(db),
+        lambda _s: None,
     )
     registry.seed((), (Channel("AI"),))
     assert [c.name for c in registry.channels()] == ["AI", OTHER]

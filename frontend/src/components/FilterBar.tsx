@@ -64,7 +64,7 @@ export function FilterBar({ filters, channels, kinds, sources, onChange }: Props
         </select>
       </label>
       <label>
-        Channel
+        Category
         <select
           value={filters.channel}
           onChange={(e) => {

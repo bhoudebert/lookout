@@ -6,6 +6,7 @@ import type {
   Item,
   ItemDetail,
   ItemPage,
+  RefileResult,
   RunStatus,
   Source,
   SourceBody,
@@ -88,6 +89,9 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ description }),
     }),
+  addKind: (name: string) => call<string>("/api/kinds", { method: "POST", body: JSON.stringify({ name }) }),
+  deleteKind: (name: string) => call<undefined>(`/api/kinds/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  refile: () => call<RefileResult>("/api/refile", { method: "POST" }),
   deleteChannel: (name: string) => call<undefined>(`/api/channels/${encodeURIComponent(name)}`, { method: "DELETE" }),
   sources: () => call<Source[]>("/api/sources"),
   setSource: (name: string, enabled: boolean) =>

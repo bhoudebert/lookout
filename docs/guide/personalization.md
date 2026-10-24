@@ -9,7 +9,7 @@ Lookout watches what you do:
 | Dismiss           | less of this           |
 | Snooze            | nothing                |
 
-It learns weights for **sources, authors, channels, kinds and tags**. Older actions count less (half-life of 30 days by default), and nothing is learnt until you have acted at least five times.
+It learns weights for **sources, authors, categories, kinds and tags**. Older actions count less (half-life of 30 days by default), and nothing is learnt until you have acted at least five times.
 
 ## What it changes
 

@@ -24,6 +24,7 @@ from lookout.adapters.store.sqlite import (
     SqliteChannelDefinitions,
     SqliteFlags,
     SqliteItemRepository,
+    SqliteKindDefinitions,
     SqliteSignalRepository,
     SqliteSourceDefinitions,
     SqliteSourceStatusRepository,
@@ -37,6 +38,7 @@ from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
 from lookout.application.ports_sources import SourceFetcher, SourceStatusRepository
 from lookout.application.reassess import Reassess
+from lookout.application.refile import Refile
 from lookout.application.registry import InvalidError, Registry
 from lookout.application.runs import RunCoordinator, RunReport
 from lookout.application.services import Services
@@ -198,6 +200,7 @@ class Container:
     triage: Triage
     inbox: Inbox
     reassess: Reassess
+    refile: Refile
     personalize: Personalize
     sources: SourceDirectory
     registry: Registry
@@ -227,6 +230,7 @@ class Container:
             triage=self.triage,
             inbox=self.inbox,
             reassess=self.reassess,
+            refile=self.refile,
             personalize=self.personalize,
             sources=self.sources,
             registry=self.registry,
@@ -245,7 +249,6 @@ class Container:
                 tuple(c.name for c in self.registry.channels()),
             ),
             export=lambda: (encode(item) for item in self.items.all()),
-            kinds=self.config.kinds,
             schedule_minutes=self.config.schedule.interval_minutes,
             dashboard_dir=self.config.dashboard_dir,
             close=self.close,
@@ -322,11 +325,12 @@ def _assemble(
     registry = Registry(
         SqliteSourceDefinitions(database),
         SqliteChannelDefinitions(database),
+        SqliteKindDefinitions(database),
         SqliteFlags(database),
         _validator(ways),
     )
     try:
-        registry.seed(config.sources, config.channels)
+        registry.seed(config.sources, config.channels, config.kinds)
     except (UnknownChannelError, InvalidError) as error:
         raise ConfigError(str(error)) from error
     enricher = OpenAiEnricher(
@@ -334,7 +338,7 @@ def _assemble(
         base_url=config.llm.base_url,
         model=config.llm.model,
         api_key=config.llm.api_key,
-        kinds=config.kinds,
+        kinds=registry.kinds,
         interests=config.interests,
         stack=tuple(e.name for e in config.stack.entries),
         summary_chars=config.llm.summary_chars,
@@ -367,6 +371,7 @@ def _assemble(
         triage=Triage(items, personalize),
         inbox=Inbox(items, clock),
         reassess=Reassess(items, policy, config.stack),
+        refile=Refile(items, registry.catalogue),
         personalize=personalize,
         sources=SourceDirectory(registry, statuses),
         registry=registry,
