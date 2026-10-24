@@ -5,10 +5,10 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from tests.support import NOW, make_item, repository
+from tests.support import NOW, database, make_item, repository
 
 from lookout.adapters.store import sqlite as store
-from lookout.adapters.store.sqlite import SchemaTooNewError
+from lookout.adapters.store.sqlite import SchemaTooNewError, SqliteItemRepository
 from lookout.application.ports import InboxQuery
 from lookout.domain.advisory import Advisory
 from lookout.domain.priority import Priority
@@ -132,8 +132,8 @@ def add_column(db: sqlite3.Connection) -> None:
 
 def test_pending_migration_runs_after_a_backup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "lookout.db"
-    first = repository(path)
-    first.save(make_item())
+    first = database(path)
+    SqliteItemRepository(first).save(make_item())
     first.close()
     monkeypatch.setattr(store, "MIGRATIONS", (*store.MIGRATIONS, add_column))
     upgraded = repository(path)
