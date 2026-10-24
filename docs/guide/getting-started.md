@@ -11,6 +11,8 @@ nix develop          # Python, uv, Node, just, gh, Chromium for the tests
 just setup           # dependencies and git hooks
 ```
 
+With [direnv](https://direnv.net), run `direnv allow` once and the shell loads by itself whenever you enter the folder (add [nix-direnv](https://github.com/nix-community/nix-direnv) to cache it).
+
 Without Nix, install Python 3.13, [uv](https://docs.astral.sh/uv/), Node 24 and [just](https://just.systems), then run `just setup`.
 
 ## Try it with demo data

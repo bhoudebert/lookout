@@ -19,6 +19,7 @@ dismissed. Lookout learns from what you act on.
 
 ```
 nix develop            # Python, uv, Node, just, gh, Chromium for the tests
+                       # (or `direnv allow` once: the shell then loads when you cd here)
 just setup
 cp lookout.example.yaml lookout.yaml
 lookout demo           # six believable items, no model needed
