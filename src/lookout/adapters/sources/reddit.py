@@ -56,7 +56,7 @@ class RedditFetcher:
         self._client = client
         self._sort = sort
         self._limit = limit
-        self._keywords = tuple(k.lower() for k in keywords)
+        self._keywords = keywords
         self._sleep = sleep
 
     @property

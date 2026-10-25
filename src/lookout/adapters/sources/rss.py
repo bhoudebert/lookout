@@ -8,6 +8,7 @@ import httpx
 
 from lookout.adapters.sources._feed import parse_feed
 from lookout.application.ports_sources import SourceError
+from lookout.domain.keywords import wanted
 from lookout.domain.raw import RawItem
 
 USER_AGENT = "Lookout/0 (+https://github.com/bhoudebert/lookout)"
@@ -27,7 +28,7 @@ class RssFetcher:
         self._name = name
         self._url = url
         self._client = client
-        self._keywords = tuple(k.lower() for k in keywords)
+        self._keywords = keywords
 
     @property
     def name(self) -> str:
@@ -51,7 +52,7 @@ def raws_from_feed(name: str, url: str, content: bytes, keywords: tuple[str, ...
         msg = f"{url}: not a readable feed ({parsed.problem})"
         raise SourceError(msg)
     raws = (_raw(name, entry) for entry in parsed.entries if entry.get("link"))
-    return tuple(r for r in raws if _wanted(r, keywords))
+    return tuple(r for r in raws if wanted(r, keywords))
 
 
 def _raw(source: str, entry: dict[str, Any]) -> RawItem:
@@ -67,13 +68,6 @@ def _raw(source: str, entry: dict[str, Any]) -> RawItem:
         author=_author(entry),
         tags=_tags(entry),
     )
-
-
-def _wanted(raw: RawItem, keywords: tuple[str, ...]) -> bool:
-    if not keywords:
-        return True
-    text = f"{raw.title}\n{raw.body}".lower()
-    return any(k in text for k in keywords)
 
 
 def _author(entry: dict[str, Any]) -> str:

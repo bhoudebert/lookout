@@ -13,6 +13,8 @@ export interface Preset {
   group: string;
   /** The category its items go to, created when missing; none lets the model choose. */
   category?: Category;
+  /** Keep only entries that match (whole words; `word*` runs on; `-word` excludes). */
+  keywords?: string[];
 }
 
 export interface Group {
@@ -47,6 +49,12 @@ export const GROUPS: Group[] = [
   { id: "france", title: "News: France", about: "French news, politics and the economy." },
   { id: "world", title: "News: world and politics", about: "International news and European politics." },
   { id: "tech-news", title: "Tech news in French", about: "Technology and the internet, in French." },
+  {
+    id: "deals",
+    title: "Deals (Dealabs)",
+    about:
+      "Bargains, one feed per Dealabs category, each filed under Commerce > Deals. A feed holds only its 30 latest deals, so the busy ones (hot, cycling) need a run every 30 minutes: set schedule.interval_minutes to 30. Entries older than 3 days are not stored.",
+  },
 ];
 
 const RUST: Category = { name: "Dev > Rust", description: "The Rust language and its ecosystem" };
@@ -77,6 +85,17 @@ const reddit = (name: string, subreddits: string[], blurb: string, category: Cat
   blurb,
   group: "reddit",
   category,
+});
+
+const DEALS = (name: string): Category => ({ name: `Commerce > Deals > ${name}`, description: `Deals: ${name}` });
+const dealabs = (name: string, path: string, blurb: string, category: Category, keywords?: string[]): Preset => ({
+  name: `Dealabs: ${name}`,
+  type: "rss",
+  settings: { url: `https://www.dealabs.com/rss/${path}`, max_age_days: 3 },
+  blurb,
+  group: "deals",
+  category,
+  keywords,
 });
 
 const channel = (name: string, handle: string, blurb: string, category: Category): Preset => ({
@@ -244,4 +263,35 @@ export const PRESETS: Preset[] = [
   feed("tech-news", "Korben", "https://korben.info/feed", "Tools, tips and the internet", TECH),
   feed("tech-news", "01net", "https://www.01net.com/feed/", "Consumer and business tech", TECH),
   feed("tech-news", "Le Monde: Pixels", "https://www.lemonde.fr/pixels/rss_full.xml", "Digital and video games", TECH),
+
+  dealabs(
+    "High-Tech",
+    "groupe/high-tech",
+    "Computers, phones, components, audio: about 11 hours of deals",
+    DEALS("IT"),
+  ),
+  dealabs(
+    "Auto-Moto",
+    "groupe/auto-moto",
+    "Cars and motorcycles, a few days of deals. Add the keywords moto* and -voiture to keep the bikes",
+    DEALS("Moto"),
+  ),
+  dealabs(
+    "Cycling",
+    "tous",
+    "Every new deal, kept only when it mentions a bike (a 47-minute window: run every 30 minutes)",
+    DEALS("Cycling"),
+    ["vélo*", "vtt", "gravel", "cyclisme", "cycliste*", "e-bike", "-vélo d'appartement"],
+  ),
+  dealabs("Consoles & games", "groupe/consoles-jeux-video", "Games and consoles", DEALS("Gaming")),
+  dealabs("Home", "groupe/maison-habitat", "Home and furniture", DEALS("Home")),
+  dealabs("Garden & DIY", "groupe/jardin-bricolage", "Garden and tools", DEALS("DIY")),
+  dealabs("Fashion", "groupe/mode-accessoires", "Clothes and accessories", DEALS("Fashion")),
+  dealabs("Culture", "groupe/culture-divertissement", "Books, films, music", DEALS("Culture")),
+  dealabs("Family", "groupe/famille-enfants", "Children and family", DEALS("Family")),
+  dealabs("Travel", "groupe/voyages", "Trips and tickets", DEALS("Travel")),
+  dealabs("Hot", "hot", "The hottest deals right now, across every category", {
+    name: "Commerce > Deals",
+    description: "Deals",
+  }),
 ];

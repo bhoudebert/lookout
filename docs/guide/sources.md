@@ -30,7 +30,18 @@ sources:
     enabled: true
 ```
 
-`keywords` keeps only entries whose title or text contains one of them. `enabled: false` turns a source off.
+`keywords` keeps only the entries whose title or text mentions one of them. `enabled: false` turns a source off.
+
+Keywords are matched as **whole words**, ignoring case, accents and markup:
+
+| Keyword           | Finds                                                     | Does not find        |
+| ----------------- | --------------------------------------------------------- | -------------------- |
+| `moto`            | Moto, moto-cross, "casque moto"                           | Motorola, automotive |
+| `vélo*`           | vélo, vélos, VÉLO, "velo" (the star lets the word run on) | "développement"      |
+| `vélo électrique` | vélo électrique, vélo-électrique (a phrase)               | "vélo ou électrique" |
+| `-motorola`       | (drops any entry that mentions it)                        |                      |
+
+An entry is kept when it has at least one plain keyword (or there are none) and none of the excluded ones. Before this change keywords matched any part of a word, so `moto` also found Motorola.
 
 `channels` lists the categories the source may feed (the file and the API call them channels): one means every item is filed there without asking the model, several (or none) lets the model choose among them. Each name must be declared under `channels`.
 
@@ -141,6 +152,16 @@ sources:
 
 A channel is a person or an organisation; there is no "all of YouTube". Add one source per channel you want.
 
+## Deals
+
+Dealabs publishes one feed per category, and each holds only its **30 latest deals**: the whole site (`/rss/tous`) is about 47 minutes, a busy category like High-Tech about 11 hours, a quiet one a few days. So the busy feeds need a frequent run (`schedule.interval_minutes: 30`), and the category feeds are best because they filter for free. Pick them by what you want:
+
+- **No model needed:** a feed filed in **one** category (High-Tech into `Commerce > Deals > IT`, Auto-Moto into `… > Moto`) never asks the model to choose.
+- **Keywords on the whole site:** the **Cycling** suggestion reads every new deal and keeps those that mention a bike, for the topics Dealabs has no category for.
+- **Let the model sort:** file a source under the parent `Commerce > Deals` (the **Hot** suggestion does) and the model chooses the most specific child (IT, Moto, Cycling, …) for each deal, using your daily model limit.
+
+The price and the shop are in the text of each deal ("9,99€ - Veepee"), and the search box finds them.
+
 ## Suggested sources
 
 The **Sources** page suggests sources to start with, grouped by theme and collapsed until you open one. Each address was
@@ -155,6 +176,7 @@ checked. One click adds the source and, if it does not exist yet, the category i
 - **Reddit communities:** programming, AI, security, ops and France, each several communities in one source.
 - **YouTube channels:** Fireship, ThePrimeagen, Computerphile, ArjanCodes, Java, LiveOverflow, NetworkChuck and
   Underscore_.
+- **Deals (Dealabs):** one feed per Dealabs category (High-Tech, Auto-Moto, games, home, garden, fashion, culture, family, travel), each filed under `Commerce > Deals > ...`, plus the hottest deals and a **Cycling** source made of the all-deals feed filtered on bike keywords. Entries older than 3 days are not stored. See below.
 - **News:** French news (Le Monde, franceinfo, France 24, Le Figaro, Libération, RFI), politics, world news (BBC, the
   Guardian, Politico Europe) and French tech news, filed under `News > ...` and `Tech`.
 

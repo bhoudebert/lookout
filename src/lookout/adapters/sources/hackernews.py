@@ -7,6 +7,7 @@ import httpx
 
 from lookout.adapters.sources.rss import USER_AGENT
 from lookout.application.ports_sources import SourceError
+from lookout.domain.keywords import wanted
 from lookout.domain.raw import RawItem
 
 API = "https://hn.algolia.com/api/v1"
@@ -40,7 +41,7 @@ class HackerNewsFetcher:
         self._feed = feed
         self._min_points = min_points
         self._limit = limit
-        self._keywords = tuple(k.lower() for k in keywords)
+        self._keywords = keywords
 
     @property
     def name(self) -> str:
@@ -62,7 +63,7 @@ class HackerNewsFetcher:
             msg = f"Hacker News ({self._feed}): {error}"
             raise SourceError(msg) from error
         raws = (self._raw(hit, label) for hit in hits if hit.get("title") and hit.get("objectID"))
-        return tuple(r for r in raws if self._wanted(r))
+        return tuple(r for r in raws if wanted(r, self._keywords))
 
     def _raw(self, hit: dict[str, Any], label: str) -> RawItem:
         discussion = f"{DISCUSSION}{hit['objectID']}"
@@ -79,9 +80,3 @@ class HackerNewsFetcher:
             author=str(hit.get("author") or ""),
             tags=(label,) if label else (),
         )
-
-    def _wanted(self, raw: RawItem) -> bool:
-        if not self._keywords:
-            return True
-        text = f"{raw.title}\n{raw.body}".lower()
-        return any(k in text for k in self._keywords)
