@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Action, Filters, Item, Rating, Sweep } from "../api/types";
 import {
   useAct,
@@ -21,6 +22,7 @@ import { FilterBar, VIEWS } from "./FilterBar";
 import { ItemDetail } from "./ItemDetail";
 import { ItemList } from "./ItemList";
 import { HelpDialog, SnoozeMenu, Toast } from "./Overlays";
+import { RunStrip } from "./RunStrip";
 import { StateView } from "./StateView";
 import { SweepDialog } from "./SweepDialog";
 
@@ -36,6 +38,8 @@ const DONE_TEXT: Record<Action, string> = {
 const errorText = (error: unknown): string => (error as Error).message;
 
 interface Props {
+  /** Where the category tree goes: the sidebar, once it is mounted. */
+  side: HTMLElement | null;
   filters: Filters;
   openId: string | null;
   onFilters: (filters: Filters) => void;
@@ -48,7 +52,7 @@ interface Message {
   undo?: () => void;
 }
 
-export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
+export function Inbox({ side, filters, openId, onFilters, onOpen }: Props) {
   const items = useItems(filters);
   const sources = useSources();
   const taxonomy = useTaxonomy(filters);
@@ -355,17 +359,24 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   }
 
   return (
-    <div className="inbox with-tree">
-      {taxonomy.data && (
-        <CategoryTree
-          channels={taxonomy.data.channels}
-          selected={filters.channel}
-          onSelect={(path) => {
-            onFilters({ ...filters, channel: path });
-          }}
-        />
-      )}
+    <div className="inbox">
+      {side &&
+        taxonomy.data &&
+        createPortal(
+          <CategoryTree
+            channels={taxonomy.data.channels}
+            selected={filters.channel}
+            onSelect={(path) => {
+              onFilters({ ...filters, channel: path });
+            }}
+          />,
+          side,
+        )}
       <div className="inbox-main">
+        <div className="titlerow">
+          <h1>Inbox</h1>
+          <RunStrip />
+        </div>
         <FilterBar filters={filters} sources={sourceNames} onChange={onFilters} />
         {filters.text && filters.view !== "all" && (
           <p className="nudge" role="note">

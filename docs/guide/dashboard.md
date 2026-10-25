@@ -4,11 +4,13 @@ Start it with `lookout serve` and open `http://127.0.0.1:8899`.
 
 ## The inbox
 
+The window is one frame: the sidebar holds the screens and, on the inbox, the category tree; the top bar holds the state of the digest and **Run now**; the screen sits on a white sheet. Above the list, a bar shows the last run: everything it fetched, split into what was new and what was already known, and how many items wait for the model. Below 900px the sidebar stacks above the sheet, with the categories in a row you can scroll sideways.
+
 By default (**Triage**) items are ordered by priority, then by your profile, then by date; **Latest** shows the newest first, whatever the priority, with a line before what arrived since your last visit. Each row shows its priority **in words** (colour is never the only signal), category, source, author, tags and age.
 
 Filters are kept in the address, so a filtered inbox can be bookmarked:
 
-- priority chips, order (Triage or Latest), view (Inbox, Snoozed, Done, **Expired**, Everything) and age (newer than a week, older than a week, two weeks, a month)
+- the view, as tabs above the list (Inbox, Snoozed, Done, **Expired**, Everything), priority chips, order (Triage or Latest) and age (newer than a week, older than a week, two weeks, a month)
 - category (picked in the tree beside the list, subcategories included; the numbers in the tree are what the list would show with the other filters, so they change with the view, age and the rest), source, starred, and free text over title, summary, tags and author
 
 A search only looks where you are: in the Inbox view, done, snoozed and expired items are not searched. When you type a search outside **Everything**, a note says so and **Search everything** widens it in one click (every state, every age). Search reads the title, summary, tags and author, not the full text, and cannot find entries that were older than the source's age limit when they arrived.

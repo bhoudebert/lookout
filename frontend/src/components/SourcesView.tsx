@@ -86,7 +86,7 @@ export function SourcesView() {
   return (
     <>
       <section aria-label="Sources">
-        <h2>Sources</h2>
+        <h1>Sources</h1>
         <p className="hint">
           The rivers that flow into your inbox. Each says which <a href="/categories">categories</a> it may feed.
         </p>

@@ -223,7 +223,7 @@ export function DigestView({ id, onOpen }: { id: string | null; onOpen: (id: str
   }
   return (
     <section aria-label="Digests">
-      <h2>Digests</h2>
+      <h1>Digests</h1>
       {jobs.data && jobs.data.length > 0 && (
         <ul className="jobs" aria-label="Being written">
           {jobs.data.map((job) => (

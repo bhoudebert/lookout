@@ -59,7 +59,7 @@ describe("orders and age", () => {
     expect(window.location.search).toContain("age=older14");
 
     await user.selectOptions(screen.getByLabelText("Age"), "");
-    await user.selectOptions(screen.getByLabelText("View"), "expired");
+    await user.click(screen.getByRole("tab", { name: "Expired" }));
     expect(await screen.findByRole("button", { name: "Story 40" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Story 1" })).not.toBeInTheDocument();
   });
@@ -290,7 +290,7 @@ describe("the counts beside the list", () => {
     });
 
     await user.selectOptions(screen.getByLabelText("Age"), "");
-    await user.selectOptions(screen.getByLabelText("View"), "expired");
+    await user.click(screen.getByRole("tab", { name: "Expired" }));
     await waitFor(() => {
       expect(row(/^AI/)).toBe("🤖AI1");
     });

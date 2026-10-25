@@ -212,11 +212,11 @@ test("the keyboard alone triages the inbox", async ({ page }) => {
   await page.keyboard.press("s");
   await page.getByRole("dialog", { name: "Snooze until" }).getByRole("button", { name: "1 hour" }).click();
   await expect(items(page)).toHaveCount(5);
-  await page.getByLabel("View").selectOption("snoozed");
+  await page.getByRole("tab", { name: "Snoozed" }).click();
   await expect(items(page)).toHaveCount(1);
   await title(page, (await items(page).first().getByRole("button").first().innerText()).trim()).click();
   await page.getByRole("complementary").getByRole("button", { name: "Reopen" }).click();
-  await page.getByLabel("View").selectOption("inbox");
+  await page.getByRole("tab", { name: "Inbox" }).click();
   await expect(items(page)).toHaveCount(6);
 
   await page.keyboard.press("?");
@@ -233,13 +233,13 @@ test("several items can be handled at once", async ({ page }) => {
   await page.getByRole("group", { name: "Bulk actions" }).getByRole("button", { name: "Done", exact: true }).click();
   await expect(items(page)).toHaveCount(4);
 
-  await page.getByLabel("View").selectOption("done");
+  await page.getByRole("tab", { name: "Done" }).click();
   await expect(items(page)).toHaveCount(2);
   for (const text of [AI, RUST]) {
     await title(page, text).click();
     await page.getByRole("complementary").getByRole("button", { name: "Reopen" }).click();
   }
-  await page.getByLabel("View").selectOption("inbox");
+  await page.getByRole("tab", { name: "Inbox" }).click();
   await expect(items(page)).toHaveCount(6);
 });
 
@@ -474,9 +474,9 @@ test("the list can be read in date order, by age, and a whole selection cleared 
   await expect(page.getByText("Nothing to look at.")).toBeVisible();
   await expect(tree(page).getByRole("button", { name: /^All/ })).toContainText("0"); // the counts follow the filters
   await page.getByLabel("Age").selectOption("");
-  await page.getByLabel("View").selectOption("expired");
+  await page.getByRole("tab", { name: "Expired" }).click();
   await expect(page.getByText("Nothing to look at.")).toBeVisible();
-  await page.getByLabel("View").selectOption("inbox");
+  await page.getByRole("tab", { name: "Inbox" }).click();
 
   await page.getByRole("button", { name: /^Act on all \d+…$/ }).click();
   const dialog = page.getByRole("dialog", { name: "Act on everything shown" });
@@ -518,7 +518,7 @@ test("a search can be widened from the inbox to everything", async ({ page }) =>
   await expect(page.getByRole("note").filter({ hasText: "Searching only Inbox" })).toBeVisible();
   await page.getByRole("button", { name: "Search everything" }).click();
   await expect(page).toHaveURL(/view=all/);
-  await expect(page.getByLabel("View")).toHaveValue("all");
+  await expect(page.getByRole("tab", { name: "Everything" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("note").filter({ hasText: "Searching only" })).toHaveCount(0);
   await page.getByLabel("Search").fill("");
 });

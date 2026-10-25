@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DigestStatus } from "./components/DigestStatus";
 import { DigestView } from "./components/DigestView";
 import { CategoriesView } from "./components/CategoriesView";
@@ -8,6 +9,7 @@ import { useLocation } from "./router";
 
 export function App() {
   const { location, go } = useLocation();
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   const link = (to: string, label: string) => (
     <a
       href={to}
@@ -21,19 +23,30 @@ export function App() {
     </a>
   );
   return (
-    <>
-      <header>
-        <h1>Lookout</h1>
-        <nav aria-label="Main">
-          {link("/", "Inbox")}
-          {link("/categories", "Categories")}
-          {link("/digest", "Digest")}
-          {link("/sources", "Sources")}
-        </nav>
+    <div className="app">
+      <div className="side">
+        <header>
+          <p className="brand">
+            <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+              <circle cx="11" cy="11" r="8.5" fill="none" stroke="currentColor" strokeWidth="2" />
+              <circle cx="14.2" cy="8.2" r="2.6" fill="currentColor" />
+            </svg>
+            Lookout
+          </p>
+          <nav aria-label="Main">
+            {link("/", "Inbox")}
+            {link("/categories", "Categories")}
+            {link("/digest", "Digest")}
+            {link("/sources", "Sources")}
+          </nav>
+        </header>
+        <div className="side-slot" ref={setSlot} />
+      </div>
+      <div className="topbar">
         <DigestStatus go={go} />
         <RunButton />
-      </header>
-      <main>
+      </div>
+      <main className="sheet">
         {location.path === "/digest" || location.path.startsWith("/digest/") ? (
           <DigestView
             id={location.path.slice("/digest/".length) || null}
@@ -47,6 +60,7 @@ export function App() {
           <CategoriesView />
         ) : (
           <Inbox
+            side={slot}
             filters={location.filters}
             openId={location.item}
             onFilters={(filters) => {
@@ -58,6 +72,6 @@ export function App() {
           />
         )}
       </main>
-    </>
+    </div>
   );
 }

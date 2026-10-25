@@ -53,6 +53,40 @@ if the removed item was shown in the panel, the panel SHALL show the next one, o
 whole selection when items are selected (setting, not toggling), the bar of the selection SHALL have both thumbs, and the
 dialog that acts on a whole filter SHALL offer both thumbs and clearing a rating next to done and seen.
 
+### Requirement: The shell
+
+The dashboard SHALL be one frame on every screen: a sidebar holding the product name, the four screens (Inbox,
+Categories, Digest, Sources) and, on the inbox, the category tree; a top bar holding the state of the digest and Run now;
+and the screen itself on a sheet beside them. Every screen SHALL have one `h1` naming it. Below 900px the sidebar SHALL
+stack above the sheet, with the categories in one scrolling row, so nothing is unreachable on a phone.
+
+#### Scenario: A phone
+
+- **WHEN** the window is 390px wide
+- **THEN** the product name, the screens and the categories are reachable above the sheet, and the page does not scroll sideways
+
+### Requirement: Views as tabs
+
+The views of the inbox (Inbox, Snoozed, Done, Expired, Everything) SHALL be tabs above the filters, the chosen view
+marked as selected and kept in the URL. The other filters SHALL share one row under them, so that the first items show
+on a 900px-high screen.
+
+#### Scenario: Looking at what was done
+
+- **WHEN** the user chooses the Done tab
+- **THEN** the done items are listed and the tab is selected
+
+### Requirement: The last run at a glance
+
+Above the list the inbox SHALL show the last run as one bar of everything it fetched, split into what was new and what
+was already known, with both counts, and say how many items wait for the model. While a run is going it SHALL say so, and
+when the last run failed it SHALL say that, not draw a bar. Before any run it SHALL show nothing.
+
+#### Scenario: A run with news
+
+- **WHEN** the last run fetched 148 items of which 31 were new
+- **THEN** the strip shows "148 fetched", "31 new" and "117 already known", and the new part of the bar is 31/148 of its width
+
 ### Requirement: Sources view
 
 The user SHALL see each source with its last run, item count and last error, and enable or disable it. Adding sources
