@@ -7,7 +7,7 @@ from lookout.application.ports import Clock, ItemRepository
 from lookout.application.ports_sources import Enricher, EnrichmentError, UsageRepository
 from lookout.domain.channel import ChannelCatalogue
 from lookout.domain.policy import PriorityPolicy
-from lookout.domain.profile import Profile
+from lookout.domain.profile import Example, Profile
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +33,7 @@ class Enrich:
         daily_limit: int,
         profile: Callable[[], Profile] = lambda: Profile({}),
         catalogue: Callable[[], ChannelCatalogue] = ChannelCatalogue,
+        examples: Callable[[], tuple[Example, ...]] = tuple,
     ) -> None:
         self._items = items
         self._enricher = enricher
@@ -42,6 +43,7 @@ class Enrich:
         self._daily_limit = daily_limit
         self._profile = profile
         self._catalogue = catalogue
+        self._examples = examples
 
     def run(self) -> EnrichReport:
         """Most urgent items first, so a spent budget never starves an emergency."""
@@ -49,13 +51,14 @@ class Enrich:
         pending = self._items.pending_enrichment()
         profile = self._profile()
         catalogue = self._catalogue()
+        examples = self._examples()
         enriched = failed = 0
         for position, item in enumerate(pending):
             if self._usage.calls_on(day) >= self._daily_limit:
                 return EnrichReport(enriched, failed, waiting=len(pending) - position)
             self._usage.record_call(day)
             try:
-                reading = self._enricher.enrich(item, catalogue.allowed(item.sources))
+                reading = self._enricher.enrich(item, catalogue.allowed(item.sources), examples)
             except EnrichmentError:
                 self._items.save(item.enrichment_gave_up())
                 failed += 1

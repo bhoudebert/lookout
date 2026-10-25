@@ -6,7 +6,7 @@ from lookout.application.ports import Clock, ItemRepository, SignalRepository
 from lookout.application.triage import ItemNotFoundError
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
-from lookout.domain.profile import Contribution, Profile, Signal, SignalKind, learn
+from lookout.domain.profile import Contribution, Example, Profile, Signal, SignalKind, examples, learn
 from lookout.domain.rating import Rating
 
 
@@ -49,6 +49,10 @@ class Personalize:
             half_life_days=self._half_life,
             minimum=self._minimum,
         )
+
+    def examples(self) -> tuple[Example, ...]:
+        """The items most recently rated, as a sample of taste for the model."""
+        return examples(self._items.all())
 
     def record(self, item: Item, kind: SignalKind) -> None:
         """Remember an action and re-rank."""

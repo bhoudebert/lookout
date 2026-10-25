@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from tests.cli_support import Lookout
-from tests.support import NOW, database, make_item
+from tests.support import NOW, database, enrichment, make_item
 from tests.test_http import Api
 from tests.test_personalization import World
 
@@ -17,7 +17,7 @@ from lookout.adapters.store.codec import encode
 from lookout.adapters.store.sqlite import SqliteItemRepository, SqliteSignalRepository
 from lookout.application.ports import InboxQuery
 from lookout.application.triage import Action, ItemNotFoundError, Undo
-from lookout.domain.profile import SignalKind, learn
+from lookout.domain.profile import SignalKind, examples, learn
 from lookout.domain.rating import Rating
 from lookout.domain.state import State
 
@@ -51,7 +51,7 @@ def test_rating_leaves_the_item_in_the_inbox_and_done_removes_it_without_teachin
         world.stored(item).rating is Rating.DOWN
     )  # still rated: the thumb is about taste, not about the inbox
     assert world.signals.all() == ()
-    assert world.personalize.profile().weights["source:s"] < 0
+    assert world.personalize.profile().weights["category:c"] < 0
 
 
 def test_thumbs_up_and_down_push_later_items_up_and_down() -> None:
@@ -65,11 +65,37 @@ def test_thumbs_up_and_down_push_later_items_up_and_down() -> None:
     assert world.stored(liked).boost > 0 > world.stored(noisy).boost
 
 
+def test_a_rating_teaches_about_the_content_and_never_about_the_source() -> None:
+    world = World(minimum=3)
+    for n in range(5):
+        item = make_item(
+            f"https://a.test/{n}", title=f"Crash {n}", sources=("r/moto",), channel=f"Cat {n}", author="rider"
+        ).enriched(enrichment(50, ("crash",), channel=f"Cat {n}"))
+        world.items.save(item)
+        world.triage.rate(item.id, Rating.DOWN)
+
+    weights = world.personalize.profile().weights
+    assert not [f for f in weights if f.startswith("source:")]
+    assert weights["author:rider"] < 0
+    assert weights["tag:crash"] < 0
+    same_source = make_item("https://a.test/new", sources=("r/moto",), channel="Elsewhere")
+    assert world.personalize.profile().boost(same_source) == 0
+    by_the_author = make_item("https://a.test/new2", sources=("blog",), channel="Elsewhere", author="rider")
+    assert world.personalize.profile().boost(by_the_author) < 0
+
+
+def test_a_star_still_teaches_about_the_source() -> None:
+    world = World(minimum=1)
+    item = world.add(1, source="s", channel="c")
+    world.triage.act(item.id, Action.STAR)
+    assert world.personalize.profile().weights["source:s"] > 0
+
+
 def test_clearing_a_rating_changes_what_is_learnt() -> None:
     world = World(minimum=1)
     item = world.add(1, source="s", channel="c")
     world.triage.rate(item.id, Rating.UP)
-    assert world.personalize.profile().weights["source:s"] == pytest.approx(3.0)
+    assert world.personalize.profile().weights["category:c"] == pytest.approx(3.0)
     world.triage.rate(item.id, Rating.UP)
     assert world.personalize.profile().weights == {}
 
@@ -79,9 +105,9 @@ def test_an_old_rating_counts_less_and_ratings_count_towards_the_minimum() -> No
     world.triage.rate(world.add(1, source="s", channel="c").id, Rating.UP)
     assert world.personalize.profile().weights == {}  # one rating is below the minimum of two
     world.triage.rate(world.add(2, source="s", channel="c").id, Rating.UP)
-    fresh = world.personalize.profile().weights["source:s"]
+    fresh = world.personalize.profile().weights["category:c"]
     world.clock.advance(days=10)
-    assert world.personalize.profile().weights["source:s"] == pytest.approx(fresh / 2)
+    assert world.personalize.profile().weights["category:c"] == pytest.approx(fresh / 2)
 
 
 def test_a_rating_of_an_item_that_is_gone_or_has_no_time_is_ignored() -> None:
@@ -314,3 +340,33 @@ def test_a_sweep_can_rate_everything_a_filter_matches_and_a_dry_run_changes_noth
 @pytest.mark.parametrize("body", [{"filter": {}}, {"action": "done", "rating": 1, "filter": {}}])
 def test_a_sweep_needs_exactly_one_of_an_action_and_a_rating(api: Any, body: dict[str, Any]) -> None:
     assert api.client.post("/api/items/sweep", json=body).status_code == 422
+
+
+# --- what the model is shown ---
+
+
+def test_the_model_is_shown_the_latest_liked_and_disliked_items_five_each_liked_first() -> None:
+    world = World(minimum=1)
+    for n in range(7):
+        world.clock.advance(minutes=1)
+        world.triage.rate(world.add(n, source="s", channel="c", tags=("t",)).id, Rating.UP)
+    for n in range(10, 17):
+        world.clock.advance(minutes=1)
+        world.triage.rate(world.add(n, source="s", channel="c").id, Rating.DOWN)
+    world.add(99, source="s", channel="c")
+
+    shown = world.personalize.examples()
+
+    assert [e.title for e in shown] == [f"s {n}" for n in (6, 5, 4, 3, 2)] + [
+        f"s {n}" for n in (16, 15, 14, 13, 12)
+    ]
+    assert [e.rating for e in shown] == [Rating.UP] * 5 + [Rating.DOWN] * 5
+    assert shown[0].tags == ("t",)
+
+
+def test_an_example_title_is_cut_and_its_tags_are_few() -> None:
+    long = make_item(
+        "https://a.test/l", title="x" * 300, feed_tags=("a", "b", "c", "d", "e", "f", "a")
+    ).rated(Rating.DOWN, NOW)
+    (example,) = examples([long])
+    assert (len(example.title), example.tags) == (120, ("a", "b", "c", "d", "e"))

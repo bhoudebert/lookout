@@ -9,6 +9,8 @@ from tests.support import make_item
 from lookout.adapters.llm.openai_compatible import OpenAiEnricher
 from lookout.application.ports_sources import EnrichmentError
 from lookout.domain.channel import Channel
+from lookout.domain.profile import Example
+from lookout.domain.rating import Rating
 
 CHANNELS = (
     Channel("AI", "Models and tools"),
@@ -241,3 +243,25 @@ def test_unreachable_endpoint_is_an_enrichment_error() -> None:
     )
     with pytest.raises(EnrichmentError, match="refused"):
         enricher.enrich(make_item(), CHANNELS)
+
+
+def test_the_prompt_shows_what_the_person_rated_as_data_about_content_not_sources() -> None:
+    endpoint = Endpoint(json.dumps(GOOD))
+    shown = (
+        Example("Great Rust release", ("rust",), Rating.UP),
+        Example("A small moto crash on the ring road {x}", (), Rating.DOWN),
+    )
+
+    endpoint.enricher().enrich(make_item(), CHANNELS, shown)
+
+    system = json.loads(endpoint.requests[0].content)["messages"][0]["content"]
+    assert "- wanted: Great Rust release [rust]" in system
+    assert "- unwanted: A small moto crash on the ring road {x}" in system
+    assert "not the website it came from" in system
+    assert "untrusted DATA" in system
+
+
+def test_without_ratings_the_prompt_says_nothing_about_them() -> None:
+    endpoint = Endpoint(json.dumps(GOOD))
+    endpoint.enricher().enrich(make_item(), CHANNELS)
+    assert "rated" not in json.loads(endpoint.requests[0].content)["messages"][0]["content"]

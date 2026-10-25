@@ -13,6 +13,7 @@ from lookout.domain.channel import Channel
 from lookout.domain.enrichment import Enrichment
 from lookout.domain.item import Item, item_id
 from lookout.domain.priority import Priority
+from lookout.domain.profile import Example
 from lookout.domain.raw import RawItem
 
 NOW = datetime(2026, 10, 24, 9, 0, tzinfo=UTC)
@@ -118,9 +119,13 @@ class ScriptedEnricher:
     def __init__(self, answers: dict[str, Enrichment | EnrichmentError] | None = None) -> None:
         self.answers = answers or {}
         self.asked: list[str] = []
+        self.examples: list[tuple[Example, ...]] = []
 
-    def enrich(self, item: Item, channels: tuple[Channel, ...]) -> Enrichment:
+    def enrich(
+        self, item: Item, channels: tuple[Channel, ...], examples: tuple[Example, ...] = ()
+    ) -> Enrichment:
         self.asked.append(item.title)
+        self.examples.append(examples)
         answer = self.answers.get(item.title, enrichment(50))
         if isinstance(answer, EnrichmentError):
             raise answer
