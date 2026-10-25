@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import type { Action, Filters, Item, Rating, Sweep } from "../api/types";
 import {
@@ -16,9 +17,10 @@ import {
   useTaxonomy,
 } from "../hooks";
 import { readLastVisit, rememberVisit } from "../lastVisit";
+import { inboxTotal } from "../categories";
 import { useShortcuts } from "../shortcuts";
 import { CategoryTree } from "./CategoryTree";
-import { FilterBar, VIEWS } from "./FilterBar";
+import { FilterBar, OrderToggle, VIEWS } from "./FilterBar";
 import { ItemDetail } from "./ItemDetail";
 import { ItemList } from "./ItemList";
 import { HelpDialog, SnoozeMenu, Toast } from "./Overlays";
@@ -33,6 +35,12 @@ const DONE_TEXT: Record<Action, string> = {
   reopen: "Reopened",
   star: "Starred",
   unstar: "Unstarred",
+};
+
+/** Closes the menu a button sits in, then does what the button is for. */
+const closing = (action: () => void) => (event: MouseEvent<HTMLElement>) => {
+  (event.currentTarget.closest("details") as HTMLDetailsElement).open = false;
+  action();
 };
 
 const errorText = (error: unknown): string => (error as Error).message;
@@ -97,6 +105,9 @@ export function Inbox({ side, filters, openId, onFilters, onOpen }: Props) {
     [sources.data, filters.source],
   );
   const focused = list.find((i) => i.id === focusedId) ?? list[0];
+  /** The panel always shows an item: the one opened, else the one the list is on (a preview, which reads nothing). */
+  const shownId = openId ?? focused?.id ?? null;
+  const urgent = useMemo(() => list.filter((i) => i.priority === "P0"), [list]);
 
   // Items that left the list (done, filtered out) are no longer selected.
   const selected = useMemo(() => new Set([...picked].filter((id) => list.some((i) => i.id === id))), [picked, list]);
@@ -374,151 +385,175 @@ export function Inbox({ side, filters, openId, onFilters, onOpen }: Props) {
         )}
       <div className="inbox-main">
         <div className="titlerow">
-          <h1>Inbox</h1>
-          <RunStrip />
-        </div>
-        <FilterBar filters={filters} sources={sourceNames} onChange={onFilters} />
-        {filters.text && filters.view !== "all" && (
-          <p className="nudge" role="note">
-            Searching only <strong>{VIEWS.find((v) => v.value === filters.view)?.label}</strong>. Done, snoozed and
-            expired items, and older ones, are not looked at.{" "}
-            <button
-              type="button"
-              onClick={() => {
-                onFilters({ ...filters, view: "all", age: "" });
-              }}
-            >
-              Search everything
-            </button>
-          </p>
-        )}
-        {list.length > 0 && list.every((i) => i.channel === "Other") && (
-          <p className="nudge" role="note">
-            Everything here is in <strong>Other</strong>. <a href="/categories">Define categories</a> (AI, Dev &gt;
-            Rust, ...) so Lookout can file your items.
-          </p>
-        )}
-        <div className="toolbar">
-          <span>{items.data ? `${list.length} of ${total}` : ""}</span>
-          {total > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setSweeping(true);
-              }}
-            >
-              Act on all {total}…
-            </button>
-          )}
-          {total > 0 && (
-            <button
-              type="button"
-              disabled={writing || startDigest.isPending}
-              title={writing ? "A digest is already being written: follow it under Digest." : undefined}
-              onClick={() => {
-                startDigest.mutate(filters, {
-                  onSuccess: () => {
-                    setMessage({ text: "Writing the digest in the background: it will appear under Digest." });
-                  },
-                  onError: (error) => {
-                    setMessage({ text: errorText(error) });
-                  },
-                });
-              }}
-            >
-              Summarise these {total}…
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              seenBelow.mutate("P1");
-            }}
-          >
-            Mark P2 and P3 as seen
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setHelp(true);
-            }}
-          >
-            Shortcuts
-          </button>
-        </div>
-        {selected.size > 0 && (
-          <div className="bulk" role="group" aria-label="Bulk actions">
-            <span>{selected.size} selected</span>
-            <button
-              type="button"
-              onClick={() => {
-                void perform("done", [...selected]);
-              }}
-            >
-              Done
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSnoozing([...selected]);
-              }}
-            >
-              Snooze…
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void rateSelection([...selected], 1);
-              }}
-            >
-              More like this
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void rateSelection([...selected], -1);
-              }}
-            >
-              Less like this
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelected(new Set());
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        )}
-        <div className="columns">
-          <div className="list">
-            {content}
-            {items.hasNextPage && (
-              <p className="more">
-                <button
-                  type="button"
-                  disabled={items.isFetchingNextPage}
-                  onClick={() => {
-                    void items.fetchNextPage();
-                  }}
-                >
-                  Load more ({list.length} of {total})
-                </button>
+          <div>
+            <h1>Inbox</h1>
+            {urgent.length > 0 && (
+              <p className="finding">
+                <strong>
+                  {urgent.length} {urgent.length === 1 ? "needs" : "need"} action today:
+                </strong>{" "}
+                {(urgent[0] as Item).title}
               </p>
             )}
           </div>
-          {openId && (
+          <RunStrip />
+        </div>
+        <div className="columns">
+          <section className="listcol" aria-label="Inbox">
+            <FilterBar
+              filters={filters}
+              sources={sourceNames}
+              inboxCount={taxonomy.data && inboxTotal(taxonomy.data.channels)}
+              onChange={onFilters}
+            />
+            {filters.text && filters.view !== "all" && (
+              <p className="nudge" role="note">
+                Searching only <strong>{VIEWS.find((v) => v.value === filters.view)?.label}</strong>. Done, snoozed and
+                expired items, and older ones, are not looked at.{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onFilters({ ...filters, view: "all", age: "" });
+                  }}
+                >
+                  Search everything
+                </button>
+              </p>
+            )}
+            {list.length > 0 && list.every((i) => i.channel === "Other") && (
+              <p className="nudge" role="note">
+                Everything here is in <strong>Other</strong>. <a href="/categories">Define categories</a> (AI, Dev &gt;
+                Rust, ...) so Lookout can file your items.
+              </p>
+            )}
+            <div className="toolbar">
+              <span>{items.data ? `${list.length} of ${total}` : ""}</span>
+              <OrderToggle filters={filters} onChange={onFilters} />
+              <details className="menu">
+                <summary>Actions</summary>
+                <div>
+                  {total > 0 && (
+                    <button
+                      type="button"
+                      onClick={closing(() => {
+                        setSweeping(true);
+                      })}
+                    >
+                      Act on all {total}…
+                    </button>
+                  )}
+                  {total > 0 && (
+                    <button
+                      type="button"
+                      disabled={writing || startDigest.isPending}
+                      title={writing ? "A digest is already being written: follow it under Digest." : undefined}
+                      onClick={closing(() => {
+                        startDigest.mutate(filters, {
+                          onSuccess: () => {
+                            setMessage({ text: "Writing the digest in the background: it will appear under Digest." });
+                          },
+                          onError: (error) => {
+                            setMessage({ text: errorText(error) });
+                          },
+                        });
+                      })}
+                    >
+                      Summarise these {total}…
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={closing(() => {
+                      seenBelow.mutate("P1");
+                    })}
+                  >
+                    Mark P2 and P3 as seen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closing(() => {
+                      setHelp(true);
+                    })}
+                  >
+                    Shortcuts
+                  </button>
+                </div>
+              </details>
+            </div>
+            {selected.size > 0 && (
+              <div className="bulk" role="group" aria-label="Bulk actions">
+                <span>{selected.size} selected</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void perform("done", [...selected]);
+                  }}
+                >
+                  Done
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSnoozing([...selected]);
+                  }}
+                >
+                  Snooze…
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void rateSelection([...selected], 1);
+                  }}
+                >
+                  More like this
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void rateSelection([...selected], -1);
+                  }}
+                >
+                  Less like this
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelected(new Set());
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            <div className="list">
+              {content}
+              {items.hasNextPage && (
+                <p className="more">
+                  <button
+                    type="button"
+                    disabled={items.isFetchingNextPage}
+                    onClick={() => {
+                      void items.fetchNextPage();
+                    }}
+                  >
+                    Load more ({list.length} of {total})
+                  </button>
+                </p>
+              )}
+            </div>
+          </section>
+          {shownId && (
             <ItemDetail
-              id={openId}
+              key={shownId}
+              id={shownId}
               onAction={(action) => {
-                void perform(action, [openId]);
+                void perform(action, [shownId]);
               }}
               onRate={(rating) => {
-                void rateItem(openId, rating);
+                void rateItem(shownId, rating);
               }}
               onSnooze={() => {
-                setSnoozing([openId]);
+                setSnoozing([shownId]);
               }}
               onClose={() => {
                 onOpen(null);

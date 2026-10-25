@@ -55,10 +55,12 @@ dialog that acts on a whole filter SHALL offer both thumbs and clearing a rating
 
 ### Requirement: The shell
 
-The dashboard SHALL be one frame on every screen: a sidebar holding the product name, the four screens (Inbox,
-Categories, Digest, Sources) and, on the inbox, the category tree; a top bar holding the state of the digest and Run now;
-and the screen itself on a sheet beside them. Every screen SHALL have one `h1` naming it. Below 900px the sidebar SHALL
-stack above the sheet, with the categories in one scrolling row, so nothing is unreachable on a phone.
+The dashboard SHALL be one light frame on every screen: a sidebar holding the product name, the four screens
+(Inbox, Digest, Sources, Categories) with a count on the inbox and on the sources, the category tree on the inbox, and
+when the last run finished; a top bar holding a search over items, sources and tags (focused by the `/` key), the state
+of the digest and Run now; and the screen itself on a sheet beside them. Category icons SHALL NOT appear in the
+dashboard outside the categories page. Every screen SHALL have one `h1` naming it. Below 900px the sidebar SHALL stack
+above the sheet, with the categories in one scrolling row, so nothing is unreachable on a phone.
 
 #### Scenario: A phone
 
@@ -67,19 +69,33 @@ stack above the sheet, with the categories in one scrolling row, so nothing is u
 
 ### Requirement: Views as tabs
 
-The views of the inbox (Inbox, Snoozed, Done, Expired, Everything) SHALL be tabs above the filters, the chosen view
-marked as selected and kept in the URL. The other filters SHALL share one row under them, so that the first items show
-on a 900px-high screen.
+The views of the inbox (Inbox, Snoozed, Done, Expired, Everything) SHALL be tabs above the list, the chosen view marked
+as selected and kept in the URL, the Inbox tab carrying the number of items it holds. Under them the list SHALL have
+one field to filter it, the priority buttons, and the other filters (source, age, starred) behind "More filters"; under
+those, how many items are shown, the order (Triage or Latest) and a menu of actions on the whole list.
 
 #### Scenario: Looking at what was done
 
 - **WHEN** the user chooses the Done tab
 - **THEN** the done items are listed and the tab is selected
 
+### Requirement: Three regions
+
+On a wide screen the inbox SHALL show the list, the open item and its details side by side, each scrolling on its own.
+A row SHALL show the mark of its source, the title, the source and the category, its age and, above normal, its
+priority; P2 and P3 SHALL be written for assistive technology and in the panel. The thumbs and Done of a row SHALL appear
+when the row is pointed at or focused. The panel SHALL always show an item: the one opened, else the one the list is on,
+as a preview that reads nothing. Under the title the dashboard SHALL name what needs action today when something does.
+
+#### Scenario: Nothing opened
+
+- **WHEN** the inbox opens with items in it
+- **THEN** the panel shows the first item, none is marked seen, and the URL names no item
+
 ### Requirement: The last run at a glance
 
 Above the list the inbox SHALL show the last run as one bar of everything it fetched, split into what was new and what
-was already known, with both counts, and say how many items wait for the model. While a run is going it SHALL say so, and
+was already known, with both counts and the time it finished, and say how many items wait for the model. While a run is going it SHALL say so, and
 when the last run failed it SHALL say that, not draw a bar. Before any run it SHALL show nothing.
 
 #### Scenario: A run with news

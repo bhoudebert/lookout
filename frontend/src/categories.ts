@@ -37,3 +37,9 @@ export function categoryRows(channels: Channel[]): CategoryRow[] {
     };
   });
 }
+
+/** What the inbox holds: the items of the top-level categories, each counted with everything under it. */
+export const inboxTotal = (channels: Channel[]): number =>
+  categoryRows(channels)
+    .filter((r) => r.depth === 0)
+    .reduce((sum, r) => sum + r.total, 0);

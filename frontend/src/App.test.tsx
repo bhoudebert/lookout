@@ -180,14 +180,14 @@ describe("views", () => {
 });
 
 describe("categories, tags and authors", () => {
-  it("shows the icon of the category in the list, the detail and the tree", async () => {
+  it("keeps the icon of a category out of the list, the detail and the tree", async () => {
     const { user } = mount(new FakeBackend(three()));
     const row = (await screen.findByRole("button", { name: "Django flaw" })).closest("li") as HTMLElement;
-    expect(within(row).getByText("🤖")).toHaveAttribute("aria-hidden", "true");
-    expect(within(screen.getByRole("navigation", { name: "Categories" })).getByText("🤖")).toBeInTheDocument();
+    expect(within(row).queryByText("🤖")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "Categories" })).queryByText("🤖")).not.toBeInTheDocument();
     await user.click(within(row).getByRole("button", { name: "Django flaw" }));
     const detail = await screen.findByRole("complementary", { name: "Item detail" });
-    expect(within(detail).getByText("🤖")).toBeInTheDocument();
+    expect(within(detail).queryByText("🤖")).not.toBeInTheDocument();
   });
 
   it("shows the category, the tags and the author of every item, and searches the author", async () => {
@@ -206,7 +206,7 @@ describe("categories, tags and authors", () => {
     mount(new FakeBackend(three()));
     const tree = within(await screen.findByRole("navigation", { name: "Categories" }));
     const rows = tree.getAllByRole("listitem").map((li) => li.textContent);
-    expect(rows).toEqual(["All3", "🤖AI2", "Dev1", "Rust1", "Other0"]);
+    expect(rows).toEqual(["All3", "AI2", "Dev1", "Rust1", "Other0"]);
     expect(tree.getByRole("button", { name: /^All/ })).toHaveAttribute("aria-current", "true");
   });
 
@@ -275,8 +275,6 @@ describe("one item", () => {
     expect(
       backend.calls.some((c) => c.path === "/api/items/a/actions" && JSON.stringify(c.body).includes("open")),
     ).toBe(true);
-    await user.click(within(detail).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
   it("does not mark an item seen again", async () => {
@@ -559,7 +557,9 @@ describe("bulk actions", () => {
     await screen.findByRole("button", { name: "Django flaw" });
     await user.click(screen.getByLabelText("Select Django flaw"));
     await user.click(screen.getByLabelText("Select React 20 RC"));
-    await user.click(screen.getByRole("button", { name: "Snooze…" }));
+    await user.click(
+      within(screen.getByRole("group", { name: "Bulk actions" })).getByRole("button", { name: "Snooze…" }),
+    );
     await user.click(screen.getByRole("button", { name: "Tomorrow" }));
     expect(await screen.findByText("Snoozed: 2 items")).toBeInTheDocument();
   });
@@ -888,7 +888,9 @@ describe("the panel follows the keys", () => {
     const backend = new FakeBackend(three());
     const { user } = mount(backend);
     await screen.findByRole("button", { name: "Django flaw" });
-    expect(screen.queryByRole("complementary", { name: "Item detail" })).not.toBeInTheDocument();
+    // With nothing opened the panel previews the item the list is on.
+    expect(await screen.findByRole("heading", { name: "Django flaw" })).toBeInTheDocument();
+    expect(window.location.search).toBe("");
     const before = window.history.length;
 
     await user.keyboard("j");

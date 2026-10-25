@@ -16,6 +16,9 @@ const items = (page: Page) => page.getByRole("list", { name: "Items" }).getByRol
 const nav = (page: Page, name: string) => page.getByRole("navigation", { name: "Main" }).getByRole("link", { name });
 const tree = (page: Page) => page.getByRole("navigation", { name: "Categories" });
 const title = (page: Page, text: string) => page.getByRole("button", { name: text, exact: true });
+const actions = (page: Page) => page.locator("details.menu").evaluate((d: HTMLDetailsElement) => (d.open = true));
+const moreFilters = (page: Page) =>
+  page.locator("details.more-filters").evaluate((d: HTMLDetailsElement) => (d.open = true));
 const toast = (page: Page, text: string) => page.locator(".toast", { hasText: text });
 
 test("the inbox opens on what needs attention first", async ({ page }) => {
@@ -88,8 +91,6 @@ test("an item explains its priority and what it touches", async ({ page }) => {
   await expect(detail).toContainText("by Django Security Team");
   await expect(detail.getByRole("list", { name: "Tags" })).toContainText("sql-injection");
   await expect(detail.getByRole("link", { name: "Open the original" })).toHaveAttribute("href", /example\.test/);
-  await detail.getByRole("button", { name: "Close" }).click();
-  await expect(detail).toBeHidden();
 });
 
 test("done can be undone", async ({ page }) => {
@@ -147,8 +148,6 @@ test("j and k show each item in the panel without marking it seen", async ({ pag
   await page.keyboard.press("k");
   await expect(panel.getByRole("heading", { level: 2 })).toHaveText(first);
   await expect(items(page).filter({ hasText: first }).first()).not.toContainText("seen");
-  await page.getByRole("button", { name: "Close" }).click();
-  await expect(panel).toHaveCount(0);
 });
 
 test("a whole selection, or a whole filter, can be rated at once", async ({ page }) => {
@@ -169,6 +168,8 @@ test("a whole selection, or a whole filter, can be rated at once", async ({ page
     "true",
   );
   await page.getByRole("group", { name: "Bulk actions" }).getByRole("button", { name: "Clear" }).click();
+
+  await actions(page);
 
   await page.getByRole("button", { name: /^Act on all \d+…$/ }).click();
   const dialog = page.getByRole("dialog", { name: "Act on everything shown" });
@@ -359,7 +360,9 @@ test("categories are defined on their own page, and a new source is filed into t
   await expect(items(page).filter({ hasText: "Rust 1.99 ships async closures" })).toHaveCount(1);
 });
 
-test("a category gets an icon, shown in the tree and beside its items, and loses it again", async ({ page }) => {
+test("a category gets an icon, kept on the categories page and out of the inbox, and loses it again", async ({
+  page,
+}) => {
   await page.goto("/categories");
   await page.getByRole("button", { name: "Edit Dev > Rust" }).click();
   await page.getByLabel("Icon of Dev > Rust").fill("rust");
@@ -369,9 +372,12 @@ test("a category gets an icon, shown in the tree and beside its items, and loses
   await page.getByRole("button", { name: "Edit Dev > Rust" }).click();
   await page.getByLabel("Icon of Dev > Rust").fill("🦀");
   await page.getByRole("button", { name: "Save" }).click();
+  await expect(
+    page.getByRole("region", { name: "Categories" }).locator(".category-icon", { hasText: "🦀" }),
+  ).toBeVisible();
   await nav(page, "Inbox").click();
-  await expect(tree(page).getByRole("button", { name: /^Rust/ })).toContainText("🦀");
-  await expect(items(page).filter({ hasText: RUST }).locator(".category-icon")).toHaveText("🦀");
+  await expect(tree(page).getByRole("button", { name: /^Rust/ })).not.toContainText("🦀");
+  await expect(items(page).filter({ hasText: RUST }).locator(".category-icon")).toHaveCount(0);
 
   await nav(page, "Categories").click();
   await page.getByRole("button", { name: "Edit Dev > Rust" }).click();
@@ -383,6 +389,7 @@ test("a category gets an icon, shown in the tree and beside its items, and loses
 
 test("a digest is written in the background, followed from anywhere, read and deleted", async ({ page }) => {
   await page.goto("/");
+  await actions(page);
   await page.getByRole("button", { name: /^Summarise these \d+/ }).click();
   await expect(page.getByText(/Writing the digest in the background: it will appear under Digest/)).toBeVisible();
 
@@ -470,6 +477,8 @@ test("the list can be read in date order, by age, and a whole selection cleared 
   await page.getByRole("button", { name: "Triage" }).click();
   await expect(page).not.toHaveURL(/order=/);
 
+  await moreFilters(page);
+
   await page.getByLabel("Age").selectOption("older30");
   await expect(page.getByText("Nothing to look at.")).toBeVisible();
   await expect(tree(page).getByRole("button", { name: /^All/ })).toContainText("0"); // the counts follow the filters
@@ -477,6 +486,8 @@ test("the list can be read in date order, by age, and a whole selection cleared 
   await page.getByRole("tab", { name: "Expired" }).click();
   await expect(page.getByText("Nothing to look at.")).toBeVisible();
   await page.getByRole("tab", { name: "Inbox" }).click();
+
+  await actions(page);
 
   await page.getByRole("button", { name: /^Act on all \d+…$/ }).click();
   const dialog = page.getByRole("dialog", { name: "Act on everything shown" });
@@ -514,13 +525,13 @@ test("a category can be created from the source form and the source files straig
 
 test("a search can be widened from the inbox to everything", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Search").fill("django");
+  await page.getByLabel("Search", { exact: true }).fill("django");
   await expect(page.getByRole("note").filter({ hasText: "Searching only Inbox" })).toBeVisible();
   await page.getByRole("button", { name: "Search everything" }).click();
   await expect(page).toHaveURL(/view=all/);
   await expect(page.getByRole("tab", { name: "Everything" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("note").filter({ hasText: "Searching only" })).toHaveCount(0);
-  await page.getByLabel("Search").fill("");
+  await page.getByLabel("Search", { exact: true }).fill("");
 });
 
 test("the single-page app answers on any path, and the API still answers its own", async ({ page, request }) => {
@@ -581,6 +592,7 @@ for (const scheme of ["light", "dark"] as const) {
 
     test("a digest", async ({ page }) => {
       await page.goto("/");
+      await actions(page);
       await page.getByRole("button", { name: /^Summarise these \d+/ }).click();
       await page.getByRole("link", { name: "Digest ready" }).click();
       await expect(page.getByRole("article", { name: "Digest" })).toBeVisible();
