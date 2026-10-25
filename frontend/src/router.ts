@@ -59,12 +59,14 @@ const snapshot = (): string => window.location.pathname + window.location.search
 /** The current location, kept in the URL so a filtered inbox can be bookmarked and shared. */
 export function useLocation(): {
   location: Location;
-  go: (path: string, filters?: Filters, item?: string | null) => void;
+  go: (path: string, filters?: Filters, item?: string | null, replace?: boolean) => void;
 } {
   const raw = useSyncExternalStore(subscribe, snapshot);
   const [path = "/", search = ""] = raw.split(/(?=\?)/);
-  const go = useCallback((to: string, filters: Filters = NO_FILTERS, item: string | null = null) => {
-    window.history.pushState(null, "", to + buildSearch(filters, item));
+  const go = useCallback((to: string, filters: Filters = NO_FILTERS, item: string | null = null, replace = false) => {
+    // Moving through the list previews items: those replace the page in the history instead of piling up in it.
+    if (replace) window.history.replaceState(null, "", to + buildSearch(filters, item));
+    else window.history.pushState(null, "", to + buildSearch(filters, item));
     window.dispatchEvent(new PopStateEvent("popstate"));
   }, []);
   return { location: parseLocation(path, search), go };

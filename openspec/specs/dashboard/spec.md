@@ -34,11 +34,22 @@ The user SHALL be able to mark seen, done, snooze (preset durations or a date) a
 with keyboard shortcuts (`j`/`k` move, `o` open, `e` done, `+` thumbs up, `-` thumbs down, `s` snooze, `*` star, `u` undo, `?` help). The
 last action SHALL be undoable.
 
+### Requirement: The panel follows the keys
+
+Moving with `j` and `k` SHALL show the item reached in the panel on the right, opening the panel if it was closed. That
+is a preview: it SHALL NOT mark the item seen or count as having read it (only `o`, Enter or a click does), and it SHALL
+replace the page in the browser history instead of adding an entry for every item passed.
+
+#### Scenario: Skimming
+
+- **WHEN** the user presses `j` three times on new items
+- **THEN** the panel shows the third item, none of them is marked seen, and the profile has learnt nothing
+
 ### Requirement: Rating and clearing
 
 Each item in the list and in the detail SHALL show a thumbs up, a thumbs down and a Done button; a pressed thumb shows the
-item's rating and pressing it again clears it. Done SHALL remove the item from the list, close its detail if it was
-open, and move to the next item. A rating SHALL leave the item where it is. The thumb shortcuts SHALL apply to the
+item's rating and pressing it again clears it. Done SHALL remove the item from the list and move to the next item;
+if the removed item was shown in the panel, the panel SHALL show the next one, or close when none is left. A rating SHALL leave the item where it is. The thumb shortcuts SHALL apply to the
 whole selection when items are selected (setting, not toggling), the bar of the selection SHALL have both thumbs, and the
 dialog that acts on a whole filter SHALL offer both thumbs and clearing a rating next to done and seen.
 

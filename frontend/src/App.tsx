@@ -41,8 +41,8 @@ export function App() {
             onFilters={(filters) => {
               go("/", filters, location.item);
             }}
-            onOpen={(id) => {
-              go("/", location.filters, id);
+            onOpen={(id, replace) => {
+              go("/", location.filters, id, replace);
             }}
           />
         )}

@@ -19,14 +19,14 @@ The list loads 50 items at a time: **Load more** fetches the next 50, and the co
 
 ## An item
 
-Click a title, or press `o`. The panel shows the summary, the original text, a link to the source, the stack entries it touches, the priority reason and **Why this rank**. Opening a new item marks it seen.
+Click a title, or press `o`, and the panel opens on the right. Moving with `j` and `k` shows each item in it as you go, like the preview pane of a mail client; that is only a preview, so it does not mark the items seen or teach anything. Pressing `o` or Enter, or clicking, is what counts as reading. The panel shows the summary, the original text, a link to the source, the stack entries it touches, the priority reason and **Why this rank**. Opening a new item marks it seen.
 
 ## Thumbs and Done
 
 Every item, in the list and in its panel, has three controls:
 
 - **Thumbs up** and **thumbs down** say whether you want more or less of this. The pressed thumb is the item's rating; pressing it again clears it. A rating teaches your profile (its source, author, category and tags) and **never removes the item**.
-- **Done** clears the item from the inbox and teaches nothing. The panel closes and the next item takes the focus, so you can keep going with `e`.
+- **Done** clears the item from the inbox and teaches nothing. The panel moves on to the next item, which takes the focus, so you can keep going with `e`.
 
 Use a thumb down and Done together for noise, a thumb up for what you want more of, and Done alone to tidy. See [how it learns your taste](/personalization).
 

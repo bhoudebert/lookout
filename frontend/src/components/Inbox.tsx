@@ -37,7 +37,8 @@ interface Props {
   filters: Filters;
   openId: string | null;
   onFilters: (filters: Filters) => void;
-  onOpen: (id: string | null) => void;
+  /** Show an item in the panel, or close it. ``replace`` previews without adding to the browser history. */
+  onOpen: (id: string | null, replace?: boolean) => void;
 }
 
 interface Message {
@@ -96,15 +97,16 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
     return focused ? [focused.id] : [];
   }, [selected, focused]);
 
-  /** After clearing items: close the detail if it was one of them and move to the next item still there. */
+  /** After clearing items: focus the next item still there, and if the panel showed a cleared one, show it there. */
   const moveOn = useCallback(
     (ids: string[]) => {
       const gone = new Set(ids);
       const first = list.findIndex((i) => gone.has(i.id));
       const after = list.slice(first + 1).find((i) => !gone.has(i.id));
       const before = list.slice(0, Math.max(first, 0)).findLast((i) => !gone.has(i.id));
-      setFocusedId((after ?? before)?.id ?? null);
-      if (openId && gone.has(openId)) onOpen(null);
+      const next = (after ?? before)?.id ?? null;
+      setFocusedId(next);
+      if (openId && gone.has(openId)) onOpen(next, true);
     },
     [list, openId, onOpen],
   );
@@ -229,9 +231,13 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         0,
         list.findIndex((i) => i.id === focused?.id),
       );
-      setFocusedId((list[Math.min(list.length - 1, Math.max(0, index + step))] as Item).id);
+      // The panel follows the focus, like the preview pane of a mail client. Only an explicit open (o, Enter, a click)
+      // marks the item seen and counts as having read it, so skimming past items teaches nothing.
+      const next = (list[Math.min(list.length - 1, Math.max(0, index + step))] as Item).id;
+      setFocusedId(next);
+      onOpen(next, true);
     },
-    [list, focused],
+    [list, focused, onOpen],
   );
 
   const open = useCallback(
