@@ -8,6 +8,7 @@ from enum import StrEnum
 
 from lookout.domain.channel import ancestors
 from lookout.domain.item import Item
+from lookout.domain.rating import Rating
 
 MAX_BOOST = 20
 POINTS_PER_UNIT = 4
@@ -18,18 +19,16 @@ class SignalKind(StrEnum):
 
     OPEN = "open"
     STAR = "star"
-    DONE = "done"
-    DISMISS = "dismiss"
     SNOOZE = "snooze"
 
 
 WEIGHTS: dict[SignalKind, float] = {
     SignalKind.STAR: 3.0,
-    SignalKind.DONE: 3.0,
     SignalKind.OPEN: 1.0,
     SignalKind.SNOOZE: 0.0,
-    SignalKind.DISMISS: -2.0,
 }
+RATING_WEIGHT = 3.0
+"""What a thumb is worth, up or down: as much as a star."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,17 +86,28 @@ def learn(
     half_life_days: float,
     minimum: int,
 ) -> Profile:
-    """Fold signals into weights, older ones counting less. Below ``minimum`` signals nothing is learnt."""
+    """Fold signals and ratings into weights, older ones counting less.
+
+    Ratings live on the items, so changing or clearing one changes what is learnt. Below ``minimum`` signals
+    and ratings together nothing is learnt.
+    """
     signals = list(signals)
-    if len(signals) < minimum:
+    rated = [
+        (i, i.rated_at) for i in items.values() if i.rating is not Rating.NONE and i.rated_at is not None
+    ]
+    if len(signals) + len(rated) < minimum:
         return Profile({})
     weights: dict[str, float] = {}
-    for signal in signals:
-        item = items.get(signal.item_id)
-        if item is None:
-            continue
-        age_days = max((now - signal.at).total_seconds() / 86400, 0.0)
-        strength = WEIGHTS[signal.kind] * math.pow(0.5, age_days / half_life_days)
+
+    def learn_from(item: Item, strength: float, at: datetime) -> None:
+        age_days = max((now - at).total_seconds() / 86400, 0.0)
+        decayed = strength * math.pow(0.5, age_days / half_life_days)
         for feature in features(item):
-            weights[feature] = weights.get(feature, 0.0) + strength
+            weights[feature] = weights.get(feature, 0.0) + decayed
+
+    for signal in signals:
+        if (item := items.get(signal.item_id)) is not None:
+            learn_from(item, WEIGHTS[signal.kind], signal.at)
+    for item, at in rated:
+        learn_from(item, RATING_WEIGHT * int(item.rating), at)
     return Profile(weights)

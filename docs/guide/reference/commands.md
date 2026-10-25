@@ -7,12 +7,12 @@ configuration file, and `--help`.
 
 ## `lookout act`
 
-Open, finish, dismiss, snooze or star an item.
+Open, finish, snooze or star an item.
 
 | Argument | |
 | --- | --- |
 | `item_id` | Item id, as shown by `inbox`. |
-| `action` |  One of: `open`, `done`, `dismiss`, `snooze`, `reopen`, `star`, `unstar`. |
+| `action` |  One of: `open`, `done`, `snooze`, `reopen`, `star`, `unstar`. |
 
 | Option | |
 | --- | --- |
@@ -52,10 +52,19 @@ List items, most urgent first.
 | `--priority`, `-p` | P0 to P3, repeatable. |
 | `--channel` | The topic: AI, Rust, ... |
 | `--source` |  |
-| `--state` | Default: new and seen. One of: `new`, `seen`, `done`, `snoozed`, `dismissed`, `expired`. |
+| `--state` | Default: new and seen. One of: `new`, `seen`, `done`, `snoozed`, `expired`. |
 | `--starred` | Only starred items. |
 | `--text` |  |
 | `--limit` |  Default: `30`. |
+
+## `lookout rate`
+
+Rate an item up or down: what Lookout learns from. The same rating again clears it.
+
+| Argument | |
+| --- | --- |
+| `item_id` | Item id, as shown by `inbox`. |
+| `rating` | up, down, or none to clear it. One of: `up`, `down`, `none`. |
 
 ## `lookout reassess`
 

@@ -192,6 +192,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/{item_id}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rate */
+        post: operations["rate_api_items__item_id__rating_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/items/{item_id}/restore": {
         parameters: {
             query?: never;
@@ -344,7 +361,7 @@ export interface components {
          * @description What the user can do to an item.
          * @enum {string}
          */
-        Action: "open" | "done" | "dismiss" | "snooze" | "reopen" | "star" | "unstar";
+        Action: "open" | "done" | "snooze" | "reopen" | "star" | "unstar";
         /**
          * ActionIn
          * @description Do something to an item.
@@ -574,6 +591,11 @@ export interface components {
              * Format: date-time
              */
             published_at: string;
+            /**
+             * Rating
+             * @description 1 thumbs up, -1 thumbs down, 0 none.
+             */
+            rating: number;
             /** Score */
             score: number | null;
             /** Snoozed Until */
@@ -615,6 +637,14 @@ export interface components {
          * @enum {string}
          */
         Order: "priority" | "date";
+        /**
+         * RatingIn
+         * @description Thumbs up (1), thumbs down (-1); the rating the item already has clears it.
+         */
+        RatingIn: {
+            /** Rating */
+            rating: number;
+        };
         /**
          * RefileOut
          * @description What filing existing items again did.
@@ -795,7 +825,7 @@ export interface components {
          *     ``EXPIRED`` is reached by the system only, when nobody looked at the item for too long (ADR 0016).
          * @enum {string}
          */
-        State: "new" | "seen" | "done" | "snoozed" | "dismissed" | "expired";
+        State: "new" | "seen" | "done" | "snoozed" | "expired";
         /**
          * SweepIn
          * @description An action on everything a filter matches; with ``dry_run`` it only says what would change.
@@ -846,6 +876,13 @@ export interface components {
         UndoEntry: {
             /** Id */
             id: string;
+            /** Rated At */
+            rated_at?: string | null;
+            /**
+             * Rating
+             * @default 0
+             */
+            rating: number;
             /** Snoozed Until */
             snoozed_until: string | null;
             /** Starred */
@@ -857,6 +894,13 @@ export interface components {
          * @description What to send back to put an item as it was.
          */
         UndoOut: {
+            /** Rated At */
+            rated_at?: string | null;
+            /**
+             * Rating
+             * @default 0
+             */
+            rating: number;
             /** Snoozed Until */
             snoozed_until: string | null;
             /** Starred */
@@ -1253,6 +1297,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ActionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rate_api_items__item_id__rating_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatingIn"];
             };
         };
         responses: {

@@ -95,11 +95,40 @@ test("an item explains its priority and what it touches", async ({ page }) => {
 test("done can be undone", async ({ page }) => {
   await page.goto("/");
   await title(page, REACT).click();
-  await page.getByRole("complementary").getByRole("button", { name: "Done" }).click();
+  await page.getByRole("complementary").getByRole("button", { name: /^Done/ }).click();
   await expect(toast(page, "Marked done")).toBeVisible();
+  await expect(items(page)).toHaveCount(5);
+  await expect(page.getByRole("complementary", { name: "Item detail" })).toHaveCount(0);
+  await toast(page, "Marked done").getByRole("button", { name: "Undo" }).click();
+  await expect(items(page)).toHaveCount(6);
+});
+
+test("a row has thumbs that teach and a Done that clears", async ({ page }) => {
+  await page.goto("/");
+  const row = items(page).filter({ hasText: AI });
+  await row.getByRole("button", { name: "Less like this" }).click();
+  await expect(toast(page, "Less like this")).toBeVisible();
+  await expect(row.getByRole("button", { name: "Less like this" })).toHaveAttribute("aria-pressed", "true");
+  await expect(items(page)).toHaveCount(6); // a thumb never removes the item
+
+  await page.reload();
+  await expect(items(page).filter({ hasText: AI }).getByRole("button", { name: "Less like this" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  ); // and it is remembered
+
+  await items(page)
+    .filter({ hasText: AI })
+    .getByRole("button", { name: /^Done:/ })
+    .click();
   await expect(items(page)).toHaveCount(5);
   await toast(page, "Marked done").getByRole("button", { name: "Undo" }).click();
   await expect(items(page)).toHaveCount(6);
+  await items(page).filter({ hasText: AI }).getByRole("button", { name: "Less like this" }).click(); // clear it again
+  await expect(items(page).filter({ hasText: AI }).getByRole("button", { name: "Less like this" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
 });
 
 test("the keyboard alone triages the inbox", async ({ page }) => {
@@ -116,10 +145,14 @@ test("the keyboard alone triages the inbox", async ({ page }) => {
   await page.keyboard.press("u");
   await expect(items(page)).toHaveCount(6);
 
-  await page.keyboard.press("d");
-  await expect(items(page)).toHaveCount(5);
-  await page.keyboard.press("u");
+  await page.keyboard.press("+");
+  await expect(toast(page, "More like this")).toBeVisible();
   await expect(items(page)).toHaveCount(6);
+  await page.keyboard.press("u");
+  await expect(items(page).first().getByRole("button", { name: "More like this" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
 
   await page.keyboard.press("s");
   await page.getByRole("dialog", { name: "Snooze until" }).getByRole("button", { name: "1 hour" }).click();
@@ -142,10 +175,10 @@ test("several items can be handled at once", async ({ page }) => {
   await page.getByLabel(`Select ${AI}`).check();
   await page.getByLabel(`Select ${RUST}`).check();
   await expect(page.getByText("2 selected")).toBeVisible();
-  await page.getByRole("group", { name: "Bulk actions" }).getByRole("button", { name: "Dismiss" }).click();
+  await page.getByRole("group", { name: "Bulk actions" }).getByRole("button", { name: "Done", exact: true }).click();
   await expect(items(page)).toHaveCount(4);
 
-  await page.getByLabel("View").selectOption("dismissed");
+  await page.getByLabel("View").selectOption("done");
   await expect(items(page)).toHaveCount(2);
   for (const text of [AI, RUST]) {
     await title(page, text).click();

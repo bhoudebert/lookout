@@ -121,12 +121,39 @@ def migrate_v5(db: sqlite3.Connection) -> None:
     db.execute("ALTER TABLE items DROP COLUMN kind")
 
 
+def migrate_v6(db: sqlite3.Connection) -> None:
+    """Thumbs and done (ADR 0017): dismissed items become done; old done and dismiss signals become ratings.
+
+    The latest of an item's done or dismiss signals becomes an up or a down rating at that time, so what the
+    profile had learnt is kept; those signals are then deleted. Items cleared in bulk recorded no signal and
+    get no rating.
+    """
+    latest: dict[str, tuple[str, int]] = {}
+    for item_id, kind, at in db.execute("SELECT item_id, kind, at FROM signals ORDER BY id").fetchall():
+        if kind in ("done", "dismiss"):
+            latest[item_id] = (at, 1 if kind == "done" else -1)
+    for item_id, state, data in db.execute("SELECT id, state, data FROM items").fetchall():
+        raw = json.loads(data)
+        if state != "dismissed" and item_id not in latest:
+            continue
+        if state == "dismissed":
+            raw["state"] = "done"
+        if item_id in latest:
+            raw["rated_at"], raw["rating"] = latest[item_id]
+        db.execute(
+            "UPDATE items SET state = ?, data = ? WHERE id = ?",
+            (raw["state"], json.dumps(raw, separators=(",", ":")), item_id),
+        )
+    db.execute("DELETE FROM signals WHERE kind IN ('done', 'dismiss')")
+
+
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     migrate_v1,
     migrate_v2,
     migrate_v3,
     migrate_v4,
     migrate_v5,
+    migrate_v6,
 )
 
 

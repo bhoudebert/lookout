@@ -35,7 +35,7 @@ const KEYS: [string, string][] = [
   ["j / k", "next / previous item"],
   ["o or Enter", "open the item"],
   ["e", "mark done"],
-  ["d", "dismiss"],
+  ["+ / -", "thumbs up / down: more or less like this"],
   ["s", "snooze"],
   ["*", "star or unstar"],
   ["x", "select for a bulk action"],

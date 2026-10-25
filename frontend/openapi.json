@@ -6,7 +6,6 @@
         "enum": [
           "open",
           "done",
-          "dismiss",
           "snooze",
           "reopen",
           "star",
@@ -487,6 +486,11 @@
             "title": "Published At",
             "type": "string"
           },
+          "rating": {
+            "description": "1 thumbs up, -1 thumbs down, 0 none.",
+            "title": "Rating",
+            "type": "integer"
+          },
           "score": {
             "anyOf": [
               {
@@ -586,7 +590,8 @@
           "enrichment_failed",
           "unread",
           "score",
-          "boost"
+          "boost",
+          "rating"
         ],
         "title": "ItemOut",
         "type": "object"
@@ -621,6 +626,22 @@
         ],
         "title": "Order",
         "type": "string"
+      },
+      "RatingIn": {
+        "description": "Thumbs up (1), thumbs down (-1); the rating the item already has clears it.",
+        "properties": {
+          "rating": {
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Rating",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rating"
+        ],
+        "title": "RatingIn",
+        "type": "object"
       },
       "RefileOut": {
         "description": "What filing existing items again did.",
@@ -1010,7 +1031,6 @@
           "seen",
           "done",
           "snoozed",
-          "dismissed",
           "expired"
         ],
         "title": "State",
@@ -1115,6 +1135,25 @@
             "title": "Id",
             "type": "string"
           },
+          "rated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated At"
+          },
+          "rating": {
+            "default": 0,
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Rating",
+            "type": "integer"
+          },
           "snoozed_until": {
             "anyOf": [
               {
@@ -1147,6 +1186,25 @@
       "UndoOut": {
         "description": "What to send back to put an item as it was.",
         "properties": {
+          "rated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rated At"
+          },
+          "rating": {
+            "default": 0,
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Rating",
+            "type": "integer"
+          },
           "snoozed_until": {
             "anyOf": [
               {
@@ -1821,6 +1879,55 @@
           }
         },
         "summary": "Act"
+      }
+    },
+    "/api/items/{item_id}/rating": {
+      "post": {
+        "operationId": "rate_api_items__item_id__rating_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rate"
       }
     },
     "/api/items/{item_id}/restore": {

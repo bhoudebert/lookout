@@ -527,7 +527,7 @@ def _assemble(
             profile=personalize.profile,
             catalogue=registry.catalogue,
         ),
-        triage=Triage(items, personalize),
+        triage=Triage(items, personalize, clock),
         inbox=Inbox(items, clock),
         reassess=Reassess(items, policy, config.stack, clock),
         expire=Expire(items, clock, config.retention),

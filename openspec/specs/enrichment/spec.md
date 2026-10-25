@@ -35,7 +35,7 @@ wait (state `pending_enrichment`) and the rule-based priority SHALL still apply 
 
 ### Requirement: Only what can be seen
 
-The model SHALL be asked only about items that are `new`, `seen` or `snoozed`. Items that are `done`, `dismissed` or
+The model SHALL be asked only about items that are `new`, `seen` or `snoozed`. Items that are `done` or
 `expired` SHALL NOT use the daily budget, and SHALL join the queue if they are reopened. The run summary SHALL say how
 many items are waiting for the model when the limit stopped a run.
 

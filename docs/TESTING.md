@@ -39,7 +39,7 @@ executable.
 
 ## Journeys
 
-`e2e/` drives the real UI: open the inbox, filter by priority, mark an item seen, done, snooze it, dismiss it, star it,
+`e2e/` drives the real UI: open the inbox, filter by priority, mark an item seen, done, snooze it, rate it, star it,
 add a source, see the "why this rank" panel, keyboard shortcuts, empty and error states. Failure traces and screenshots
 are uploaded as CI artifacts.
 

@@ -24,7 +24,7 @@ Rule floors also respect age: an advisory published more than `rules_window_days
 
 ## Untouched items expire
 
-An item you never opened, finished, dismissed, snoozed or starred moves to the **Expired** view after a time that depends
+An item you never opened, finished, snoozed or starred moves to the **Expired** view after a time that depends
 on how urgent it was:
 
 | Priority | Expires after |

@@ -1,16 +1,18 @@
-import type { Action } from "../api/types";
+import type { Action, Rating } from "../api/types";
 import { useItem } from "../hooks";
 import { until } from "../format";
 import { PriorityBadge } from "./PriorityBadge";
+import { DoneButton, RatingButtons } from "./RatingButtons";
 
 interface Props {
   id: string;
   onAction: (action: Action) => void;
+  onRate: (rating: Exclude<Rating, 0>) => void;
   onSnooze: () => void;
   onClose: () => void;
 }
 
-export function ItemDetail({ id, onAction, onSnooze, onClose }: Props) {
+export function ItemDetail({ id, onAction, onRate, onSnooze, onClose }: Props) {
   const query = useItem(id);
   if (query.isPending)
     return (
@@ -30,7 +32,7 @@ export function ItemDetail({ id, onAction, onSnooze, onClose }: Props) {
   }
   const { item, body, explanation } = query.data;
   const tags = [...new Set([...item.feed_tags, ...item.tags])];
-  const closed = item.state === "done" || item.state === "dismissed" || item.state === "snoozed";
+  const closed = item.state === "done" || item.state === "snoozed";
   return (
     <aside className="detail" aria-label="Item detail">
       <button type="button" className="close" onClick={onClose}>
@@ -93,27 +95,18 @@ export function ItemDetail({ id, onAction, onSnooze, onClose }: Props) {
           </button>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={() => {
+            <DoneButton
+              about={item.title}
+              onDone={() => {
                 onAction("done");
               }}
-            >
-              Done
-            </button>
+            />
             <button type="button" onClick={onSnooze}>
               Snooze…
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                onAction("dismiss");
-              }}
-            >
-              Dismiss
-            </button>
           </>
         )}
+        <RatingButtons rating={item.rating} about={item.title} onRate={onRate} />
         <button
           type="button"
           aria-pressed={item.starred}

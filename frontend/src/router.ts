@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { NO_FILTERS, PRIORITIES } from "./api/types";
 import type { Age, Filters, Order, Priority, View } from "./api/types";
 
-const VIEWS: readonly View[] = ["inbox", "snoozed", "done", "dismissed", "expired", "all"];
+const VIEWS: readonly View[] = ["inbox", "snoozed", "done", "expired", "all"];
 const AGES: readonly Age[] = ["older7", "older14", "older30", "newer7"];
 
 export interface Location {

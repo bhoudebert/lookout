@@ -67,7 +67,7 @@ describe("itemsQuery", () => {
     const fetch = answer(200, { matched: 0, changed: 0, sample: [], undo: [] });
     vi.stubGlobal("fetch", fetch);
     await api.sweep({ ...NO_FILTERS, channel: "AI" }, "done", true);
-    await api.restoreMany([{ id: "a", state: "new", snoozed_until: null, starred: false }]);
+    await api.restoreMany([{ id: "a", state: "new", snoozed_until: null, starred: false, rating: 0 }]);
     const calls = fetch.mock.calls as unknown as [string, RequestInit][];
     expect(calls.map((c) => c[0])).toEqual(["/api/items/sweep", "/api/items/restore-many"]);
     expect(JSON.parse(calls[0]?.[1].body as string)).toMatchObject({
@@ -127,7 +127,7 @@ describe("api", () => {
   it.each([
     [
       "restore",
-      () => api.restore("a", { state: "new", snoozed_until: null, starred: false }),
+      () => api.restore("a", { state: "new", snoozed_until: null, starred: false, rating: 0 }),
       "POST",
       "/api/items/a/restore",
     ],

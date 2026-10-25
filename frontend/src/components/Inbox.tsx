@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Action, Filters, Item, Sweep } from "../api/types";
-import { useAct, useBulk, useItems, useRestore, useRestoreMany, useSeenBelow, useSources, useTaxonomy } from "../hooks";
+import type { Action, Filters, Item, Rating, Sweep } from "../api/types";
+import {
+  useAct,
+  useBulk,
+  useItems,
+  useRate,
+  useRestore,
+  useRestoreMany,
+  useSeenBelow,
+  useSources,
+  useTaxonomy,
+} from "../hooks";
 import { readLastVisit, rememberVisit } from "../lastVisit";
 import { useShortcuts } from "../shortcuts";
 import { CategoryTree } from "./CategoryTree";
@@ -14,7 +24,6 @@ import { SweepDialog } from "./SweepDialog";
 const DONE_TEXT: Record<Action, string> = {
   open: "Opened",
   done: "Marked done",
-  dismiss: "Dismissed",
   snooze: "Snoozed",
   reopen: "Reopened",
   star: "Starred",
@@ -43,6 +52,7 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   const bulk = useBulk();
   const restore = useRestore();
   const restoreMany = useRestoreMany();
+  const rate = useRate();
   const seenBelow = useSeenBelow();
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [picked, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -84,12 +94,51 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
     return focused ? [focused.id] : [];
   }, [selected, focused]);
 
+  /** After clearing items: close the detail if it was one of them and move to the next item still there. */
+  const moveOn = useCallback(
+    (ids: string[]) => {
+      const gone = new Set(ids);
+      const first = list.findIndex((i) => gone.has(i.id));
+      const after = list.slice(first + 1).find((i) => !gone.has(i.id));
+      const before = list.slice(0, Math.max(first, 0)).findLast((i) => !gone.has(i.id));
+      setFocusedId((after ?? before)?.id ?? null);
+      if (openId && gone.has(openId)) onOpen(null);
+    },
+    [list, openId, onOpen],
+  );
+
+  const rateItem = useCallback(
+    async (id: string, rating: Exclude<Rating, 0>) => {
+      try {
+        const result = await rate.mutateAsync({ id, rating });
+        const now = result.item.rating;
+        setMessage({
+          text: now === 1 ? "More like this" : now === -1 ? "Less like this" : "Rating cleared",
+          undo: () => {
+            restore.mutateAsync({ id, undo: result.undo }).then(
+              () => {
+                setMessage(null);
+              },
+              (error: unknown) => {
+                setMessage({ text: errorText(error) });
+              },
+            );
+          },
+        });
+      } catch (error) {
+        setMessage({ text: errorText(error) });
+      }
+    },
+    [rate, restore],
+  );
+
   const perform = useCallback(
     async (action: Action, ids: string[], hours?: number) => {
       try {
         if (ids.length === 1) {
           const id = ids[0] as string;
           const result = await act.mutateAsync({ id, action, hours });
+          if (action === "done") moveOn(ids);
           setMessage({
             text: DONE_TEXT[action],
             undo: () => {
@@ -105,6 +154,7 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
           });
         } else {
           const result = await bulk.mutateAsync({ ids, action, hours });
+          if (action === "done") moveOn(ids);
           setSelected(new Set());
           setMessage({ text: `${DONE_TEXT[action]}: ${result.changed} items` });
         }
@@ -112,7 +162,7 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         setMessage({ text: errorText(error) });
       }
     },
-    [act, bulk, restore],
+    [act, bulk, restore, moveOn],
   );
 
   const swept = useCallback(
@@ -182,8 +232,14 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
       e: () => {
         void perform("done", targets());
       },
-      d: () => {
-        void perform("dismiss", targets());
+      "+": () => {
+        if (focused) void rateItem(focused.id, 1);
+      },
+      "=": () => {
+        if (focused) void rateItem(focused.id, 1);
+      },
+      "-": () => {
+        if (focused) void rateItem(focused.id, -1);
       },
       s: () => {
         const ids = targets();
@@ -202,7 +258,7 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         setHelp(true);
       },
     }),
-    [move, open, perform, targets, toggle, focused, message],
+    [move, open, perform, rateItem, targets, toggle, focused, message],
   );
   const overlay = snoozing !== null || help;
   useShortcuts(handlers, !overlay);
@@ -241,6 +297,12 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         onFocus={setFocusedId}
         onOpen={open}
         onToggle={toggle}
+        onRate={(id, rating) => {
+          void rateItem(id, rating);
+        }}
+        onDone={(id) => {
+          void perform("done", [id]);
+        }}
       />
     );
   }
@@ -260,8 +322,8 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         <FilterBar filters={filters} sources={sourceNames} onChange={onFilters} />
         {filters.text && filters.view !== "all" && (
           <p className="nudge" role="note">
-            Searching only <strong>{VIEWS.find((v) => v.value === filters.view)?.label}</strong>. Done, dismissed,
-            snoozed and expired items, and older ones, are not looked at.{" "}
+            Searching only <strong>{VIEWS.find((v) => v.value === filters.view)?.label}</strong>. Done, snoozed and
+            expired items, and older ones, are not looked at.{" "}
             <button
               type="button"
               onClick={() => {
@@ -321,14 +383,6 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
             <button
               type="button"
               onClick={() => {
-                void perform("dismiss", [...selected]);
-              }}
-            >
-              Dismiss
-            </button>
-            <button
-              type="button"
-              onClick={() => {
                 setSnoozing([...selected]);
               }}
             >
@@ -366,6 +420,9 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
               id={openId}
               onAction={(action) => {
                 void perform(action, [openId]);
+              }}
+              onRate={(rating) => {
+                void rateItem(openId, rating);
               }}
               onSnooze={() => {
                 setSnoozing([openId]);

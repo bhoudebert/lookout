@@ -11,7 +11,7 @@ The model endpoint refused the connection. Start it with `ollama serve`. If doct
 Either the daily limit is spent or the model is down. The run summary at the top of the dashboard says how many items wait ("12 waiting for the model"), and so does `lookout run`.
 
 - **The limit is spent.** `llm.daily_limit` counts model calls per day (200 by default). The rest are read the next day, most urgent first, and rule-based priorities (a critical advisory on your stack, for example) already apply. A local model costs nothing, so raise the limit: `daily_limit: 2000`.
-- **Only items you can see are read.** Done, dismissed and expired items are never sent to the model, so a big backlog does not eat the budget. Reopen one and it joins the queue.
+- **Only items you can see are read.** Done and expired items are never sent to the model, so a big backlog does not eat the budget. Reopen one and it joins the queue.
 - **The model is down.** Run `lookout doctor`.
 
 ## "The model could not read it"

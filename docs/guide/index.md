@@ -17,9 +17,9 @@ features:
   - title: Any model
     details: One OpenAI-compatible port. Start free with Ollama on your machine; point it at any compatible endpoint later.
   - title: A triage inbox
-    details: New, seen, done, snoozed, dismissed, starred. Filters in the URL, keyboard shortcuts, bulk actions and undo.
+    details: New, seen, done, snoozed, starred, thumbs up and down. Filters in the URL, keyboard shortcuts, bulk actions and undo.
   - title: It learns, and says why
-    details: Stars, finished items and dismissals reorder items inside their priority. "Why this rank" shows each contribution.
+    details: Stars and thumbs reorder items inside their priority. "Why this rank" shows each contribution.
   - title: Yours
     details: One SQLite file, one process, MIT licence. Content from sources is treated as data, never as instructions.
   - title: Proven

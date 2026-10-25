@@ -37,7 +37,7 @@ See [how priority is decided](/priorities).
 
 ## States
 
-An item is **new**, **seen**, **done**, **snoozed** (until a time) or **dismissed**. Starring is separate and works in any state. Opening a new item makes it seen. Done, dismissed and snoozed items leave the inbox; reopening brings them back as seen. A snoozed item returns as new when its time comes.
+An item is **new**, **seen**, **done**, **snoozed** (until a time) or **expired** (nobody looked at it for too long). Starring and your **rating** (thumbs up or down) are separate and work in any state. Opening a new item makes it seen. Done, snoozed and expired items leave the inbox; reopening brings them back as seen. A snoozed item returns as new when its time comes.
 
 ## Your stack
 

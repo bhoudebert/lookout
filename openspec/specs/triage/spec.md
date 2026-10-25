@@ -8,7 +8,7 @@ Let the user work an inbox: see, act, defer, discard.
 
 ### Requirement: States
 
-An item SHALL be in one state: `new`, `seen`, `done`, `snoozed` (with a wake time), `dismissed` or `expired` (reached by
+An item SHALL be in one state: `new`, `seen`, `done`, `snoozed` (with a wake time) or `expired` (reached by
 the system only, see retention). An independent star
 flag SHALL be settable in any state. Opening an item moves `new` to `seen`.
 
@@ -17,9 +17,20 @@ flag SHALL be settable in any state. Opening an item moves `new` to `seen`.
 - **WHEN** the user opens a new item
 - **THEN** it becomes `seen` and a `seen` signal is recorded
 
+### Requirement: Rating
+
+An item SHALL carry a rating, up, down or none, independent of its state and of the star. Setting the rating the item
+already has SHALL clear it. A rating SHALL NOT remove the item from the inbox, SHALL be undoable, and SHALL be reachable from
+the HTTP API and the command line. `done` SHALL remove the item from the inbox and teach nothing.
+
+#### Scenario: Thumbs down, then done
+
+- **WHEN** the user rates an item down and then marks it done
+- **THEN** the item stays in the inbox after the first action, leaves it after the second, and keeps its down rating
+
 ### Requirement: Transitions
 
-`done`, `dismissed` and `snoozed` SHALL be reachable from any other state, and reopening SHALL return the item to
+`done` and `snoozed` SHALL be reachable from any other state, and reopening SHALL return the item to
 `seen`. A snoozed item SHALL return to `new` when its wake time passes, as a result of the next scheduler tick or inbox
 query.
 
@@ -30,7 +41,7 @@ query.
 
 ### Requirement: Inbox query
 
-The inbox SHALL list items not `done`, not `dismissed` and not snoozed, filterable by priority, category, source,
+The inbox SHALL list items not `done`, not expired and not snoozed, filterable by priority, category, source,
 state, star, text and age (`older_than_days`, `newer_than_days`). It SHALL be orderable by `priority` (band, then personal
 score, then recency; the default) or by `date` (newest first). The result SHALL be paginated and say the real total.
 

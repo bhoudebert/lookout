@@ -9,7 +9,7 @@ Lookout is a triage inbox for daily work, not a daily digest: an item is somethi
 
 ## Decision
 
-States: `new → seen → done`, or `snoozed(until)` (returns to `new` at that time), or `dismissed`; `starred` is an
+States: `new → seen → done`, or `snoozed(until)` (returns to `new` at that time) (`dismissed` was folded into `done` by ADR 0017); `starred` is an
 independent flag. Transitions are enforced by the domain; done and dismissed are reversible by reopening. Priority is
 P0 (act today), P1 (this week), P2 (read when free), P3 (background), plus an `action_needed` flag. Categories are an
 open list configured by the user with a built-in default set (security, release, breaking-change, tooling, ai,

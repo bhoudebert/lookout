@@ -42,6 +42,7 @@ class ItemOut(BaseModel):
     unread: bool = Field(description="True while the model has not read the item and has not failed on it.")
     score: int | None
     boost: int
+    rating: int = Field(description="1 thumbs up, -1 thumbs down, 0 none.")
 
     @classmethod
     def of(cls, item: Item) -> "ItemOut":
@@ -70,6 +71,7 @@ class ItemOut(BaseModel):
             unread=reading is None and not item.enrichment_failed,
             score=reading.score if reading else None,
             boost=item.boost,
+            rating=int(item.rating),
         )
 
 
@@ -129,6 +131,24 @@ class UndoOut(BaseModel):
     state: State
     snoozed_until: datetime | None
     starred: bool
+    rating: int = Field(default=0, ge=-1, le=1)
+    rated_at: datetime | None = None
+
+    @classmethod
+    def of(cls, item: Item) -> "UndoOut":
+        return cls(
+            state=item.state,
+            snoozed_until=item.snoozed_until,
+            starred=item.starred,
+            rating=int(item.rating),
+            rated_at=item.rated_at,
+        )
+
+
+class RatingIn(BaseModel):
+    """Thumbs up (1), thumbs down (-1); the rating the item already has clears it."""
+
+    rating: int = Field(ge=-1, le=1)
 
 
 class ActionOut(BaseModel):

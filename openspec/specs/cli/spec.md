@@ -9,7 +9,7 @@ Operate Lookout from a terminal.
 ### Requirement: Commands
 
 `lookout serve` (API, UI, scheduler), `lookout run` (one run now), `lookout doctor`, `lookout inbox` (list with
-filters), `lookout act <id> <seen|done|dismiss|snooze|star>`, `lookout demo` (seed demo data), `lookout export`
+filters), `lookout act <id> <seen|done|snooze|star>`, `lookout rate <id> <up|down|none>`, `lookout demo` (seed demo data), `lookout export`
 (JSON). Every command SHALL have `--help`.
 
 ### Requirement: Configuration

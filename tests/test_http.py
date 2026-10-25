@@ -140,7 +140,7 @@ def test_bulk_actions(filled: Api) -> None:
     }
     assert len(filled.items()) == 1
     assert (
-        filled.client.post("/api/items/bulk", json={"ids": [ids[2], "nope"], "action": "dismiss"}).status_code
+        filled.client.post("/api/items/bulk", json={"ids": [ids[2], "nope"], "action": "done"}).status_code
         == 404
     )
     assert (

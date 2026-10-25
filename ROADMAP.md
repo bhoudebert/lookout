@@ -10,6 +10,7 @@ Not commitments. Ordered by expected value for one person tracking the news, rel
 - Sources and a tree of categories managed in the dashboard, with a file that only seeds them, and a way to file existing items again.
 - Freshness at ingestion, expiry of untouched items, Triage and Latest orders, paging and acting on a whole selection (ADR 0016).
 - Reddit communities and YouTube channels as source types, and suggested sources grouped by theme (status pages, news, ...).
+- Thumbs up and down on every item, and Done that only clears (ADR 0017); the old dismissals became ratings.
 - Hacker News source (front page, newest, Ask, Show; points) and one-click suggested sources.
 - OSV vulnerabilities for the declared stack, with CVSS severity and CISA's known-exploited flag.
 - A container image (published with each release) and a NixOS module, see the self-hosting guide.

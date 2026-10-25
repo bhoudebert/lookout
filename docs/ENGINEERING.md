@@ -54,7 +54,7 @@ Enricher (LLM, JSON) ◀──────────────────�
                                   │
 PriorityPolicy: priority = max(rule_floor, band(llm_score + profile_boost)); reason recorded
                                   │
-Inbox ranking: urgency band first, then personal score (stars, reads, dismissals, embeddings)
+Inbox ranking: urgency band first, then personal score (stars, reads, ratings, embeddings)
 ```
 
 ## Ports

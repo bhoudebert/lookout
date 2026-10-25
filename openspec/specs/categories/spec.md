@@ -31,7 +31,7 @@ it and its subcategories, and `All` clears it.
 ### Requirement: Counts that match the list
 
 The number beside each category SHALL be the number of items the list would show in it (and under it) with the filters
-in force, the category aside: the view (inbox by default; done, dismissed or expired items are not counted in the
+in force, the category aside: the view (inbox by default; done or expired items are not counted in the
 inbox), priority, source, star, text and age. `All` SHALL equal the total of the list without a category.
 
 #### Scenario: A category and its list

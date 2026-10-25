@@ -10,6 +10,7 @@ from lookout.application.ports import InboxQuery
 from lookout.application.triage import Action, Inbox, ItemNotFoundError, Triage
 from lookout.domain.item import InvalidTransitionError
 from lookout.domain.priority import Priority
+from lookout.domain.rating import Rating
 from lookout.domain.state import State
 
 
@@ -34,18 +35,18 @@ def test_opening_a_done_item_leaves_it_done() -> None:
     assert triage.act(item.id, Action.OPEN).after.state is State.DONE
 
 
-def test_done_and_dismissed_items_leave_the_inbox() -> None:
+def test_done_items_leave_the_inbox_and_rated_ones_stay() -> None:
     triage, inbox, _, repo = setup()
-    keep, done, dismissed = (
+    keep, done, liked = (
         make_item("https://a.test/1"),
         make_item("https://a.test/2"),
         make_item("https://a.test/3"),
     )
-    for item in (keep, done, dismissed):
+    for item in (keep, done, liked):
         repo.save(item)  # type: ignore[attr-defined]
     triage.act(done.id, Action.DONE)
-    triage.act(dismissed.id, Action.DISMISS)
-    assert [i.id for i in inbox.list().items] == [keep.id]
+    triage.rate(liked.id, Rating.UP)
+    assert {i.id for i in inbox.list().items} == {keep.id, liked.id}
 
 
 def test_snoozed_item_returns_as_new_when_its_time_passes() -> None:
@@ -77,13 +78,12 @@ def test_snoozing_needs_a_wake_up_time() -> None:
         triage.act(item.id, Action.SNOOZE)
 
 
-def test_reopen_brings_back_done_dismissed_and_snoozed_items() -> None:
-    for how in (Action.DONE, Action.DISMISS):
-        triage, _, _, repo = setup()
-        item = make_item()
-        repo.save(item)  # type: ignore[attr-defined]
-        triage.act(item.id, how)
-        assert triage.act(item.id, Action.REOPEN).after.state is State.SEEN
+def test_reopen_brings_back_done_and_snoozed_items() -> None:
+    triage, _, _, repo = setup()
+    item = make_item()
+    repo.save(item)  # type: ignore[attr-defined]
+    triage.act(item.id, Action.DONE)
+    assert triage.act(item.id, Action.REOPEN).after.state is State.SEEN
     triage, _, _, repo = setup()
     item = make_item()
     repo.save(item)  # type: ignore[attr-defined]
@@ -120,7 +120,7 @@ def test_last_action_can_be_undone() -> None:
     triage, inbox, _, repo = setup()
     item = make_item()
     repo.save(item)  # type: ignore[attr-defined]
-    outcome = triage.act(item.id, Action.DISMISS)
+    outcome = triage.act(item.id, Action.DONE)
     assert inbox.list().total == 0
     triage.undo(outcome)
     assert [i.id for i in inbox.list().items] == [item.id]

@@ -4,6 +4,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import StrEnum
 from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -16,7 +17,19 @@ from lookout.application.services import Services
 from lookout.application.triage import Action, ItemNotFoundError
 from lookout.domain.item import InvalidTransitionError, Item
 from lookout.domain.priority import Priority
+from lookout.domain.rating import Rating
 from lookout.domain.state import State
+
+
+class RatingChoice(StrEnum):
+    """The words `lookout rate` understands."""
+
+    UP = "up"
+    DOWN = "down"
+    NONE = "none"
+
+
+RATINGS = {RatingChoice.UP: Rating.UP, RatingChoice.DOWN: Rating.DOWN, RatingChoice.NONE: Rating.NONE}
 
 Opener = Callable[[Path], Services]
 Server = Callable[[Services, str, int], None]
@@ -108,7 +121,7 @@ def create_app(open_services: Opener, serve: Server) -> typer.Typer:
             str | None, typer.Option("--until", help="Snooze until an ISO date and time.")
         ] = None,
     ) -> None:
-        """Open, finish, dismiss, snooze or star an item."""
+        """Open, finish, snooze or star an item."""
         with _open(ctx) as services:
             wake = _wake(services.clock.now(), hours, until) if action is Action.SNOOZE else None
             try:
@@ -117,6 +130,20 @@ def create_app(open_services: Opener, serve: Server) -> typer.Typer:
                 _die(f"no item {item_id}")
             except InvalidTransitionError as error:
                 _die(str(error))
+        typer.echo(_line(outcome.after))
+
+    @app.command()
+    def rate(
+        ctx: typer.Context,
+        item_id: Annotated[str, typer.Argument(help="Item id, as shown by `inbox`.")],
+        rating: Annotated[RatingChoice, typer.Argument(help="up, down, or none to clear it.")],
+    ) -> None:
+        """Rate an item up or down: what Lookout learns from. The same rating again clears it."""
+        with _open(ctx) as services:
+            try:
+                outcome = services.triage.rate(item_id, RATINGS[rating])
+            except ItemNotFoundError:
+                _die(f"no item {item_id}")
         typer.echo(_line(outcome.after))
 
     @app.command(name="serve")

@@ -30,9 +30,15 @@ and the "why this rank" breakdown.
 
 ### Requirement: Actions and keyboard
 
-The user SHALL be able to mark seen, done, dismiss, snooze (preset durations or a date) and star, per item and in bulk,
-with keyboard shortcuts (`j`/`k` move, `o` open, `e` done, `d` dismiss, `s` snooze, `*` star, `u` undo, `?` help). The
+The user SHALL be able to mark seen, done, snooze (preset durations or a date) and star, rate an item up or down, per item and in bulk (rating per item),
+with keyboard shortcuts (`j`/`k` move, `o` open, `e` done, `+` thumbs up, `-` thumbs down, `s` snooze, `*` star, `u` undo, `?` help). The
 last action SHALL be undoable.
+
+### Requirement: Rating and clearing
+
+Each item in the list and in the detail SHALL show a thumbs up, a thumbs down and a Done button; a pressed thumb shows the
+item's rating and pressing it again clears it. Done SHALL remove the item from the list, close its detail if it was
+open, and move to the next item. A rating SHALL leave the item where it is.
 
 ### Requirement: Sources view
 

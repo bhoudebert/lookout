@@ -144,4 +144,4 @@ def triage_for(
 ) -> tuple[Triage, Personalize]:
     """A triage use case wired to real personalization on the same database."""
     personalize = Personalize(repo, SqliteSignalRepository(db), clock or FixedClock())
-    return Triage(repo, personalize), personalize
+    return Triage(repo, personalize, clock or FixedClock()), personalize

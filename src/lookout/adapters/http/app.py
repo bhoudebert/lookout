@@ -26,6 +26,7 @@ from lookout.adapters.http.schemas import (
     ItemFilter,
     ItemOut,
     ItemPage,
+    RatingIn,
     RefileOut,
     RestoreIn,
     RunOut,
@@ -44,10 +45,11 @@ from lookout.adapters.http.schemas import (
 from lookout.application.ports import InboxQuery, Order
 from lookout.application.registry import DuplicateError, InUseError, InvalidError, NotFoundError
 from lookout.application.services import Services
-from lookout.application.triage import Action, ItemNotFoundError, TooManyItemsError
+from lookout.application.triage import Action, ItemNotFoundError, TooManyItemsError, Undo
 from lookout.domain.channel import Channel
 from lookout.domain.item import InvalidTransitionError
 from lookout.domain.priority import Priority
+from lookout.domain.rating import Rating
 from lookout.domain.source import SourceDef
 from lookout.domain.state import State
 
@@ -99,16 +101,20 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
             raise HTTPException(404, f"no item {item_id}") from None
         except InvalidTransitionError as error:
             raise HTTPException(409, str(error)) from error
-        before = outcome.before
-        return ActionOut(
-            item=ItemOut.of(outcome.after),
-            undo=UndoOut(state=before.state, snoozed_until=before.snoozed_until, starred=before.starred),
-        )
+        return ActionOut(item=ItemOut.of(outcome.after), undo=UndoOut.of(outcome.before))
+
+    @app.post("/api/items/{item_id}/rating")
+    def rate(item_id: str, body: RatingIn) -> ActionOut:
+        try:
+            outcome = services.triage.rate(item_id, Rating(body.rating))
+        except ItemNotFoundError:
+            raise HTTPException(404, f"no item {item_id}") from None
+        return ActionOut(item=ItemOut.of(outcome.after), undo=UndoOut.of(outcome.before))
 
     @app.post("/api/items/{item_id}/restore")
     def restore(item_id: str, body: UndoOut) -> ItemOut:
         try:
-            item = services.triage.restore(item_id, body.state, body.snoozed_until, starred=body.starred)
+            item = services.triage.restore(_undo(item_id, body))
         except ItemNotFoundError:
             raise HTTPException(404, f"no item {item_id}") from None
         return ItemOut.of(item)
@@ -140,22 +146,13 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
             matched=result.matched,
             changed=len(result.outcomes),
             sample=[ItemOut.of(i) for i in result.sample],
-            undo=[
-                UndoEntry(
-                    id=o.before.id,
-                    state=o.before.state,
-                    snoozed_until=o.before.snoozed_until,
-                    starred=o.before.starred,
-                )
-                for o in result.outcomes
-            ],
+            undo=[UndoEntry(id=o.before.id, **UndoOut.of(o.before).model_dump()) for o in result.outcomes],
         )
 
     @app.post("/api/items/restore-many")
     def restore_many(body: RestoreIn) -> BulkOut:
         try:
-            for entry in body.entries:
-                services.triage.restore(entry.id, entry.state, entry.snoozed_until, starred=entry.starred)
+            services.triage.restore_many(tuple(_undo(entry.id, entry) for entry in body.entries))
         except ItemNotFoundError as error:
             raise HTTPException(404, f"no item {error}") from error
         return BulkOut(changed=len(body.entries))
@@ -272,6 +269,17 @@ def _guard[T](change: Callable[[], T]) -> T:
         raise HTTPException(409, str(error)) from None
     except InvalidError as error:
         raise HTTPException(422, str(error)) from None
+
+
+def _undo(item_id: str, body: UndoOut) -> Undo:
+    return Undo(
+        item_id,
+        body.state,
+        body.snoozed_until,
+        body.starred,
+        Rating(body.rating),
+        body.rated_at,
+    )
 
 
 def _query(selection: ItemFilter, now: datetime) -> InboxQuery:
