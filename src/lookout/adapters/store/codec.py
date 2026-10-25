@@ -9,6 +9,7 @@ from lookout.domain.channel import OTHER
 from lookout.domain.enrichment import MAX_TAGS, Enrichment
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
+from lookout.domain.rating import Rating
 from lookout.domain.severity import Severity
 from lookout.domain.state import State
 
@@ -32,6 +33,8 @@ def encode(item: Item) -> str:
             "state": item.state.value,
             "snoozed_until": _dt(item.snoozed_until) if item.snoozed_until else None,
             "starred": item.starred,
+            "rating": int(item.rating),
+            "rated_at": _dt(item.rated_at) if item.rated_at else None,
             "boost": item.boost,
             "author": item.author,
             "channel": item.channel,
@@ -61,6 +64,8 @@ def decode(text: str) -> Item:
         state=State(raw["state"]),
         snoozed_until=datetime.fromisoformat(raw["snoozed_until"]) if raw["snoozed_until"] else None,
         starred=raw["starred"],
+        rating=Rating(raw.get("rating", 0)),
+        rated_at=datetime.fromisoformat(raw["rated_at"]) if raw.get("rated_at") else None,
         boost=raw["boost"],
         author=raw.get("author", ""),
         channel=raw.get("channel", OTHER),

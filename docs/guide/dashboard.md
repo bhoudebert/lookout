@@ -8,18 +8,27 @@ By default (**Triage**) items are ordered by priority, then by your profile, the
 
 Filters are kept in the address, so a filtered inbox can be bookmarked:
 
-- priority chips, order (Triage or Latest), view (Inbox, Snoozed, Done, Dismissed, **Expired**, Everything) and age (newer than a week, older than a week, two weeks, a month)
+- priority chips, order (Triage or Latest), view (Inbox, Snoozed, Done, **Expired**, Everything) and age (newer than a week, older than a week, two weeks, a month)
 - category (picked in the tree beside the list, subcategories included; the numbers in the tree are what the list would show with the other filters, so they change with the view, age and the rest), source, starred, and free text over title, summary, tags and author
 
-A search only looks where you are: in the Inbox view, done, dismissed, snoozed and expired items are not searched. When you type a search outside **Everything**, a note says so and **Search everything** widens it in one click (every state, every age). Search reads the title, summary, tags and author, not the full text, and cannot find entries that were older than the source's age limit when they arrived.
+A search only looks where you are: in the Inbox view, done, snoozed and expired items are not searched. When you type a search outside **Everything**, a note says so and **Search everything** widens it in one click (every state, every age). Search reads the title, summary, tags and author, not the full text, and cannot find entries that were older than the source's age limit when they arrived.
 
 The list loads 50 items at a time: **Load more** fetches the next 50, and the count always says the real total ("50 of 2329").
 
-**Mark P2 and P3 as seen** clears the quiet items in one click. **Act on all N…** acts on everything the current filters match, not only what is loaded: it counts first, shows a few examples, asks you to choose (done, dismissed or seen), and offers Undo. It teaches your profile nothing, and nothing is deleted. See [keeping the inbox small](/inbox-size).
+**Mark P2 and P3 as seen** clears the quiet items in one click. **Act on all N…** acts on everything the current filters match, not only what is loaded: it counts first, shows a few examples, asks you to choose (done or seen), and offers Undo. It teaches your profile nothing, and nothing is deleted. See [keeping the inbox small](/inbox-size).
 
 ## An item
 
 Click a title, or press `o`. The panel shows the summary, the original text, a link to the source, the stack entries it touches, the priority reason and **Why this rank**. Opening a new item marks it seen.
+
+## Thumbs and Done
+
+Every item, in the list and in its panel, has three controls:
+
+- **Thumbs up** and **thumbs down** say whether you want more or less of this. The pressed thumb is the item's rating; pressing it again clears it. A rating teaches your profile (its source, author, category and tags) and **never removes the item**.
+- **Done** clears the item from the inbox and teaches nothing. The panel closes and the next item takes the focus, so you can keep going with `e`.
+
+Use a thumb down and Done together for noise, a thumb up for what you want more of, and Done alone to tidy. See [how it learns your taste](/personalization).
 
 ## Acting
 
@@ -27,15 +36,15 @@ Click a title, or press `o`. The panel shows the summary, the original text, a l
 | ---------- | --------------------------------------------- |
 | `j` / `k`  | next / previous item                          |
 | `o`, Enter | open                                          |
-| `e`        | done                                          |
-| `d`        | dismiss                                       |
+| `e`        | done: clear the item from the inbox           |
+| `+` / `-`  | thumbs up / thumbs down                       |
 | `s`        | snooze (1 hour, 4 hours, tomorrow, next week) |
 | `*`        | star / unstar                                 |
 | `x`        | select for a bulk action                      |
 | `u`        | undo the last action                          |
 | `?`        | help                                          |
 
-With items selected, `e`, `d` and `s` apply to all of them. A bulk action is all or nothing.
+With items selected, `e` and `s` apply to all of them; a thumb applies to the focused item. A bulk action is all or nothing.
 
 Every action shows a message with **Undo** for eight seconds.
 

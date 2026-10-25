@@ -90,12 +90,11 @@ def test_nothing_pending_does_nothing() -> None:
 
 
 def test_the_daily_budget_is_not_spent_on_items_nobody_will_see() -> None:
-    """Expired, dismissed and done items took most of the budget, so the ones in the inbox kept waiting."""
+    """Expired and done items took most of the budget, so the ones in the inbox kept waiting."""
     scripted = ScriptedEnricher({})
     enrich, items, _, _ = build(scripted, limit=2)
     gone = [
         make_item("https://x/expired", title="Expired", published_at=NOW - timedelta(days=60)).expire(),
-        make_item("https://x/dismissed", title="Dismissed").dismiss(),
         make_item("https://x/done", title="Done").mark_done(),
     ]
     visible = [
@@ -107,7 +106,7 @@ def test_the_daily_budget_is_not_spent_on_items_nobody_will_see() -> None:
         items.save(item)
     assert {i.title for i in items.pending_enrichment()} == {"New", "Seen", "Snoozed"}
     assert enrich.run().waiting == 1
-    assert set(scripted.asked).isdisjoint({"Expired", "Dismissed", "Done"})
+    assert set(scripted.asked).isdisjoint({"Expired", "Done"})
 
 
 def test_an_expired_item_that_is_reopened_gets_read_then() -> None:

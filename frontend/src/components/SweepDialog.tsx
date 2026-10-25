@@ -4,7 +4,6 @@ import { useSweep } from "../hooks";
 
 const CHOICES: { action: Action; label: string }[] = [
   { action: "done", label: "done" },
-  { action: "dismiss", label: "dismissed" },
   { action: "open", label: "seen" },
 ];
 

@@ -1,7 +1,8 @@
 import { Fragment } from "react";
-import type { Item } from "../api/types";
+import type { Item, Rating } from "../api/types";
 import { timeAgo } from "../format";
 import { PriorityBadge } from "./PriorityBadge";
+import { DoneButton, RatingButtons } from "./RatingButtons";
 
 interface Props {
   items: Item[];
@@ -13,9 +14,22 @@ interface Props {
   onFocus: (id: string) => void;
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
+  onRate: (id: string, rating: Exclude<Rating, 0>) => void;
+  onDone: (id: string) => void;
 }
 
-export function ItemList({ items, focusedId, selected, now, earlierFrom, onFocus, onOpen, onToggle }: Props) {
+export function ItemList({
+  items,
+  focusedId,
+  selected,
+  now,
+  earlierFrom,
+  onFocus,
+  onOpen,
+  onToggle,
+  onRate,
+  onDone,
+}: Props) {
   return (
     <ul className="items" aria-label="Items">
       {items.map((item, index) => (
@@ -69,6 +83,21 @@ export function ItemList({ items, focusedId, selected, now, earlierFrom, onFocus
                 </p>
               )}
               {item.summary && <p className="summary">{item.summary}</p>}
+            </div>
+            <div className="item-actions">
+              <RatingButtons
+                rating={item.rating}
+                about={item.title}
+                onRate={(rating) => {
+                  onRate(item.id, rating);
+                }}
+              />
+              <DoneButton
+                about={item.title}
+                onDone={() => {
+                  onDone(item.id);
+                }}
+              />
             </div>
           </li>
         </Fragment>

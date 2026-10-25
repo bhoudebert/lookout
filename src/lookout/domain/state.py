@@ -13,5 +13,4 @@ class State(StrEnum):
     SEEN = "seen"
     DONE = "done"
     SNOOZED = "snoozed"
-    DISMISSED = "dismissed"
     EXPIRED = "expired"

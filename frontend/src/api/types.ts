@@ -19,11 +19,13 @@ export type Channel = Schemas["ChannelOut"];
 export type Sweep = Schemas["SweepOut"];
 export type UndoEntry = Schemas["UndoEntry"];
 export type RefileResult = Schemas["RefileOut"];
+/** 1 thumbs up, -1 thumbs down, 0 none. */
+export type Rating = -1 | 0 | 1;
 export type Priority = "P0" | "P1" | "P2" | "P3";
 export const PRIORITIES: readonly Priority[] = ["P0", "P1", "P2", "P3"];
 
 /** The views of the inbox the state selector offers. */
-export type View = "inbox" | "snoozed" | "done" | "dismissed" | "expired" | "all";
+export type View = "inbox" | "snoozed" | "done" | "expired" | "all";
 
 /** Triage orders by priority; Latest is strictly newest first (ADR 0016). */
 export type Order = "priority" | "date";

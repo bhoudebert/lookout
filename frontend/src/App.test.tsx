@@ -43,7 +43,7 @@ const three = () => [
 ];
 
 const titles = () =>
-  screen.getAllByRole("button", { name: /Django flaw|React 20 RC|Rust reader/ }).map((b) => b.textContent);
+  screen.getAllByRole("button", { name: /^(Django flaw|React 20 RC|Rust reader)$/ }).map((b) => b.textContent);
 
 describe("the inbox", () => {
   it("shows a loading state then the items with their priority written out", async () => {
@@ -314,11 +314,14 @@ describe("acting", () => {
     const { user } = mount(new FakeBackend(three()));
     await user.click(await screen.findByRole("button", { name: "Django flaw" }));
     const detail = await screen.findByRole("complementary", { name: "Item detail" });
-    await user.click(within(detail).getByRole("button", { name: "Done" }));
+    await user.click(within(detail).getByRole("button", { name: /^Done/ }));
     expect(await screen.findByText("Marked done", { selector: ".toast" })).toBeInTheDocument();
     await waitFor(() => {
       expect(titles()).not.toContain("Django flaw");
     });
+    // The finished item's detail goes with it, and the next item is the one in focus.
+    expect(screen.queryByRole("complementary", { name: "Item detail" })).not.toBeInTheDocument();
+    expect(screen.getByRole("listitem", { current: true })).toHaveTextContent("React 20 RC");
     await user.click(screen.getByRole("button", { name: "Undo" }));
     await waitFor(() => {
       expect(titles()).toContain("Django flaw");
@@ -326,7 +329,7 @@ describe("acting", () => {
     expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
   });
 
-  it("dismisses, stars, unstars and reopens", async () => {
+  it("stars and unstars", async () => {
     const backend = new FakeBackend(three());
     const { user } = mount(backend);
     await user.click(await screen.findByRole("button", { name: "React 20 RC" }));
@@ -334,8 +337,13 @@ describe("acting", () => {
     await user.click(within(detail).getByRole("button", { name: "Star" }));
     await user.click(await within(detail).findByRole("button", { name: "Unstar" }));
     await within(detail).findByRole("button", { name: "Star" });
-    await user.click(within(detail).getByRole("button", { name: "Dismiss" }));
-    expect(await screen.findByText("Dismissed", { selector: ".toast" })).toBeInTheDocument();
+  });
+
+  it("reopens a finished item from the Done view", async () => {
+    const backend = new FakeBackend([makeItem({ id: "d1", title: "Old news", state: "done" })]);
+    const { user } = mount(backend, "/?view=done&item=d1");
+    const detail = await screen.findByRole("complementary", { name: "Item detail" });
+    expect(within(detail).queryByRole("button", { name: /^Done/ })).not.toBeInTheDocument();
     await user.click(await within(detail).findByRole("button", { name: "Reopen" }));
     expect(await screen.findByText("Reopened", { selector: ".toast" })).toBeInTheDocument();
   });
@@ -363,7 +371,7 @@ describe("acting", () => {
     await user.click(await screen.findByRole("button", { name: "React 20 RC" }));
     const detail = await screen.findByRole("complementary", { name: "Item detail" });
     backend.failWith = { status: 409, detail: "already in the inbox" };
-    await user.click(within(detail).getByRole("button", { name: "Done" }));
+    await user.click(within(detail).getByRole("button", { name: /^Done/ }));
     expect(await screen.findByText("already in the inbox")).toBeInTheDocument();
   });
 
@@ -372,7 +380,7 @@ describe("acting", () => {
     const { user } = mount(backend);
     await user.click(await screen.findByRole("button", { name: "React 20 RC" }));
     const detail = await screen.findByRole("complementary", { name: "Item detail" });
-    await user.click(within(detail).getByRole("button", { name: "Dismiss" }));
+    await user.click(within(detail).getByRole("button", { name: /^Done/ }));
     const undo = await screen.findByRole("button", { name: "Undo" });
     backend.failWith = { status: 404, detail: "no item b" };
     await user.click(undo);
@@ -440,8 +448,14 @@ describe("keyboard", () => {
       expect(titles()).toContain("React 20 RC");
     });
 
-    await user.keyboard("d");
-    await screen.findByText("Dismissed", { selector: ".toast" });
+    await user.keyboard("+");
+    await screen.findByText("More like this", { selector: ".toast" });
+    await user.keyboard("-");
+    await screen.findByText("Less like this", { selector: ".toast" });
+    await user.keyboard("-");
+    await screen.findByText("Rating cleared", { selector: ".toast" });
+    await user.keyboard("=");
+    await screen.findByText("More like this", { selector: ".toast" });
 
     await user.keyboard("s");
     await user.click(screen.getByRole("button", { name: "1 hour" }));
@@ -461,7 +475,7 @@ describe("keyboard", () => {
     await screen.findByText(/Nothing to look at/);
     const { default: userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
-    await user.keyboard("jkoes*xdu{Enter}");
+    await user.keyboard("jkoes*x+-=u{Enter}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -502,21 +516,30 @@ describe("bulk actions", () => {
     });
   });
 
-  it("dismisses and snoozes a selection, with x and the keys", async () => {
+  it("selects with x and the keys, and snoozes the selection", async () => {
     const { user } = mount(new FakeBackend(three()));
     await screen.findByRole("button", { name: "Django flaw" });
     await user.keyboard("x");
     await user.keyboard("jx");
     await user.click(document.body);
-    await user.click(
-      within(screen.getByRole("group", { name: "Bulk actions" })).getByRole("button", { name: "Dismiss" }),
-    );
-    expect(await screen.findByText("Dismissed: 2 items")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Bulk actions" })).getByText("2 selected")).toBeInTheDocument();
+    await user.click(within(screen.getByRole("group", { name: "Bulk actions" })).getByRole("button", { name: "Done" }));
+    expect(await screen.findByText("Marked done: 2 items")).toBeInTheDocument();
 
     await user.keyboard("x");
     await user.click(screen.getByRole("button", { name: "Snooze…" }));
     await user.click(screen.getByRole("button", { name: "Tomorrow" }));
     expect(await screen.findByText(/Snoozed/, { selector: ".toast" })).toBeInTheDocument();
+  });
+
+  it("snoozes several selected items at once, which leaves the focus alone", async () => {
+    const { user } = mount(new FakeBackend(three()));
+    await screen.findByRole("button", { name: "Django flaw" });
+    await user.click(screen.getByLabelText("Select Django flaw"));
+    await user.click(screen.getByLabelText("Select React 20 RC"));
+    await user.click(screen.getByRole("button", { name: "Snooze…" }));
+    await user.click(screen.getByRole("button", { name: "Tomorrow" }));
+    expect(await screen.findByText("Snoozed: 2 items")).toBeInTheDocument();
   });
 
   it("drops items from the selection when they leave the list", async () => {
@@ -617,5 +640,96 @@ describe("sources", () => {
   it("shows loading first", () => {
     mount(new FakeBackend([], sources()), "/sources");
     expect(screen.getByText("Loading…")).toBeInTheDocument();
+  });
+});
+
+describe("thumbs and done on every row", () => {
+  const rowOf = async (title: string) => {
+    const button = await screen.findByRole("button", { name: title });
+    return button.closest("li") as HTMLElement;
+  };
+
+  it("rates up and down without moving the item, clears with the same thumb, and can undo", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    const item = await rowOf("React 20 RC");
+    const up = within(item).getByRole("button", { name: "More like this" });
+    const down = within(item).getByRole("button", { name: "Less like this" });
+    expect(up).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(up);
+    expect(await screen.findByText("More like this", { selector: ".toast" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(item).getByRole("button", { name: "More like this" })).toHaveAttribute("aria-pressed", "true");
+    });
+    expect(titles()).toContain("React 20 RC");
+    expect(backend.items.find((i) => i.id === "b")?.rating).toBe(1);
+
+    await user.click(down);
+    await screen.findByText("Less like this", { selector: ".toast" });
+    expect(backend.items.find((i) => i.id === "b")?.rating).toBe(-1);
+
+    await user.click(down);
+    await screen.findByText("Rating cleared", { selector: ".toast" });
+    expect(backend.items.find((i) => i.id === "b")?.rating).toBe(0);
+
+    await user.click(up);
+    await user.click(await screen.findByRole("button", { name: "Undo" }));
+    await waitFor(() => {
+      expect(backend.items.find((i) => i.id === "b")?.rating).toBe(0);
+    });
+  });
+
+  it("clears an item from its row with Done, and the next item takes the focus", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    const item = await rowOf("Django flaw");
+    await user.click(within(item).getByRole("button", { name: "Done: Django flaw" }));
+    await waitFor(() => {
+      expect(titles()).toEqual(["React 20 RC", "Rust reader"]);
+    });
+    expect(screen.getByRole("listitem", { current: true })).toHaveTextContent("React 20 RC");
+  });
+
+  it("moves the focus back when the last item is cleared", async () => {
+    const { user } = mount(new FakeBackend(three()));
+    const last = await rowOf("Rust reader");
+    await user.click(within(last).getByRole("button", { name: "Done: Rust reader" }));
+    await waitFor(() => {
+      expect(titles()).toEqual(["Django flaw", "React 20 RC"]);
+    });
+    expect(screen.getByRole("listitem", { current: true })).toHaveTextContent("React 20 RC");
+  });
+
+  it("rates from the detail too, showing the rating there", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    await user.click(await screen.findByRole("button", { name: "Django flaw" }));
+    const detail = await screen.findByRole("complementary", { name: "Item detail" });
+    await user.click(within(detail).getByRole("button", { name: "Less like this" }));
+    await waitFor(() => {
+      expect(within(detail).getByRole("button", { name: "Less like this" })).toHaveAttribute("aria-pressed", "true");
+    });
+    expect(backend.items.find((i) => i.id === "a")?.rating).toBe(-1);
+  });
+
+  it("shows when a rating was refused", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    const item = await rowOf("Django flaw");
+    backend.failWith = { status: 404, detail: "no item a" };
+    await user.click(within(item).getByRole("button", { name: "More like this" }));
+    expect(await screen.findByText("no item a")).toBeInTheDocument();
+  });
+
+  it("shows when undoing a rating fails", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    const item = await rowOf("Django flaw");
+    await user.click(within(item).getByRole("button", { name: "More like this" }));
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    backend.failWith = { status: 404, detail: "no item a" };
+    await user.click(undo);
+    expect(await screen.findByText("no item a")).toBeInTheDocument();
   });
 });

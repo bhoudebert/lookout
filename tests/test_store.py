@@ -77,7 +77,7 @@ def test_filters_combine() -> None:
         channel="Dev > Rust",
         score=70,
     ).star()
-    c = make_item("https://a.test/c", title="Other", sources=("hn",), priority=Priority.P3).dismiss()
+    c = make_item("https://a.test/c", title="Other", sources=("hn",), priority=Priority.P3).mark_done()
     for item in (a, b, c):
         repo.save(item)
 
@@ -92,7 +92,7 @@ def test_filters_combine() -> None:
     assert ids(channels=frozenset({"Developers"})) == set()
     assert ids(sources=frozenset({"hn"})) == {a.id, c.id}
     assert ids(sources=frozenset({"reddit", "blog"})) == {a.id, b.id}
-    assert ids(states=frozenset({State.DISMISSED})) == {c.id}
+    assert ids(states=frozenset({State.DONE})) == {c.id}
     assert ids(starred=True) == {b.id}
     assert ids(starred=False) == {a.id, c.id}
     assert ids(text="DJANGO") == {a.id}

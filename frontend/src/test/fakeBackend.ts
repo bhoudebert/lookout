@@ -25,6 +25,7 @@ export function makeItem(overrides: Partial<Item> = {}): Item {
     unread: false,
     score: 75,
     boost: 0,
+    rating: 0,
     ...overrides,
   };
 }
@@ -173,7 +174,8 @@ export class FakeBackend {
     if (path === "/api/items/seen-below") return this.seenBelow();
     if (id && path.endsWith("/actions")) return this.act(id, body as { action: string; hours?: number });
     if (id && path.endsWith("/restore"))
-      return this.restore(id, body as Pick<Item, "state" | "snoozed_until" | "starred">);
+      return this.restore(id, body as Pick<Item, "state" | "snoozed_until" | "starred" | "rating">);
+    if (id && path.endsWith("/rating")) return this.rate(id, body as { rating: number });
     if (id && method === "GET") return this.one(id);
     if (path === "/api/taxonomy") return this.json(this.counted(url.searchParams));
     if (path === "/api/sources" && method === "GET") return this.json(this.sources);
@@ -278,10 +280,16 @@ export class FakeBackend {
   /** An action on everything a filter matches, like the server: a dry run only counts and samples. */
   private sweep(body: { action: string; dry_run: boolean; filter: Filter }): Response {
     const matches = this.matching(body.filter);
-    const state = { done: "done", dismiss: "dismissed", open: "seen", snooze: "snoozed" }[body.action] as Item["state"];
+    const state = { done: "done", open: "seen", snooze: "snoozed" }[body.action] as Item["state"];
     const undo = body.dry_run
       ? []
-      : matches.map((i) => ({ id: i.id, state: i.state, snoozed_until: i.snoozed_until, starred: i.starred }));
+      : matches.map((i) => ({
+          id: i.id,
+          state: i.state,
+          snoozed_until: i.snoozed_until,
+          starred: i.starred,
+          rating: i.rating,
+        }));
     if (!body.dry_run) for (const item of matches) item.state = state;
     return this.json({
       matched: matches.length,
@@ -325,7 +333,6 @@ export class FakeBackend {
       {
         open: item.state === "new" ? { state: "seen" as const } : {},
         done: { state: "done" as const },
-        dismiss: { state: "dismissed" as const },
         snooze: { state: "snoozed" as const, snoozed_until: "2026-10-25T09:00:00Z" },
         reopen: { state: "seen" as const },
         star: { starred: true },
@@ -335,19 +342,34 @@ export class FakeBackend {
     this.undo.set(id, before);
     const result: ActionResult = {
       item,
-      undo: { state: before.state, snoozed_until: before.snoozed_until, starred: before.starred },
+      undo: {
+        state: before.state,
+        snoozed_until: before.snoozed_until,
+        starred: before.starred,
+        rating: before.rating,
+      },
     };
     return this.json(result);
   }
 
-  private restore(id: string, back: Pick<Item, "state" | "snoozed_until" | "starred">): Response {
+  /** Like the server: a thumb sets the rating, the same thumb again clears it; the item stays where it is. */
+  private rate(id: string, body: { rating: number }): Response {
+    const item = this.items.find((i) => i.id === id);
+    if (!item) return this.json({ detail: `no item ${id}` }, 404);
+    const before = { state: item.state, snoozed_until: item.snoozed_until, starred: item.starred, rating: item.rating };
+    item.rating = item.rating === body.rating ? 0 : body.rating;
+    const result: ActionResult = { item, undo: before };
+    return this.json(result);
+  }
+
+  private restore(id: string, back: Pick<Item, "state" | "snoozed_until" | "starred" | "rating">): Response {
     const item = this.items.find((i) => i.id === id) as Item;
     Object.assign(item, back);
     return this.json(item);
   }
 
   private bulk(body: { ids: string[]; action: string }): Response {
-    const state = { done: "done", dismiss: "dismissed", snooze: "snoozed" }[body.action] as Item["state"];
+    const state = { done: "done", snooze: "snoozed" }[body.action] as Item["state"];
     for (const item of this.items) if (body.ids.includes(item.id)) item.state = state;
     return this.json({ changed: body.ids.length });
   }

@@ -9,6 +9,7 @@ from lookout.domain.advisory import Advisory
 from lookout.domain.channel import OTHER
 from lookout.domain.enrichment import Enrichment
 from lookout.domain.priority import Priority
+from lookout.domain.rating import Rating
 from lookout.domain.state import State
 from lookout.domain.urls import canonical_url
 
@@ -41,6 +42,8 @@ class Item:
     state: State = State.NEW
     snoozed_until: datetime | None = None
     starred: bool = False
+    rating: Rating = Rating.NONE
+    rated_at: datetime | None = None
     boost: int = 0
     author: str = ""
     channel: str = OTHER
@@ -56,12 +59,8 @@ class Item:
         return self
 
     def mark_done(self) -> Self:
-        """The user handled it."""
+        """Out of the inbox. It teaches nothing: taste is said with a rating."""
         return replace(self, state=State.DONE, snoozed_until=None)
-
-    def dismiss(self) -> Self:
-        """The user does not want it."""
-        return replace(self, state=State.DISMISSED, snoozed_until=None)
 
     def expire(self) -> Self:
         """The system's doing, not the user's: nobody looked at it in time. Reopening undoes it."""
@@ -72,7 +71,7 @@ class Item:
         return replace(self, state=State.SNOOZED, snoozed_until=until)
 
     def reopen(self) -> Self:
-        """Bring a done, dismissed, snoozed or expired item back as seen."""
+        """Bring a done, snoozed or expired item back as seen."""
         if self.state in (State.NEW, State.SEEN):
             msg = f"item {self.id} is already in the inbox"
             raise InvalidTransitionError(msg)
@@ -84,9 +83,25 @@ class Item:
             return replace(self, state=State.NEW, snoozed_until=None)
         return self
 
-    def restored(self, state: State, snoozed_until: datetime | None, *, starred: bool) -> Self:
+    def restored(
+        self,
+        state: State,
+        snoozed_until: datetime | None,
+        *,
+        starred: bool,
+        rating: Rating = Rating.NONE,
+        rated_at: datetime | None = None,
+    ) -> Self:
         """Put the triage fields back as they were, for undo."""
-        return replace(self, state=state, snoozed_until=snoozed_until, starred=starred)
+        return replace(
+            self, state=state, snoozed_until=snoozed_until, starred=starred, rating=rating, rated_at=rated_at
+        )
+
+    def rated(self, rating: Rating, at: datetime) -> Self:
+        """Set the rating; the one the item already has clears it (the same thumb pressed twice)."""
+        if rating is self.rating:
+            return replace(self, rating=Rating.NONE, rated_at=None)
+        return replace(self, rating=rating, rated_at=None if rating is Rating.NONE else at)
 
     def star(self, *, starred: bool = True) -> Self:
         """Set or clear the star, in any state."""

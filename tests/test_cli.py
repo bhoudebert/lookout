@@ -86,7 +86,7 @@ def test_acting_on_items(tmp_path: Path) -> None:
     assert "[done]" in lookout("act", item, "done")
     assert "2 of 2" in lookout("inbox")
     assert "[seen]" in lookout("act", item, "reopen")
-    assert "[dismissed]" in lookout("act", item, "dismiss")
+    assert "[seen]" in lookout("rate", item, "up")
 
 
 def test_snooze_hides_until_the_time_passes(tmp_path: Path) -> None:

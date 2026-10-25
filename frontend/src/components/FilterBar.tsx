@@ -5,7 +5,6 @@ export const VIEWS: { value: View; label: string }[] = [
   { value: "inbox", label: "Inbox" },
   { value: "snoozed", label: "Snoozed" },
   { value: "done", label: "Done" },
-  { value: "dismissed", label: "Dismissed" },
   { value: "expired", label: "Expired" },
   { value: "all", label: "Everything" },
 ];

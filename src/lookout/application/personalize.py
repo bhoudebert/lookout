@@ -7,6 +7,7 @@ from lookout.application.triage import ItemNotFoundError
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
 from lookout.domain.profile import Contribution, Profile, Signal, SignalKind, learn
+from lookout.domain.rating import Rating
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +55,10 @@ class Personalize:
         self._signals.add(Signal(item.id, kind, self._clock.now()))
         self.rerank()
 
+    def rated(self) -> None:
+        """A rating was set or cleared: it lives on the item, so only the ranks need refreshing."""
+        self.rerank()
+
     def rerank(self) -> int:
         """Apply the profile to every item; returns how many ranks changed."""
         profile = self.profile()
@@ -75,6 +80,9 @@ class Personalize:
         return Explanation(item.priority, item.priority_reason, score, item.boost, contributions)
 
     def reset(self) -> None:
-        """Forget what was learnt; items stay as they are."""
+        """Forget what was learnt, ratings included; items stay as they are."""
         self._signals.clear()
+        for item in self._items.all():
+            if item.rating is not Rating.NONE:
+                self._items.save(item.rated(item.rating, self._clock.now()))
         self.rerank()

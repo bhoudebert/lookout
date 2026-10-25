@@ -2,8 +2,8 @@
 
 A self-hosted watch tower for the feeds, releases and advisories that matter to your work.
 
-Plug in sources, let an LLM summarise, classify and prioritise each item, and work an inbox: seen, done, snoozed,
-dismissed. Lookout learns from what you act on.
+Plug in sources, let an LLM summarise, classify and prioritise each item, and work an inbox: seen, done, snoozed. A thumb
+up or down says what you want more or less of, and Lookout learns from it.
 
 - **Sources as adapters:** RSS and Atom (blogs, GitHub releases, Reddit, YouTube channels), Hacker News with its points, Reddit communities, YouTube channels,
   GitHub releases, advisories and Dependabot alerts (through your local `gh` login), and OSV vulnerabilities for your
@@ -11,7 +11,7 @@ dismissed. Lookout learns from what you act on.
 - **Any LLM:** one OpenAI-compatible port. Starts on Ollama (free, local); point it at any compatible endpoint later.
 - **Priority you can trust:** P0 to P3, from deterministic rules first (a critical advisory on a dependency you
   declared is never below P1), the model second. Every priority carries its reason.
-- **Personal:** stars, reads and dismissals shape the ranking; the "why this rank" is always visible.
+- **Personal:** stars, thumbs and reads shape the ranking; the "why this rank" is always visible.
 - **Configured in the dashboard:** define categories as a tree (AI, `Dev > Rust`, ...), and add sources (the rivers) from the dashboard; the file only seeds them.
 - **Triage, not a digest:** an inbox with states, keyboard shortcuts and filters by priority, category and source.
 - **Yours:** one SQLite file, one container (or a NixOS module), MIT licence.

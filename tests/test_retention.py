@@ -141,7 +141,6 @@ def test_expiry_never_touches_what_the_user_decided_or_starred() -> None:
     old = ago(days=100)
     items = {
         "done": make_item("https://x/done", priority=Priority.P3, published_at=old).mark_done(),
-        "dismissed": make_item("https://x/dis", priority=Priority.P3, published_at=old).dismiss(),
         "snoozed": make_item("https://x/snz", priority=Priority.P3, published_at=old).snooze(
             NOW + timedelta(days=1)
         ),
@@ -153,7 +152,6 @@ def test_expiry_never_touches_what_the_user_decided_or_starred() -> None:
     assert expire.run() == 1
     assert {k: repo.get(v.id).state for k, v in items.items()} == {
         "done": State.DONE,
-        "dismissed": State.DISMISSED,
         "snoozed": State.SNOOZED,
         "starred": State.NEW,
         "seen": State.EXPIRED,
@@ -321,7 +319,7 @@ def test_a_sweep_acts_on_exactly_what_the_filter_matches_and_can_be_undone(api: 
 
 
 def test_a_sweep_teaches_the_profile_nothing(api: Any) -> None:
-    sweep(api, action="dismiss", filter={})
+    sweep(api, action="done", filter={})
     raw = sqlite3.connect(api.lookout.config["database"])
     try:
         assert raw.execute("SELECT count(*) FROM signals").fetchone() == (0,)
@@ -350,7 +348,7 @@ def test_a_sweep_can_snooze_and_refuses_what_makes_no_sense_or_is_too_big(
 
 
 def test_the_tree_counts_what_the_list_would_show_for_the_same_filters(api: Any) -> None:
-    """Counts used to include done, dismissed and expired items, so 2441 beside a list of 112."""
+    """Counts used to include done and expired items, so 2441 beside a list of 112."""
     repo = api.services.items
     finished = make_item("https://x/finished", channel="AI", published_at=ago(days=1)).mark_done()
     gone = make_item("https://x/gone", channel="AI", published_at=ago(days=40)).expire()

@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, taxonomyQuery } from "./api/client";
 import { NO_FILTERS } from "./api/types";
-import type { Action, Filters, SourceBody, UndoEntry } from "./api/types";
+import type { Action, Filters, Rating, SourceBody, UndoEntry } from "./api/types";
 
 /** The items of a selection, a page at a time: the next page starts after what is already loaded. */
 export const useItems = (filters: Filters) =>
@@ -74,6 +74,15 @@ export function useSweep() {
 export function useRestoreMany() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: (entries: UndoEntry[]) => api.restoreMany(entries), onSuccess: refresh });
+}
+
+/** Thumbs up or down; the same thumb again clears it. */
+export function useRate() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: ({ id, rating }: { id: string; rating: Rating }) => api.rate(id, rating),
+    onSuccess: refresh,
+  });
 }
 
 export function useRestore() {

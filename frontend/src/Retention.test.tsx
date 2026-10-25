@@ -181,9 +181,9 @@ describe("acting on everything a selection matches", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("narrow the filter");
 
     fake.failWith = null;
-    await user.click(within(dialog).getByRole("button", { name: "Mark 61 dismissed" }));
-    expect(await screen.findByText("Dismissed: 61 items")).toBeInTheDocument();
-    expect(fake.items.every((i) => i.state === "dismissed")).toBe(true);
+    await user.click(within(dialog).getByRole("button", { name: "Mark 61 seen" }));
+    expect(await screen.findByText("Opened: 61 items")).toBeInTheDocument();
+    expect(fake.items.every((i) => i.state === "seen")).toBe(true);
     dialog = screen.queryByRole("dialog") as HTMLElement;
     expect(dialog).toBeNull();
   });

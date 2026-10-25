@@ -6,6 +6,7 @@ import type {
   Item,
   ItemDetail,
   ItemPage,
+  Rating,
   RefileResult,
   RunStatus,
   Source,
@@ -50,9 +51,8 @@ const STATES: Record<Filters["view"], string[]> = {
   inbox: [],
   snoozed: ["snoozed"],
   done: ["done"],
-  dismissed: ["dismissed"],
   expired: ["expired"],
-  all: ["new", "seen", "snoozed", "done", "dismissed", "expired"],
+  all: ["new", "seen", "snoozed", "done", "expired"],
 };
 
 /** Items are loaded this many at a time. */
@@ -109,6 +109,8 @@ export const api = {
   item: (id: string) => call<ItemDetail>(`/api/items/${id}`),
   act: (id: string, action: Action, hours?: number) =>
     call<ActionResult>(`/api/items/${id}/actions`, { method: "POST", body: JSON.stringify({ action, hours }) }),
+  rate: (id: string, rating: Rating) =>
+    call<ActionResult>(`/api/items/${id}/rating`, { method: "POST", body: JSON.stringify({ rating }) }),
   restore: (id: string, undo: Undo) =>
     call<Item>(`/api/items/${id}/restore`, { method: "POST", body: JSON.stringify(undo) }),
   bulk: (ids: string[], action: Action, hours?: number) =>
