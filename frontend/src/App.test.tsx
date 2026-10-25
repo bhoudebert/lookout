@@ -132,7 +132,7 @@ describe("filters", () => {
     expect(window.location.search).toBe("?q=rust");
     await user.clear(screen.getByLabelText("Search"));
 
-    await user.selectOptions(screen.getByLabelText("View"), "done");
+    await user.click(screen.getByRole("tab", { name: "Done" }));
     expect(await screen.findByText(/Nothing to look at/)).toBeInTheDocument();
     expect(window.location.search).toBe("?view=done");
   });
@@ -146,7 +146,7 @@ describe("filters", () => {
       expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "P1" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByLabelText("View")).toHaveValue("inbox");
+    expect(screen.getByRole("tab", { name: "Inbox" })).toHaveAttribute("aria-selected", "true");
     expect(await screen.findByRole("button", { name: /^AI/ })).toHaveAttribute("aria-current", "true");
   });
 
@@ -165,7 +165,7 @@ describe("views", () => {
     const done = makeItem({ id: "d", title: "Handled", state: "done" });
     const { user } = mount(new FakeBackend([done, makeItem({ id: "n", title: "Fresh" })]));
     await screen.findByRole("button", { name: "Fresh" });
-    await user.selectOptions(screen.getByLabelText("View"), "all");
+    await user.click(screen.getByRole("tab", { name: "Everything" }));
     const row = (await screen.findByRole("button", { name: "Handled" })).closest("li");
     expect(row).toHaveTextContent("· done");
     expect(row).toHaveClass("done");
@@ -180,14 +180,14 @@ describe("views", () => {
 });
 
 describe("categories, tags and authors", () => {
-  it("shows the icon of the category in the list, the detail and the tree", async () => {
+  it("keeps the icon of a category out of the list, the detail and the tree", async () => {
     const { user } = mount(new FakeBackend(three()));
     const row = (await screen.findByRole("button", { name: "Django flaw" })).closest("li") as HTMLElement;
-    expect(within(row).getByText("🤖")).toHaveAttribute("aria-hidden", "true");
-    expect(within(screen.getByRole("navigation", { name: "Categories" })).getByText("🤖")).toBeInTheDocument();
+    expect(within(row).queryByText("🤖")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "Categories" })).queryByText("🤖")).not.toBeInTheDocument();
     await user.click(within(row).getByRole("button", { name: "Django flaw" }));
     const detail = await screen.findByRole("complementary", { name: "Item detail" });
-    expect(within(detail).getByText("🤖")).toBeInTheDocument();
+    expect(within(detail).queryByText("🤖")).not.toBeInTheDocument();
   });
 
   it("shows the category, the tags and the author of every item, and searches the author", async () => {
@@ -206,7 +206,7 @@ describe("categories, tags and authors", () => {
     mount(new FakeBackend(three()));
     const tree = within(await screen.findByRole("navigation", { name: "Categories" }));
     const rows = tree.getAllByRole("listitem").map((li) => li.textContent);
-    expect(rows).toEqual(["All3", "🤖AI2", "Dev1", "Rust1", "Other0"]);
+    expect(rows).toEqual(["All3", "AI2", "Dev1", "Rust1", "Other0"]);
     expect(tree.getByRole("button", { name: /^All/ })).toHaveAttribute("aria-current", "true");
   });
 
@@ -275,8 +275,6 @@ describe("one item", () => {
     expect(
       backend.calls.some((c) => c.path === "/api/items/a/actions" && JSON.stringify(c.body).includes("open")),
     ).toBe(true);
-    await user.click(within(detail).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
   it("does not mark an item seen again", async () => {
@@ -559,7 +557,9 @@ describe("bulk actions", () => {
     await screen.findByRole("button", { name: "Django flaw" });
     await user.click(screen.getByLabelText("Select Django flaw"));
     await user.click(screen.getByLabelText("Select React 20 RC"));
-    await user.click(screen.getByRole("button", { name: "Snooze…" }));
+    await user.click(
+      within(screen.getByRole("group", { name: "Bulk actions" })).getByRole("button", { name: "Snooze…" }),
+    );
     await user.click(screen.getByRole("button", { name: "Tomorrow" }));
     expect(await screen.findByText("Snoozed: 2 items")).toBeInTheDocument();
   });
@@ -610,6 +610,57 @@ describe("running", () => {
     backend.run = { ...backend.run, error: "OSError: disk full", running: false, finished_at: "2026-10-24T09:00:00Z" };
     mount(backend);
     expect(await screen.findByText("Last run failed: OSError: disk full")).toBeInTheDocument();
+  });
+});
+
+describe("the last run at a glance", () => {
+  const finished = {
+    running: false,
+    finished_at: "2026-10-24T09:00:00Z",
+    sources: [
+      { name: "osv", fetched: 100, new: 20, skipped: false, error: null },
+      { name: "react-blog", fetched: 48, new: 11, skipped: false, error: null },
+    ],
+  };
+
+  it("splits what the run fetched into new and already known, and says what waits for the model", async () => {
+    const backend = new FakeBackend([]);
+    backend.run = { ...backend.run, ...finished, waiting: 4 };
+    mount(backend);
+    const strip = await screen.findByRole("group", { name: "The last run" });
+    expect(strip).toHaveTextContent("148 fetched · 31 new · 4 waiting for the model");
+    expect(strip).toHaveTextContent("31 new 117 already known");
+    const [fresh, known] = Array.from(strip.querySelectorAll<HTMLElement>(".strip-bar i"));
+    expect(fresh?.style.flexGrow).toBe("31");
+    expect(known?.style.flexGrow).toBe("117");
+  });
+
+  it("draws no bar when the run fetched nothing", async () => {
+    const backend = new FakeBackend([]);
+    backend.run = { ...backend.run, ...finished, sources: [] };
+    mount(backend);
+    const strip = await screen.findByRole("group", { name: "The last run" });
+    expect(strip).toHaveTextContent("0 fetched · 0 new");
+    expect(strip.querySelector(".strip-bar")).toBeNull();
+  });
+
+  it("says a run is going, and that the last one failed, instead of drawing a bar", async () => {
+    const backend = new FakeBackend([]);
+    backend.run = { ...backend.run, running: true };
+    const { unmount } = mount(backend);
+    expect(await screen.findByText("A run is going…")).toBeInTheDocument();
+    unmount();
+    const failed = new FakeBackend([]);
+    failed.run = { ...failed.run, ...finished, error: "OSError: disk full" };
+    mount(failed);
+    expect(await screen.findByText("The last run failed: OSError: disk full")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "The last run" })).toBeNull();
+  });
+
+  it("shows nothing before any run", async () => {
+    mount(new FakeBackend([]));
+    await screen.findByText(/Nothing to look at/);
+    expect(screen.queryByRole("group", { name: "The last run" })).toBeNull();
   });
 });
 
@@ -837,7 +888,9 @@ describe("the panel follows the keys", () => {
     const backend = new FakeBackend(three());
     const { user } = mount(backend);
     await screen.findByRole("button", { name: "Django flaw" });
-    expect(screen.queryByRole("complementary", { name: "Item detail" })).not.toBeInTheDocument();
+    // With nothing opened the panel previews the item the list is on.
+    expect(await screen.findByRole("heading", { name: "Django flaw" })).toBeInTheDocument();
+    expect(window.location.search).toBe("");
     const before = window.history.length;
 
     await user.keyboard("j");

@@ -86,8 +86,8 @@ While every item shown in the inbox is in `Other`, the inbox SHALL say so and li
 
 ### Requirement: An icon for each category
 
-A category MAY have one icon: a single emoji, shown before its name in the tree, on the categories page and beside
-items. The local model suggests one for each category that has none, once, at the end of a run or when asked
+A category MAY have one icon: a single emoji, shown before its name on the categories page only: the inbox
+shows no icons. The local model suggests one for each category that has none, once, at the end of a run or when asked
 ("Suggest icons"). The user can set, change or clear any icon. A run never suggests one again for a category the
 user cleared; "Suggest icons" asks for every category without one. Only emoji
 are accepted, from the model and from the user: text, digits, markup and anything longer than one emoji are refused.
@@ -95,7 +95,7 @@ are accepted, from the model and from the user: text, digits, markup and anythin
 #### Scenario: The model suggests an icon
 
 - **WHEN** a run ends and a category has no icon yet
-- **THEN** the model is asked for one emoji for it, and the icon appears in the tree
+- **THEN** the model is asked for one emoji for it, and the icon appears on the categories page
 
 #### Scenario: Text where an icon should be
 

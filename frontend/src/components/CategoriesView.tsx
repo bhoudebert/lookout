@@ -214,7 +214,7 @@ export function CategoriesView() {
   return (
     <>
       <section aria-label="Categories">
-        <h2>Categories</h2>
+        <h1>Categories</h1>
         <p className="hint">
           What you look at, from broad to specific: <em>Dev</em> contains <em>Dev &gt; Rust</em>. A source files its
           items in the categories you tick for it, or lets the model choose the most specific one that fits; the model

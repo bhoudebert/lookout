@@ -1,8 +1,7 @@
 import { Fragment } from "react";
 import type { Item, Rating } from "../api/types";
 import { timeAgo } from "../format";
-import { useIcons } from "../hooks";
-import { CategoryIcon } from "./CategoryIcon";
+import { SourceMark } from "./SourceMark";
 import { PriorityBadge } from "./PriorityBadge";
 import { DoneButton, RatingButtons } from "./RatingButtons";
 
@@ -32,7 +31,6 @@ export function ItemList({
   onRate,
   onDone,
 }: Props) {
-  const icons = useIcons();
   return (
     <ul className="items" aria-label="Items">
       {items.map((item, index) => (
@@ -42,17 +40,19 @@ export function ItemList({
             className={`item ${item.state}${item.id === focusedId ? " focused" : ""}`}
             aria-current={item.id === focusedId ? "true" : undefined}
           >
-            <input
-              type="checkbox"
-              aria-label={`Select ${item.title}`}
-              checked={selected.has(item.id)}
-              onChange={() => {
-                onToggle(item.id);
-              }}
-            />
+            <span className="lead">
+              <SourceMark name={item.sources[0] ?? item.channel} />
+              <input
+                type="checkbox"
+                aria-label={`Select ${item.title}`}
+                checked={selected.has(item.id)}
+                onChange={() => {
+                  onToggle(item.id);
+                }}
+              />
+            </span>
             <div className="item-body">
               <div className="item-head">
-                <PriorityBadge item={item} />
                 {item.starred && (
                   <span className="star" role="img" aria-label="Starred">
                     ★
@@ -72,9 +72,10 @@ export function ItemList({
                 </button>
               </div>
               <p className="meta">
-                <CategoryIcon icon={icons[item.channel]} />
-                <span className="channel">{item.channel}</span> · {item.sources.join(", ")}
-                {item.author && <> · by {item.author}</>} · {timeAgo(item.published_at, now)}
+                {item.sources.join(", ")} · <span className="channel">{item.channel}</span>
+                <span className="more-meta">
+                  {item.author && <> · by {item.author}</>} · {timeAgo(item.published_at, now)}
+                </span>
                 {item.state !== "new" && item.state !== "seen" && <> · {item.state}</>}
                 {item.unread && <> · waiting for the model</>}
                 {item.enrichment_failed && <> · the model could not read it</>}
@@ -87,6 +88,10 @@ export function ItemList({
                 </p>
               )}
               {item.summary && <p className="summary">{item.summary}</p>}
+            </div>
+            <div className="item-side">
+              <span className="age">{timeAgo(item.published_at, now).replace(" ago", "")}</span>
+              <PriorityBadge item={item} />
             </div>
             <div className="item-actions">
               <RatingButtons

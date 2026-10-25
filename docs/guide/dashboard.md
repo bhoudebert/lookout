@@ -4,11 +4,13 @@ Start it with `lookout serve` and open `http://127.0.0.1:8899`.
 
 ## The inbox
 
+The window is one frame: the sidebar holds the screens (with the number of items in the inbox and of sources), the category tree on the inbox, and when the last run finished; the top bar holds a search (press `/`), the state of the digest and **Run now**; the screen sits on a white sheet. On the inbox the list, the open item and its details sit side by side; with nothing opened, the panel previews the first item without marking it seen. Above the list, a bar shows the last run: everything it fetched, split into what was new and what was already known, and how many items wait for the model. Below 900px the sidebar stacks above the sheet, with the categories in a row you can scroll sideways.
+
 By default (**Triage**) items are ordered by priority, then by your profile, then by date; **Latest** shows the newest first, whatever the priority, with a line before what arrived since your last visit. Each row shows its priority **in words** (colour is never the only signal), category, source, author, tags and age.
 
 Filters are kept in the address, so a filtered inbox can be bookmarked:
 
-- priority chips, order (Triage or Latest), view (Inbox, Snoozed, Done, **Expired**, Everything) and age (newer than a week, older than a week, two weeks, a month)
+- the view, as tabs above the list (Inbox, Snoozed, Done, **Expired**, Everything), priority chips, order (Triage or Latest) and age (newer than a week, older than a week, two weeks, a month)
 - category (picked in the tree beside the list, subcategories included; the numbers in the tree are what the list would show with the other filters, so they change with the view, age and the rest), source, starred, and free text over title, summary, tags and author
 
 A search only looks where you are: in the Inbox view, done, snoozed and expired items are not searched. When you type a search outside **Everything**, a note says so and **Search everything** widens it in one click (every state, every age). Search reads the title, summary, tags and author, not the full text, and cannot find entries that were older than the source's age limit when they arrived.
@@ -50,7 +52,7 @@ Every action shows a message with **Undo** for eight seconds.
 
 ## Categories
 
-The **Categories** page is where you define what you look at. It lists each category with its description, how many items it holds in the inbox and which sources feed it, suggests starting categories (AI, `Dev > Rust`, Security, ...) you can add with one click, and lets you add, describe and delete your own, inside another category if you want. Each category can have an **icon**, one emoji shown before its name in the tree, on this page and beside its items. After a run, the model suggests one for every category that has none (once; nothing is asked again for a category you cleared); **Suggest icons** asks for the categories still without one. Click **Edit** to type your own or to clear it; an icon is one emoji, never text. You can **move** a category (with what is under it) inside another or back to the top level; its items and sources follow. After you create one, the page tells you how many items it could file again and asks before touching them; **File existing items again** does it at any time. While everything in your inbox is still in `Other`, the inbox tells you so and links here. See [how Lookout thinks](/concepts).
+The **Categories** page is where you define what you look at. It lists each category with its description, how many items it holds in the inbox and which sources feed it, suggests starting categories (AI, `Dev > Rust`, Security, ...) you can add with one click, and lets you add, describe and delete your own, inside another category if you want. Each category can have an **icon**, one emoji shown before its name on this page (the inbox itself shows no icons). After a run, the model suggests one for every category that has none (once; nothing is asked again for a category you cleared); **Suggest icons** asks for the categories still without one. Click **Edit** to type your own or to clear it; an icon is one emoji, never text. You can **move** a category (with what is under it) inside another or back to the top level; its items and sources follow. After you create one, the page tells you how many items it could file again and asks before touching them; **File existing items again** does it at any time. While everything in your inbox is still in `Other`, the inbox tells you so and links here. See [how Lookout thinks](/concepts).
 
 ## Sources
 

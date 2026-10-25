@@ -17,10 +17,34 @@ const ORDERS: { value: Order; label: string; hint: string }[] = [
 interface Props {
   filters: Filters;
   sources: string[];
+  /** How many items the inbox view holds, once known. */
+  inboxCount?: number;
   onChange: (filters: Filters) => void;
 }
 
-export function FilterBar({ filters, sources, onChange }: Props) {
+/** Triage or Latest, as the quiet line under the filters. */
+export function OrderToggle({ filters, onChange }: { filters: Filters; onChange: (filters: Filters) => void }) {
+  return (
+    <div className="chips order" role="group" aria-label="Order">
+      {ORDERS.map((order) => (
+        <button
+          key={order.value}
+          type="button"
+          className="chip wide"
+          title={order.hint}
+          aria-pressed={filters.order === order.value}
+          onClick={() => {
+            onChange({ ...filters, order: order.value });
+          }}
+        >
+          {order.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function FilterBar({ filters, sources, inboxCount, onChange }: Props) {
   const togglePriority = (priority: Priority) => {
     const next = filters.priorities.includes(priority)
       ? filters.priorities.filter((p) => p !== priority)
@@ -28,18 +52,46 @@ export function FilterBar({ filters, sources, onChange }: Props) {
     onChange({ ...filters, priorities: next });
   };
   return (
-    <form
-      className="filters"
-      role="search"
-      aria-label="Filter the inbox"
-      onSubmit={(e) => {
-        e.preventDefault();
-      }}
-    >
-      <div className="field">
-        <span className="caption" aria-hidden="true">
-          Priority
-        </span>
+    <>
+      <div className="tabs" role="tablist" aria-label="View">
+        {VIEWS.map((v) => (
+          <button
+            key={v.value}
+            type="button"
+            role="tab"
+            aria-selected={filters.view === v.value}
+            onClick={() => {
+              onChange({ ...filters, view: v.value });
+            }}
+          >
+            {v.label}
+            {v.value === "inbox" && inboxCount !== undefined && (
+              <span className="n" aria-hidden="true">
+                {inboxCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      <form
+        className="filters"
+        role="search"
+        aria-label="Filter the inbox"
+        onSubmit={(e) => {
+          e.preventDefault();
+        }}
+      >
+        <label className="search">
+          <span className="caption">Search</span>
+          <input
+            type="search"
+            value={filters.text}
+            placeholder="Filter this list"
+            onChange={(e) => {
+              onChange({ ...filters, text: e.target.value });
+            }}
+          />
+        </label>
         <div className="chips" role="group" aria-label="Priority">
           {PRIORITIES.map((priority) => (
             <button
@@ -55,95 +107,53 @@ export function FilterBar({ filters, sources, onChange }: Props) {
             </button>
           ))}
         </div>
-      </div>
-      <div className="field">
-        <span className="caption" aria-hidden="true">
-          Order
-        </span>
-        <div className="chips" role="group" aria-label="Order">
-          {ORDERS.map((order) => (
-            <button
-              key={order.value}
-              type="button"
-              className="chip wide"
-              title={order.hint}
-              aria-pressed={filters.order === order.value}
-              onClick={() => {
-                onChange({ ...filters, order: order.value });
-              }}
-            >
-              {order.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <label>
-        View
-        <select
-          value={filters.view}
-          onChange={(e) => {
-            onChange({ ...filters, view: e.target.value as View });
-          }}
-        >
-          {VIEWS.map((v) => (
-            <option key={v.value} value={v.value}>
-              {v.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Source
-        <select
-          value={filters.source}
-          onChange={(e) => {
-            onChange({ ...filters, source: e.target.value });
-          }}
-        >
-          <option value="">All</option>
-          {sources.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Age
-        <select
-          value={filters.age}
-          onChange={(e) => {
-            onChange({ ...filters, age: e.target.value as Age });
-          }}
-        >
-          {AGES.map((a) => (
-            <option key={a.value} value={a.value}>
-              {a.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={filters.starred}
-          onChange={(e) => {
-            onChange({ ...filters, starred: e.target.checked });
-          }}
-        />
-        Starred
-      </label>
-      <label>
-        Search
-        <input
-          type="search"
-          value={filters.text}
-          placeholder="title, summary, tag"
-          onChange={(e) => {
-            onChange({ ...filters, text: e.target.value });
-          }}
-        />
-      </label>
-    </form>
+        <details className="more-filters">
+          <summary>More filters</summary>
+          <div>
+            <label>
+              <span className="caption">Source</span>
+              <select
+                value={filters.source}
+                onChange={(e) => {
+                  onChange({ ...filters, source: e.target.value });
+                }}
+              >
+                <option value="">All</option>
+                {sources.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="caption">Age</span>
+              <select
+                value={filters.age}
+                onChange={(e) => {
+                  onChange({ ...filters, age: e.target.value as Age });
+                }}
+              >
+                {AGES.map((a) => (
+                  <option key={a.value} value={a.value}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={filters.starred}
+                onChange={(e) => {
+                  onChange({ ...filters, starred: e.target.checked });
+                }}
+              />
+              Starred
+            </label>
+          </div>
+        </details>
+      </form>
+    </>
   );
 }
