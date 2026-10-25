@@ -20,12 +20,49 @@ SHALL be written in several parts. The text of items SHALL be treated as data, n
 #### Scenario: Nothing to condense
 
 - **WHEN** the selection matches no item
-- **THEN** the user is told there is nothing to condense and no digest is kept
+- **THEN** the attempt fails with "nothing matches this selection" and no digest is kept
 
 #### Scenario: The model fails
 
 - **WHEN** the model is unreachable, or gives no valid answer twice
-- **THEN** the user is told the model could not write the digest and no digest is kept
+- **THEN** the attempt fails with the reason and no digest is kept
+
+### Requirement: Written in the background
+
+A digest SHALL be written in the background, one at a time: asking for another while one is being written SHALL show
+the running one instead of starting a second. The server SHALL keep, in memory only, the digest being written and how
+the last attempts ended (done, failed with the reason, cancelled) until the user dismisses them: what part is being
+written (a category, then the headline, out of how many), about how many tokens the model has written, and when it
+started. A restart forgets them. The user SHALL be able to cancel a digest being written, which SHALL stop asking the
+model for more at once, and to dismiss a finished attempt.
+
+#### Scenario: Leave and come back
+
+- **WHEN** the user asks for a digest and then opens another page, or reloads
+- **THEN** the digest keeps being written, and the Digest page and the header show it as being written
+
+#### Scenario: Cancel
+
+- **WHEN** the user cancels a digest being written
+- **THEN** the model is no longer waited for, no digest is kept, and the attempt shows as cancelled
+
+#### Scenario: Failure stays visible
+
+- **WHEN** the model fails while a digest is written
+- **THEN** the attempt stays listed with the reason until the user dismisses it
+
+### Requirement: A model cannot run away
+
+The answer of the model SHALL be read as it is written and bounded: a section is cut at `digest.max_answer_tokens` and
+the headline at a smaller bound, and reaching the bound SHALL fail the attempt saying so, and, when the model wrote no
+answer at all, saying that it kept thinking. The model SHALL be asked not to think when the server supports it
+(`digest.reasoning_effort`, empty to not ask) and for at most about one point per three items. An answer wrapped in a
+code fence or a sentence SHALL still be read.
+
+#### Scenario: A thinking model
+
+- **WHEN** the model spends all its tokens thinking and writes no answer
+- **THEN** the attempt fails at the bound, explaining that the model kept thinking
 
 ### Requirement: Cited items are real
 
@@ -59,11 +96,20 @@ The digest SHALL use the model, address and settings of the `digest` block of th
 
 ### Requirement: Dashboard
 
-The dashboard SHALL offer "Summarise these" on the current selection of the inbox, show the digest on its own page
-(headline, sections, points with their sources as links, items not covered), list the recent digests, and let the user
-mark the cited items done in one action, and delete a digest. Source links SHALL only be web addresses.
+The dashboard SHALL offer "Summarise these" on the current selection of the inbox, saying that the digest is written
+in the background and will appear under Digest, without waiting on that page. The Digest page SHALL list the digests
+being written or lately finished above the digests kept (part being written, tokens, time, Cancel or Dismiss, the
+reason of a failure, a link to a finished one), and the header SHALL show a digest being written or just finished on
+every page. A digest SHALL have its own page (headline, sections, points with their sources as links, items not
+covered), and the user SHALL be able to mark the cited items done in one action and delete a digest. Source links
+SHALL only be web addresses.
 
 #### Scenario: Summarise, read, clear
 
-- **WHEN** the user summarises the inbox, reads the digest and chooses to mark the cited items done
+- **WHEN** the user summarises the inbox, opens the finished digest and chooses to mark the cited items done
 - **THEN** those items leave the inbox and the digest stays readable
+
+#### Scenario: Seeing that something is happening
+
+- **WHEN** a digest is being written
+- **THEN** the Digest page shows it with the part being written and the tokens so far, without the user asking again

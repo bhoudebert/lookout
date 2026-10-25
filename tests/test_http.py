@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from lookout.application.services import Services
 
 from lookout.adapters.http.app import create_app
+from lookout.application.digest_jobs import DigestJobs
 from lookout.application.runs import RunCoordinator
 
 
@@ -23,7 +24,9 @@ class Api:
         self.lookout = lookout
         self.services: Services = lookout.services()
         self.services = replace(
-            self.services, runs=RunCoordinator(self.services.run, lookout.clock, spawn=lambda work: work())
+            self.services,
+            runs=RunCoordinator(self.services.run, lookout.clock, spawn=lambda work: work()),
+            digest_jobs=DigestJobs(self.services.digester, lookout.clock, spawn=lambda work: work()),
         )
         self.client = http_client(create_app(self.services, dashboard))
 

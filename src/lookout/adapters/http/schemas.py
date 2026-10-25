@@ -478,6 +478,23 @@ class DigestOut(BaseModel):
     total: int = Field(description="Items the selection matched.")
 
 
+class DigestJobOut(BaseModel):
+    """A digest being written, or how an attempt ended. Kept in memory: a restart forgets it."""
+
+    id: str
+    scope: str
+    started_at: datetime
+    state: Literal["running", "done", "failed", "cancelled"]
+    section: str = Field(description="The part being written: a category, then the headline.")
+    section_number: int
+    sections_total: int
+    tokens: int = Field(description="About how many tokens the model has written so far.")
+    finished_at: datetime | None
+    error: str | None
+    digest_id: str | None = Field(description="The digest, once written.")
+    started: bool = Field(default=False, description="True when this request started it.")
+
+
 class DigestSummary(BaseModel):
     """A digest as the list shows it."""
 

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, taxonomyQuery } from "./api/client";
 import { NO_FILTERS } from "./api/types";
@@ -38,10 +39,48 @@ export const useDigests = () => useQuery({ queryKey: ["digests"], queryFn: api.d
 export const useDigest = (id: string) =>
   useQuery({ queryKey: ["digest", id], queryFn: () => api.digest(id), enabled: id !== "" });
 
-/** Have the model condense a selection; it can take minutes, and nothing is kept when it fails. */
-export function useCreateDigest() {
-  const refresh = useRefresh();
-  return useMutation({ mutationFn: api.createDigest, onSuccess: refresh });
+/** How often a digest being written is asked after. */
+export const JOB_POLL_MS = 1000;
+
+/** The digests being written or lately finished. They are asked after only while one is being written. */
+export function useDigestJobs() {
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey: ["digest-jobs"],
+    queryFn: api.digestJobs,
+    refetchInterval: (q) => (q.state.data?.some((j) => j.state === "running") ? JOB_POLL_MS : false),
+  });
+  // A digest that has just been written joins the kept ones.
+  const done = query.data?.filter((j) => j.state === "done").length ?? 0;
+  useEffect(() => {
+    void client.invalidateQueries({ queryKey: ["digests"] });
+  }, [done, client]);
+  return query;
+}
+
+/** Ask for a digest of a selection; it is written in the background. */
+export function useStartDigest() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.startDigest,
+    onSuccess: () => client.invalidateQueries({ queryKey: ["digest-jobs"] }),
+  });
+}
+
+export function useCancelDigestJob() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.cancelDigestJob,
+    onSuccess: () => client.invalidateQueries({ queryKey: ["digest-jobs"] }),
+  });
+}
+
+export function useDismissDigestJob() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: api.dismissDigestJob,
+    onSuccess: () => client.invalidateQueries({ queryKey: ["digest-jobs"] }),
+  });
 }
 
 /** Delete a digest. ``onDeleted`` runs first, to leave the page before anything tries to load the digest again. */

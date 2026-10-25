@@ -274,3 +274,40 @@ select:hover {
   flex-direction: column;
   gap: 0.15rem;
 }
+
+.digest-status a {
+  color: var(--accent-text);
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+}
+
+.jobs {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+}
+
+.job {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  background: var(--card);
+}
+
+.job.failed {
+  border-left-color: var(--p0);
+}
+
+.job.done {
+  border-left-color: var(--p2);
+}
+
+.job .hint {
+  flex-basis: 100%;
+  margin: 0;
+}

@@ -2,6 +2,7 @@ import type {
   ActionResult,
   Channel,
   Digest,
+  DigestJob,
   Item,
   ItemDetail,
   RunStatus,
@@ -140,9 +141,11 @@ export class FakeBackend {
   ];
   refiled = { filed: 2, queued: 5 };
   digests: Digest[] = [];
+  digestJobs: DigestJob[] = [];
   digestFails: string | null = null;
-  /** While set, writing a digest waits for it, like a model that takes its time. */
-  digestGate: Promise<void> | null = null;
+  /** While set, a digest being written stays so, like a model that takes its time. */
+  digestHold = false;
+  private digestQuery = "";
   iconsSuggested = { suggested: 2, failed: false };
   run: RunStatus = IDLE;
   runPolls = 0;
@@ -171,9 +174,6 @@ export class FakeBackend {
     if (this.failWith) {
       const { status, detail } = this.failWith;
       return Promise.resolve(new Response(JSON.stringify({ detail }), { status }));
-    }
-    if (this.digestGate && method === "POST" && url.pathname === "/api/digests") {
-      return this.digestGate.then(() => this.route(method, url, body));
     }
     return Promise.resolve(this.route(method, url, body));
   };
@@ -204,7 +204,12 @@ export class FakeBackend {
       return this.changeSource(method, decodeURIComponent(path.slice(13)), body as Partial<Source>);
     if (path === "/api/channels" && method === "POST")
       return this.addChannel(body as Partial<Channel> & { name: string });
-    if (path === "/api/digests" && method === "POST") return this.makeDigest(body as { filter: { text: string } });
+    if (path === "/api/digests" && method === "POST") return this.startDigest(body as { filter: { text: string } });
+    if (path === "/api/digests/jobs") return this.lookAtJobs();
+    if (path.startsWith("/api/digests/jobs/")) {
+      const [, id = ""] = /^\/api\/digests\/jobs\/([^/]+)/.exec(path) ?? [];
+      return this.oneJob(path.endsWith("/cancel") ? "POST" : method, decodeURIComponent(id));
+    }
     if (path === "/api/digests") return this.json(this.digests);
     if (path.startsWith("/api/digests/")) return this.oneDigest(method, decodeURIComponent(path.slice(13)));
     if (path === "/api/refile") return this.json(this.refiled);
@@ -450,11 +455,45 @@ export class FakeBackend {
     return this.json(source);
   }
 
-  /** Like the server: a digest of nothing is refused, and one is kept when the model succeeds. */
-  private makeDigest(body: { filter: { text: string } }): Response {
-    if (this.digestFails) return this.json({ detail: this.digestFails }, 502);
-    const chosen = this.items.filter((i) => i.title.toLowerCase().includes(body.filter.text.toLowerCase()));
-    if (chosen.length === 0) return this.json({ detail: "nothing matches this selection" }, 422);
+  /** Like the server: one digest is written at a time, in the background, and a digest of nothing fails. */
+  private startDigest(body: { filter: { text: string } }): Response {
+    const running = this.digestJobs.find((j) => j.state === "running");
+    if (running) return this.json({ ...running, started: false }, 202);
+    const job: DigestJob = {
+      id: `j${String(this.digestJobs.length + 1)}`,
+      scope: body.filter.text ? `matching '${body.filter.text}'` : "Inbox",
+      started_at: "2026-10-24T09:00:00Z",
+      state: "running",
+      section: "",
+      section_number: 0,
+      sections_total: 0,
+      tokens: 0,
+      finished_at: null,
+      error: null,
+      digest_id: null,
+      started: true,
+    };
+    this.digestJobs.unshift(job);
+    this.digestQuery = body.filter.text;
+    return this.json(job, 202);
+  }
+
+  /** Each look at the jobs moves the one being written along, unless the test holds it. */
+  private lookAtJobs(): Response {
+    const job = this.digestJobs.find((j) => j.state === "running");
+    if (job && !this.digestHold) {
+      if (this.digestFails) Object.assign(job, { state: "failed", error: this.digestFails });
+      else this.finishDigest(job);
+    }
+    return this.json(this.digestJobs);
+  }
+
+  private finishDigest(job: DigestJob): void {
+    const chosen = this.items.filter((i) => i.title.toLowerCase().includes(this.digestQuery.toLowerCase()));
+    if (chosen.length === 0) {
+      Object.assign(job, { state: "failed", error: "nothing matches this selection" });
+      return;
+    }
     const ref = (i: Item) => ({
       id: i.id,
       title: i.title,
@@ -466,7 +505,7 @@ export class FakeBackend {
     const made: Digest = {
       id: `d${String(this.digests.length + 1)}`,
       created_at: "2026-10-24T09:00:00Z",
-      scope: body.filter.text ? `matching '${body.filter.text}'` : "Inbox",
+      scope: job.scope,
       headline: "Today: a security fix and a release.",
       sections: [
         { title: "Dev", points: chosen.slice(0, 2).map((i) => ({ text: `About ${i.title}.`, items: [ref(i)] })) },
@@ -477,7 +516,27 @@ export class FakeBackend {
       total: chosen.length,
     };
     this.digests.unshift(made);
-    return this.json(made, 201);
+    Object.assign(job, {
+      state: "done",
+      digest_id: made.id,
+      section: "Headline",
+      section_number: 2,
+      sections_total: 2,
+      tokens: 120,
+      finished_at: "2026-10-24T09:01:00Z",
+    });
+  }
+
+  private oneJob(method: string, id: string): Response {
+    const job = this.digestJobs.find((j) => j.id === id);
+    if (!job) return this.json({ detail: `no digest job ${id}` }, 404);
+    if (method === "DELETE") {
+      if (job.state === "running") return this.json({ detail: "the digest is still being written" }, 409);
+      this.digestJobs.splice(this.digestJobs.indexOf(job), 1);
+      return new Response(null, { status: 204 });
+    }
+    if (job.state === "running") Object.assign(job, { state: "cancelled", finished_at: "2026-10-24T09:00:30Z" });
+    return this.json(job);
   }
 
   private oneDigest(method: string, id: string): Response {

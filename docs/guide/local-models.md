@@ -135,6 +135,13 @@ Check three things:
 The speed tells you how long it takes: 3 tokens per second means about 20 minutes for a 4,000-token answer, 8 means
 about 8.
 
+## A model that never stops
+
+Some models "think" before they answer, and Ollama's log counts that thinking as generated tokens. A digest that seems to
+run for ever with a fast `tokens per second` is usually this: the log shows thousands of tokens and Lookout shows no
+answer. Lookout caps the answer and asks the model not to think (see [digests](/digest)), so it now fails with the reason
+instead.
+
 ## Stopping a request
 
 Ollama stops generating when the program that asked disconnects. So the clean way to stop a digest is to stop the

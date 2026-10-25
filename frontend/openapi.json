@@ -305,6 +305,108 @@
         "title": "DigestIn",
         "type": "object"
       },
+      "DigestJobOut": {
+        "description": "A digest being written, or how an attempt ended. Kept in memory: a restart forgets it.",
+        "properties": {
+          "digest_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The digest, once written.",
+            "title": "Digest Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "section": {
+            "description": "The part being written: a category, then the headline.",
+            "title": "Section",
+            "type": "string"
+          },
+          "section_number": {
+            "title": "Section Number",
+            "type": "integer"
+          },
+          "sections_total": {
+            "title": "Sections Total",
+            "type": "integer"
+          },
+          "started": {
+            "default": false,
+            "description": "True when this request started it.",
+            "title": "Started",
+            "type": "boolean"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "running",
+              "done",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "tokens": {
+            "description": "About how many tokens the model has written so far.",
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "started_at",
+          "state",
+          "section",
+          "section_number",
+          "sections_total",
+          "tokens",
+          "finished_at",
+          "error",
+          "digest_id"
+        ],
+        "title": "DigestJobOut",
+        "type": "object"
+      },
       "DigestOut": {
         "description": "A digest with the items it cites.",
         "properties": {
@@ -1811,7 +1913,7 @@
         "summary": "List Digests"
       },
       "post": {
-        "description": "Have the model condense what a filter selects. It can take a minute or two.",
+        "description": "Start writing a digest of what a filter selects, in the background; one at a time.",
         "operationId": "create_digest_api_digests_post",
         "requestBody": {
           "content": {
@@ -1824,11 +1926,11 @@
           "required": true
         },
         "responses": {
-          "201": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DigestOut"
+                  "$ref": "#/components/schemas/DigestJobOut"
                 }
               }
             },
@@ -1846,6 +1948,99 @@
           }
         },
         "summary": "Create Digest"
+      }
+    },
+    "/api/digests/jobs": {
+      "get": {
+        "operationId": "list_digest_jobs_api_digests_jobs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DigestJobOut"
+                  },
+                  "title": "Response List Digest Jobs Api Digests Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Digest Jobs"
+      }
+    },
+    "/api/digests/jobs/{job_id}": {
+      "delete": {
+        "operationId": "dismiss_digest_job_api_digests_jobs__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Digest Job"
+      }
+    },
+    "/api/digests/jobs/{job_id}/cancel": {
+      "post": {
+        "operationId": "cancel_digest_job_api_digests_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DigestJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Digest Job"
       }
     },
     "/api/digests/{digest_id}": {

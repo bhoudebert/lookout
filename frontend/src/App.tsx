@@ -1,3 +1,4 @@
+import { DigestStatus } from "./components/DigestStatus";
 import { DigestView } from "./components/DigestView";
 import { CategoriesView } from "./components/CategoriesView";
 import { Inbox } from "./components/Inbox";
@@ -29,6 +30,7 @@ export function App() {
           {link("/digest", "Digest")}
           {link("/sources", "Sources")}
         </nav>
+        <DigestStatus go={go} />
         <RunButton />
       </header>
       <main>
@@ -49,9 +51,6 @@ export function App() {
             openId={location.item}
             onFilters={(filters) => {
               go("/", filters, location.item);
-            }}
-            onDigest={(id) => {
-              go(`/digest/${id}`);
             }}
             onOpen={(id, replace) => {
               go("/", location.filters, id, replace);

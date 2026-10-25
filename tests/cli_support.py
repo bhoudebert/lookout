@@ -38,6 +38,17 @@ def reading(**overrides: Any) -> str:
     return json.dumps({**answer, **overrides})
 
 
+def _stream(content: str) -> bytes:
+    """The answer as a model server streams it: a few pieces, then the reason it stopped."""
+    cut = max(1, len(content) // 3)
+    pieces = [content[i : i + cut] for i in range(0, len(content), cut)] or [""]
+    events: list[dict[str, Any]] = [
+        {"choices": [{"delta": {"content": p}, "finish_reason": None}]} for p in pieces
+    ]
+    events.append({"choices": [{"delta": {}, "finish_reason": "stop"}]})
+    return ("".join(f"data: {json.dumps(e)}\n\n" for e in events) + "data: [DONE]\n\n").encode()
+
+
 class Network:
     """Answers the feed, the model list and the chat endpoint; each can be switched to fail."""
 
@@ -81,6 +92,10 @@ class Network:
         if url.endswith("/models"):
             return httpx.Response(200, json=self.models)
         content = self.chat(request)
+        if json.loads(request.content).get("stream"):
+            return httpx.Response(
+                200, content=_stream(content), headers={"Content-Type": "text/event-stream"}
+            )
         return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
 
     @staticmethod

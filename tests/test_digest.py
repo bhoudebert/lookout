@@ -9,15 +9,26 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 import yaml
-from tests.cli_support import Lookout, reading
+from tests.cli_support import Lookout, http_client, reading
 from tests.support import NOW, FixedClock, make_item, repository
 from tests.test_http import Api
 
+from lookout.adapters.http.app import create_app
+from lookout.adapters.llm.openai_digest import OpenAiDigestWriter
 from lookout.adapters.store import sqlite as store
 from lookout.adapters.store.sqlite import Database, SqliteDigestRepository
-from lookout.application.digester import Digester, DigestError, DigestLimits, EmptyDigestError
+from lookout.application.digest_jobs import DigestJobs, JobRunningError, JobState, UnknownJobError
+from lookout.application.digester import (
+    DigestCancelledError,
+    Digester,
+    DigestError,
+    DigestLimits,
+    EmptyDigestError,
+    Unwatched,
+)
 from lookout.application.errors import ConfigError
 from lookout.application.ports import InboxQuery
 from lookout.bootstrap.container import load
@@ -60,17 +71,36 @@ def world(tmp_path: Path) -> Iterator[tuple[Api, Editor]]:
     api.services.close()
 
 
-def digest(api: Api, **filter_: Any) -> Any:
-    return api.client.post("/api/digests", json={"filter": filter_})
+def write(api: Api, **filter_: Any) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Ask for a digest (tests write it at once) and give the job and, if it worked, the digest."""
+    api.lookout.clock.advance(minutes=1)
+    started = api.client.post("/api/digests", json={"filter": filter_})
+    assert started.status_code == 202
+    job = next(j for j in api.client.get("/api/digests/jobs").json() if j["id"] == started.json()["id"])
+    made = api.client.get(f"/api/digests/{job['digest_id']}").json() if job["digest_id"] else None
+    return job, made
+
+
+def digest(api: Api, **filter_: Any) -> dict[str, Any]:
+    job, made = write(api, **filter_)
+    assert made is not None, job["error"]
+    return made
+
+
+def failure(api: Api, **filter_: Any) -> str:
+    job, made = write(api, **filter_)
+    assert (job["state"], made) == ("failed", None)
+    return str(job["error"])
+
+
+# --- the digest ---------------------------------------------------------------------------------------
 
 
 def test_a_selection_becomes_sections_of_cited_points_with_a_headline(world: tuple[Api, Editor]) -> None:
     api, editor = world
 
-    answer = digest(api)
+    out = digest(api)
 
-    assert answer.status_code == 201
-    out = answer.json()
     assert out["headline"] == "Today: stories."
     assert out["scope"] == "Inbox"
     assert [s["title"] for s in out["sections"]] == ["Dev", "Other"]
@@ -80,15 +110,28 @@ def test_a_selection_becomes_sections_of_cited_points_with_a_headline(world: tup
     assert dev["points"][0]["items"][0]["url"] == "https://example.com/django-6?utm_source=rss"
     assert len(other["points"]) == 2
     assert (out["count"], out["total"], out["uncovered"]) == (3, 3, [])
-    assert sorted(out["cited"]) == sorted(
-        i["id"] for s in out["sections"] for p in s["points"] for i in p["items"]
-    )
+    shown = [i["id"] for s in out["sections"] for p in s["points"] for i in p["items"]]
+    assert sorted(out["cited"]) == sorted(shown)
     assert len(editor.requests) == 3
+
+
+def test_the_model_is_asked_for_few_points_streamed_capped_and_without_thinking(
+    world: tuple[Api, Editor],
+) -> None:
+    api, editor = world
+    digest(api)
+
+    section, _, headline = editor.requests
+    assert section["stream"] is True
+    assert (section["max_tokens"], headline["max_tokens"]) == (6144, 600)
+    assert section["reasoning_effort"] == "none"
+    assert "response_format" not in section
+    assert "at most 3 points" in section["messages"][0]["content"]
 
 
 def test_digests_are_kept_listed_opened_and_deleted(world: tuple[Api, Editor]) -> None:
     api, editor = world
-    made = digest(api).json()
+    made = digest(api)
     calls = len(editor.requests)
 
     (listed,) = api.client.get("/api/digests").json()
@@ -119,16 +162,14 @@ def test_the_scope_is_said_in_words(world: tuple[Api, Editor]) -> None:
         starred=False,
         text="django",
         newer_than_days=30,
-    ).json()["scope"]
+    )["scope"]
     assert scope == "Dev, P0, P1, P2, P3, from blog, new, seen, matching 'django', last 30 days"
-    assert digest(api, older_than_days=0, starred=None).json()["scope"] == "older than 0 days"
-    assert digest(api, starred=True).status_code == 422
+    assert digest(api, older_than_days=0, starred=None)["scope"] == "older than 0 days"
 
 
-def test_nothing_to_condense_keeps_nothing(world: tuple[Api, Editor]) -> None:
+def test_nothing_to_condense_fails_the_job_and_keeps_nothing(world: tuple[Api, Editor]) -> None:
     api, editor = world
-    answer = digest(api, text="no such words anywhere")
-    assert (answer.status_code, answer.json()["detail"]) == (422, "nothing matches this selection")
+    assert failure(api, text="no such words anywhere") == "nothing matches this selection"
     assert api.client.get("/api/digests").json() == []
     assert editor.requests == []
 
@@ -147,7 +188,7 @@ def test_a_citation_the_model_invented_is_dropped_and_uncited_items_are_listed(
         ]
     }
 
-    out = digest(api).json()
+    out = digest(api)
 
     assert [[p["text"] for p in s["points"]] for s in out["sections"]] == [
         ["Cites a ghost and a real one."],
@@ -155,6 +196,16 @@ def test_a_citation_the_model_invented_is_dropped_and_uncited_items_are_listed(
     ]
     assert [len(p["items"]) for s in out["sections"] for p in s["points"]] == [1, 1]
     assert (out["count"], len(out["uncovered"])) == (3, 1)
+
+
+def test_an_answer_in_a_code_fence_or_a_sentence_is_read(world: tuple[Api, Editor]) -> None:
+    api, editor = world
+    editor.section = lambda nums: (
+        "Here you go:\n```json\n"
+        + json.dumps({"points": [{"text": "Fenced.", "items": [nums[0]]}]})
+        + "\n```"
+    )
+    assert digest(api)["sections"][0]["points"][0]["text"] == "Fenced."
 
 
 def test_a_bad_answer_is_repaired_once(world: tuple[Api, Editor]) -> None:
@@ -168,9 +219,8 @@ def test_a_bad_answer_is_repaired_once(world: tuple[Api, Editor]) -> None:
 
     editor.section = flaky
 
-    assert digest(api).status_code == 201
-    repair = [r for r in editor.requests if "That answer is invalid" in json.dumps(r)]
-    assert len(repair) == 1
+    assert digest(api)["count"] == 3
+    assert len([r for r in editor.requests if "That answer is invalid" in json.dumps(r)]) == 1
 
 
 @pytest.mark.parametrize(
@@ -181,13 +231,9 @@ def test_no_valid_answer_twice_fails_clearly_and_keeps_nothing(world: tuple[Api,
     api, editor = world
     editor.section = lambda _nums: reply
 
-    answer = digest(api)
+    error = failure(api)
 
-    assert answer.status_code == 502
-    assert (
-        "the model could not write the digest: the model gave no valid answer twice"
-        in answer.json()["detail"]
-    )
+    assert "the model gave no valid answer twice" in error
     assert api.client.get("/api/digests").json() == []
 
 
@@ -197,27 +243,16 @@ def test_a_bad_headline_fails_too_and_thinking_is_not_part_of_an_answer(world: t
         "<think>let me think</think>"
         + json.dumps({"points": [{"text": f"S{n}", "items": [n]} for n in nums]})
     )
-    assert digest(api).status_code == 201
+    assert digest(api)["count"] == 3
 
     editor.headline = lambda: {"headline": "  "}
-    answer = digest(api)
-    assert answer.status_code == 502
-    assert "'headline' must be text" in answer.json()["detail"]
+    assert "'headline' must be text" in failure(api)
 
 
 def test_the_model_being_down_fails_clearly(world: tuple[Api, Editor]) -> None:
     api, _ = world
     api.lookout.network.llm_down = True
-    answer = digest(api)
-    assert answer.status_code == 502
-    assert "the model could not write the digest" in answer.json()["detail"]
-
-
-def test_a_reply_without_content_or_an_http_error_is_a_failure(world: tuple[Api, Editor]) -> None:
-    api, _ = world
-    api.lookout.network.models = None
-    api.lookout.network.chat = lambda _request: ""
-    assert digest(api).status_code == 502
+    assert "connection refused" in failure(api)
 
 
 def test_the_digest_model_is_its_own_and_falls_back_to_the_reading_model(tmp_path: Path) -> None:
@@ -236,34 +271,129 @@ def test_the_digest_model_is_its_own_and_falls_back_to_the_reading_model(tmp_pat
 
             api.lookout.network.chat = seen
             api.run()
-            assert digest(api).status_code == 201
+            digest(api)
         assert models == {"own": {"llama3.1", "big-one"}, "plain": {"llama3.1"}}
     finally:
         own.services.close()
         plain.services.close()
 
 
+def test_the_reasoning_effort_and_the_answer_limit_come_from_the_configuration(tmp_path: Path) -> None:
+    api = Api(Lookout(tmp_path, digest={"reasoning_effort": "", "max_answer_tokens": 300}))
+    editor = Editor()
+    api.lookout.network.chat = editor
+    try:
+        api.run()
+        digest(api)
+        section, *_ = editor.requests
+        assert "reasoning_effort" not in section
+        assert section["max_tokens"] == 300
+    finally:
+        api.services.close()
+
+
+# --- the model's side: stream, limit, thinking --------------------------------------------------------
+
+
+class Watcher:
+    """Follows a writer: counts what it wrote, and says stop after a number of tokens."""
+
+    def __init__(self, stop_after: int | None = None) -> None:
+        self.tokens = 0
+        self.stop_after = stop_after
+
+    def planned(self, sections: int) -> None: ...
+
+    def started(self, title: str) -> None: ...
+
+    def wrote(self, tokens: int) -> None:
+        self.tokens += tokens
+
+    def stopped(self) -> bool:
+        return self.stop_after is not None and self.tokens >= self.stop_after
+
+
+def sse(*deltas: dict[str, Any], finish: str = "stop") -> bytes:
+    events: list[dict[str, Any]] = [{"choices": [{"delta": d, "finish_reason": None}]} for d in deltas]
+    events.append({"choices": [{"delta": {}, "finish_reason": finish}]})
+    return ("\n".join(f"data: {json.dumps(e)}\n" for e in events) + "\n: comment\ndata: [DONE]\n").encode()
+
+
+def writer_over(body: bytes | int, **kw: Any) -> OpenAiDigestWriter:
+    def answer(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(body) if isinstance(body, int) else httpx.Response(200, content=body)
+
+    client = httpx.Client(transport=httpx.MockTransport(answer))
+    return OpenAiDigestWriter(client, base_url="http://x/v1/", model="m", **kw)
+
+
+ITEMS = (make_item("https://a.test/1", title="One"), make_item("https://a.test/2", title="Two"))
+GOOD = json.dumps({"points": [{"text": "T", "items": [1]}]})
+
+
+def test_a_writer_reads_the_stream_and_counts_what_the_model_writes() -> None:
+    watch = Watcher()
+    body = sse({"content": GOOD[:10]}, {"content": GOOD[10:]}, {"reasoning": "hmm"}, {"content": ""})
+
+    points = writer_over(body, api_key="k").write_section("News", ITEMS, watch)
+
+    assert [(p.text, p.items) for p in points] == [("T", (ITEMS[0].id,))]
+    assert watch.tokens == 3
+
+
+def test_a_model_that_hits_the_limit_while_thinking_says_so() -> None:
+    watch = Watcher()
+    body = sse({"reasoning": "a"}, {"reasoning_content": "b"}, finish="length")
+
+    with pytest.raises(DigestError, match=r"limit of 50 tokens without answering, it kept thinking"):
+        writer_over(body, max_answer_tokens=50).write_section("News", ITEMS, watch)
+    assert watch.tokens == 2
+
+
+def test_a_model_that_hits_the_limit_while_answering_says_so() -> None:
+    body = sse({"content": '{"points": [{"text"'}, finish="length")
+    with pytest.raises(DigestError, match=r"limit of 60 tokens$"):
+        writer_over(body, max_answer_tokens=60).write_section("News", ITEMS, Watcher())
+
+
+def test_a_writer_stops_reading_when_told_to_stop() -> None:
+    watch = Watcher(stop_after=1)
+    body = sse({"content": "x"}, {"content": "y"}, {"content": "z"})
+    with pytest.raises(DigestCancelledError):
+        writer_over(body).write_headline((Section("S", (Point("p", ("i",)),)),), watch)
+    assert watch.tokens == 1
+
+
+@pytest.mark.parametrize("body", [503, b"data: {not json}\n", b'data: {"choices": []}\n'])
+def test_a_server_error_or_a_garbled_stream_is_a_failure(body: bytes | int) -> None:
+    with pytest.raises(DigestError):
+        writer_over(body).write_section("News", ITEMS, Watcher())
+
+
+# --- the use case -------------------------------------------------------------------------------------
+
+
+class ChunkWriter:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, int]] = []
+
+    def write_section(self, title: str, items: tuple[Item, ...], watch: Any) -> tuple[Point, ...]:
+        self.calls.append((title, len(items)))
+        return (Point(f"{len(items)} items", tuple(i.id for i in items)),)
+
+    def write_headline(self, sections: tuple[Section, ...], watch: Any) -> str:
+        return f"{len(sections)} sections"
+
+
 def test_a_category_too_big_for_the_context_is_written_in_parts() -> None:
     repo = repository()
     for n in range(5):
         repo.save(make_item(f"https://a.test/{n}", title=f"Story {n}", body="x" * 100, channel="Dev > Web"))
-
-    class Writer:
-        def __init__(self) -> None:
-            self.calls: list[tuple[str, int]] = []
-
-        def write_section(self, title: str, items: tuple[Item, ...]) -> tuple[Point, ...]:
-            self.calls.append((title, len(items)))
-            return (Point(f"{len(items)} items", tuple(i.id for i in items)),)
-
-        def write_headline(self, sections: tuple[Section, ...]) -> str:
-            return f"{len(sections)} sections"
-
-    writer = Writer()
+    writer = ChunkWriter()
     kept = SqliteDigestRepository(Database(":memory:"))
-    made = Digester(repo, writer, kept, FixedClock(), DigestLimits(max_items=4, context_chars=250)).create(
-        InboxQuery(), "x"
-    )
+    limits = DigestLimits(max_items=4, context_chars=250)
+
+    made = Digester(repo, writer, kept, FixedClock(), limits).create(InboxQuery(), "x")
 
     assert writer.calls == [("Dev", 2), ("Dev", 2)]
     assert (made.count, made.total, made.headline) == (4, 5, "1 sections")
@@ -273,12 +403,9 @@ def test_a_category_too_big_for_the_context_is_written_in_parts() -> None:
 def test_an_empty_selection_and_a_silent_model_are_errors() -> None:
     repo = repository()
 
-    class Silent:
-        def write_section(self, title: str, items: tuple[Item, ...]) -> tuple[Point, ...]:
+    class Silent(ChunkWriter):
+        def write_section(self, title: str, items: tuple[Item, ...], watch: Any) -> tuple[Point, ...]:
             return ()
-
-        def write_headline(self, sections: tuple[Section, ...]) -> str:
-            raise AssertionError
 
     digester = Digester(repo, Silent(), SqliteDigestRepository(Database(":memory:")), FixedClock())
     with pytest.raises(EmptyDigestError):
@@ -286,6 +413,187 @@ def test_an_empty_selection_and_a_silent_model_are_errors() -> None:
     repo.save(make_item())
     with pytest.raises(DigestError, match="wrote nothing"):
         digester.create(InboxQuery(), "x")
+
+
+def test_a_digest_stopped_after_its_sections_does_not_write_the_headline() -> None:
+    class StopOnSecondLook(Watcher):
+        def __init__(self) -> None:
+            super().__init__()
+            self.looks = 0
+
+        def stopped(self) -> bool:
+            self.looks += 1
+            return self.looks >= 2
+
+    repo = repository()
+    repo.save(make_item("https://a.test/1", title="One", channel="Dev"))
+    writer = ChunkWriter()
+    kept = SqliteDigestRepository(Database(":memory:"))
+
+    with pytest.raises(DigestCancelledError):
+        Digester(repo, writer, kept, FixedClock()).create(InboxQuery(), "x", StopOnSecondLook())
+
+    assert writer.calls == [("Dev", 1)]
+    assert kept.recent(5) == ()
+
+
+def test_nobody_watching_never_stops_a_digest() -> None:
+    assert Unwatched().stopped() is False
+    Unwatched().planned(2)
+    Unwatched().started("x")
+    Unwatched().wrote(1)
+
+
+# --- written in the background ------------------------------------------------------------------------
+
+
+def jobs_over(writer: Any, repo: Any = None) -> tuple[DigestJobs, list[Callable[[], None]], FixedClock]:
+    items = repo or repository()
+    if repo is None:
+        items.save(make_item("https://a.test/1", title="One", channel="Dev"))
+        items.save(make_item("https://a.test/2", title="Two", channel="Other"))
+    clock = FixedClock()
+    digester = Digester(items, writer, SqliteDigestRepository(Database(":memory:")), clock)
+    later: list[Callable[[], None]] = []
+    return DigestJobs(digester, clock, spawn=later.append), later, clock
+
+
+def test_a_job_shows_its_progress_while_it_is_written_and_its_digest_when_done() -> None:
+    seen: list[Any] = []
+
+    class Slow(ChunkWriter):
+        def __init__(self, jobs: Callable[[], Any]) -> None:
+            super().__init__()
+            self.jobs = jobs
+
+        def write_section(self, title: str, items: tuple[Item, ...], watch: Any) -> tuple[Point, ...]:
+            watch.wrote(5)
+            seen.append(self.jobs()[0])
+            return super().write_section(title, items, watch)
+
+    holder: dict[str, DigestJobs] = {}
+    writer = Slow(lambda: holder["jobs"].jobs())  # noqa: PLW0108
+    jobs, later, _ = jobs_over(writer)
+    holder["jobs"] = jobs
+
+    started, was_started = jobs.start(InboxQuery(), "Inbox")
+    assert (was_started, started.state) == (True, JobState.RUNNING)
+    assert jobs.jobs() == (started,)
+    later.pop()()
+
+    assert [(j.section, j.section_number, j.sections_total, j.tokens) for j in seen] == [
+        ("Dev", 1, 3, 5),
+        ("Other", 2, 3, 10),
+    ]
+    (done,) = jobs.jobs()
+    assert (done.state, done.section, done.section_number, done.error) == (JobState.DONE, "Headline", 3, None)
+    assert done.digest_id is not None
+    assert done.finished_at is not None
+
+
+def test_only_one_digest_is_written_at_a_time() -> None:
+    jobs, later, clock = jobs_over(ChunkWriter())
+    first, _ = jobs.start(InboxQuery(), "Inbox")
+
+    again, started = jobs.start(InboxQuery(), "Something else")
+
+    assert (again, started, len(later)) == (first, False, 1)
+    later.pop()()
+    clock.advance(minutes=1)
+    assert jobs.start(InboxQuery(), "Something else")[1] is True
+
+
+def test_a_job_can_be_cancelled_and_stops_before_writing() -> None:
+    writer = ChunkWriter()
+    jobs, later, _ = jobs_over(writer)
+    job, _ = jobs.start(InboxQuery(), "Inbox")
+
+    assert jobs.cancel(job.id).state is JobState.RUNNING
+    later.pop()()
+
+    (stopped,) = jobs.jobs()
+    assert (stopped.state, stopped.error, stopped.digest_id) == (JobState.CANCELLED, None, None)
+    assert writer.calls == []
+    assert jobs.cancel(job.id).state is JobState.CANCELLED
+    with pytest.raises(UnknownJobError):
+        jobs.cancel("nope")
+
+
+def test_a_failed_job_keeps_its_reason_until_dismissed() -> None:
+    class Failing(ChunkWriter):
+        def write_section(self, title: str, items: tuple[Item, ...], watch: Any) -> tuple[Point, ...]:
+            raise DigestError("the model is on strike")
+
+    class Crashing(ChunkWriter):
+        def write_section(self, title: str, items: tuple[Item, ...], watch: Any) -> tuple[Point, ...]:
+            raise ZeroDivisionError("oops")
+
+    for writer, reason in ((Failing(), "the model is on strike"), (Crashing(), "ZeroDivisionError: oops")):
+        jobs, later, _ = jobs_over(writer)
+        job, _ = jobs.start(InboxQuery(), "Inbox")
+        with pytest.raises(JobRunningError):
+            jobs.dismiss(job.id)
+        later.pop()()
+        (failed,) = jobs.jobs()
+        assert (failed.state, failed.error) == (JobState.FAILED, reason)
+        jobs.dismiss(job.id)
+        assert jobs.jobs() == ()
+        with pytest.raises(UnknownJobError):
+            jobs.dismiss(job.id)
+
+
+def test_only_the_latest_finished_jobs_are_remembered_and_the_running_one_comes_first() -> None:
+    jobs, later, clock = jobs_over(ChunkWriter())
+    for n in range(12):
+        clock.advance(minutes=1)
+        jobs.start(InboxQuery(), f"digest {n}")
+        later.pop()()
+    clock.advance(minutes=1)
+    running, _ = jobs.start(InboxQuery(), "now")
+
+    listed = jobs.jobs()
+
+    assert len(listed) == 11
+    assert listed[0] == running
+    assert [j.scope for j in listed[1:3]] == ["digest 11", "digest 10"]
+
+
+def test_the_api_follows_a_digest_job_and_cancels_or_dismisses_it(world: tuple[Api, Editor]) -> None:
+    api, _ = world
+    deferred: list[Callable[[], None]] = []
+    api.services = replace(
+        api.services, digest_jobs=DigestJobs(api.services.digester, api.lookout.clock, spawn=deferred.append)
+    )
+    client = http_client(create_app(api.services))
+
+    first = client.post("/api/digests", json={}).json()
+    second = client.post("/api/digests", json={}).json()
+    assert (first["started"], second["started"], second["id"]) == (True, False, first["id"])
+    assert client.delete(f"/api/digests/jobs/{first['id']}").status_code == 409
+    assert client.post(f"/api/digests/jobs/{first['id']}/cancel").json()["state"] == "running"
+    deferred.pop()()
+
+    (job,) = client.get("/api/digests/jobs").json()
+    assert (job["state"], job["error"], job["tokens"]) == ("cancelled", None, 0)
+    assert client.post("/api/digests/jobs/zzz/cancel").status_code == 404
+    assert client.delete("/api/digests/jobs/zzz").status_code == 404
+    assert client.delete(f"/api/digests/jobs/{first['id']}").status_code == 204
+    assert client.get("/api/digests/jobs").json() == []
+
+
+def test_a_job_reports_the_tokens_the_model_wrote(world: tuple[Api, Editor]) -> None:
+    api, _ = world
+    job, _ = write(api)
+    assert (job["state"], job["section"], job["section_number"], job["sections_total"]) == (
+        "done",
+        "Headline",
+        3,
+        3,
+    )
+    assert job["tokens"] > 0
+
+
+# --- keeping and migrating ----------------------------------------------------------------------------
 
 
 def test_a_cited_item_that_is_gone_or_has_no_web_address_is_handled(world: tuple[Api, Editor]) -> None:
@@ -338,11 +646,27 @@ def test_an_older_database_gets_the_digests_table(tmp_path: Path) -> None:
 
 def test_the_digest_block_of_the_configuration_is_read_and_checked(tmp_path: Path) -> None:
     path = tmp_path / "lookout.yaml"
-    path.write_text(yaml.safe_dump({"digest": {"model": "m", "max_items": 50, "context_chars": 9000}}))
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "digest": {
+                    "model": "m",
+                    "max_items": 50,
+                    "context_chars": 9000,
+                    "max_answer_tokens": 999,
+                    "reasoning_effort": "low",
+                }
+            }
+        )
+    )
     config = load(path, {})
     assert (config.digest.model, config.digest.max_items, config.digest.context_chars) == ("m", 50, 9000)
+    assert (config.digest.max_answer_tokens, config.digest.reasoning_effort) == (999, "low")
     assert (config.digest.base_url, load(tmp_path / "lookout.yaml", {}).digest.base_url) == ("", "")
 
     path.write_text(yaml.safe_dump({"digest": {"max_items": 0}}))
     with pytest.raises(ConfigError, match="max_items"):
+        load(path, {})
+    path.write_text(yaml.safe_dump({"digest": {"max_answer_tokens": 10}}))
+    with pytest.raises(ConfigError, match="max_answer_tokens"):
         load(path, {})

@@ -58,6 +58,18 @@ const server = createServer((request, response) => {
         : body.includes("one section of a very dense news digest")
           ? JSON.stringify({ points: numbers.map((n) => ({ text: `Digest point ${n}.`, items: [n] })) })
           : JSON.stringify(reading(body));
+      if (JSON.parse(body).stream) {
+        // A model that streams its answer in a few pieces, then says why it stopped.
+        const cut = Math.max(1, Math.ceil(content.length / 3));
+        const pieces = [];
+        for (let i = 0; i < content.length; i += cut) pieces.push(content.slice(i, i + cut));
+        const events = pieces.map((piece) => ({ choices: [{ delta: { content: piece }, finish_reason: null }] }));
+        events.push({ choices: [{ delta: {}, finish_reason: "stop" }] });
+        response
+          .writeHead(200, { "Content-Type": "text/event-stream" })
+          .end(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("") + "data: [DONE]\n\n");
+        return;
+      }
       response
         .writeHead(200, { "Content-Type": "application/json" })
         .end(JSON.stringify({ choices: [{ message: { content } }] }));

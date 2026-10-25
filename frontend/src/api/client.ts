@@ -3,6 +3,7 @@ import type {
   ActionResult,
   Channel,
   Digest,
+  DigestJob,
   DigestSummary,
   Filters,
   IconResult,
@@ -146,8 +147,13 @@ export const api = {
     }),
   digests: () => call<DigestSummary[]>("/api/digests"),
   digest: (id: string) => call<Digest>(`/api/digests/${encodeURIComponent(id)}`),
-  createDigest: (filters: Filters) =>
-    call<Digest>("/api/digests", { method: "POST", body: JSON.stringify({ filter: filterBody(filters) }) }),
+  startDigest: (filters: Filters) =>
+    call<DigestJob>("/api/digests", { method: "POST", body: JSON.stringify({ filter: filterBody(filters) }) }),
+  digestJobs: () => call<DigestJob[]>("/api/digests/jobs"),
+  cancelDigestJob: (id: string) =>
+    call<DigestJob>(`/api/digests/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+  dismissDigestJob: (id: string) =>
+    call<undefined>(`/api/digests/jobs/${encodeURIComponent(id)}`, { method: "DELETE" }),
   deleteDigest: (id: string) => call<undefined>(`/api/digests/${encodeURIComponent(id)}`, { method: "DELETE" }),
   suggestIcons: () => call<IconResult>("/api/channels/icons", { method: "POST" }),
   refile: (dryRun = false) => call<RefileResult>(`/api/refile?dry_run=${String(dryRun)}`, { method: "POST" }),
