@@ -108,6 +108,18 @@ class Digester:
         self._clock = clock
         self._limits = limits
 
+    def _cover(
+        self, title: str, chunk: tuple[Item, ...], written: tuple[Point, ...], watch: DigestWatch
+    ) -> tuple[Point, ...]:
+        """Ask once more about the items the model left out; if that fails they stay listed as not covered."""
+        missed = _uncited(chunk, written)
+        if not missed:
+            return ()
+        try:
+            return self._writer.write_section(title, missed, watch)
+        except DigestError:
+            return ()
+
     def create(self, query: InboxQuery, scope: str, watch: DigestWatch = Unwatched()) -> Digest:  # noqa: B008
         """Write and keep a digest of the first items the query lists (the most urgent first).
 
@@ -126,7 +138,9 @@ class Digester:
             watch.started(title)
             points: list[Point] = []
             for chunk in _chunks(group, self._limits.context_chars):
-                points.extend(self._writer.write_section(title, chunk, watch))
+                written = self._writer.write_section(title, chunk, watch)
+                points.extend(written)
+                points.extend(self._cover(title, chunk, written, watch))
             if points:
                 sections.append(Section(title, tuple(points)))
         if not sections:
@@ -149,6 +163,11 @@ class Digester:
         )
         self._digests.save(digest)
         return digest
+
+
+def _uncited(items: tuple[Item, ...], points: tuple[Point, ...]) -> tuple[Item, ...]:
+    cited = {i for p in points for i in p.items}
+    return tuple(i for i in items if i.id not in cited)
 
 
 def _by_category(items: tuple[Item, ...]) -> list[tuple[str, tuple[Item, ...]]]:

@@ -27,7 +27,8 @@ Rules:
 - Merge items about the same story into ONE point. Skip what is trivial or repeats another point.
 - Each point is one or two short sentences of plain text: the fact, the number, the consequence. No filler, no
   "the article says", no markdown.
-- Write at most {limit} points, fewer if the items are few: the whole point is to be shorter than the items.
+- EVERY item must be cited by at least one point: never leave an item out. Items about the same story share
+  one point; minor or unrelated items each get a short point of their own. Aim for about {target} points.
 - Order the points from the most important to the least.
 - Write in the language of the items; if they are mixed, in English.
 - Each point cites the numbers of the items it was written from.
@@ -79,7 +80,7 @@ class OpenAiDigestWriter:
 
     def write_section(self, title: str, items: tuple[Item, ...], watch: DigestWatch) -> tuple[Point, ...]:
         """The points for these items; each cites items among them."""
-        system = SECTION_PROMPT.format(interests=self._interests, limit=max(3, -(-len(items) // 3)))
+        system = SECTION_PROMPT.format(interests=self._interests, target=max(1, round(len(items) * 2 / 3)))
         numbered = "\n".join(_line(n, item) for n, item in enumerate(items, start=1))
         return self._converse(
             system,

@@ -126,7 +126,9 @@ def test_the_model_is_asked_for_few_points_streamed_capped_and_without_thinking(
     assert (section["max_tokens"], headline["max_tokens"]) == (6144, 600)
     assert section["reasoning_effort"] == "none"
     assert "response_format" not in section
-    assert "at most 3 points" in section["messages"][0]["content"]
+    prompt = section["messages"][0]["content"]
+    assert "never leave an item out" in prompt
+    assert "Aim for about 1 points" in prompt
 
 
 def test_digests_are_kept_listed_opened_and_deleted(world: tuple[Api, Editor]) -> None:
@@ -178,15 +180,23 @@ def test_a_citation_the_model_invented_is_dropped_and_uncited_items_are_listed(
     world: tuple[Api, Editor],
 ) -> None:
     api, editor = world
-    editor.section = lambda nums: {
-        "points": [
-            {"text": "Cites a ghost and a real one.", "items": [99, nums[0], nums[0], 0, "1", True]},
-            {"text": "Only a ghost.", "items": [99]},
-            {"text": "", "items": [nums[0]]},
-            {"text": "No list.", "items": "1"},
-            "not an object",
-        ]
-    }
+    calls: list[list[int]] = []
+
+    def section(nums: list[int]) -> Any:
+        calls.append(nums)
+        if len(calls) > 2:  # the second try, for what the model left out, fails too
+            return "not json"
+        return {
+            "points": [
+                {"text": "Cites a ghost and a real one.", "items": [99, nums[0], nums[0], 0, "1", True]},
+                {"text": "Only a ghost.", "items": [99]},
+                {"text": "", "items": [nums[0]]},
+                {"text": "No list.", "items": "1"},
+                "not an object",
+            ]
+        }
+
+    editor.section = section
 
     out = digest(api)
 
@@ -398,6 +408,48 @@ def test_a_category_too_big_for_the_context_is_written_in_parts() -> None:
     assert writer.calls == [("Dev", 2), ("Dev", 2)]
     assert (made.count, made.total, made.headline) == (4, 5, "1 sections")
     assert kept.get(made.id) == made
+
+
+def test_items_the_model_leaves_out_are_asked_about_once_more() -> None:
+    repo = repository()
+    for n in range(4):
+        repo.save(make_item(f"https://a.test/{n}", title=f"Story {n}", channel="Dev"))
+
+    class Lazy(ChunkWriter):
+        def write_section(self, title: str, items: tuple[Item, ...], watch: Any) -> tuple[Point, ...]:
+            self.calls.append((title, len(items)))
+            kept = items[:1] if len(self.calls) == 1 else items
+            return tuple(Point(i.title, (i.id,)) for i in kept)
+
+    writer = Lazy()
+    kept = SqliteDigestRepository(Database(":memory:"))
+
+    made = Digester(repo, writer, kept, FixedClock()).create(InboxQuery(), "x")
+
+    assert writer.calls == [("Dev", 4), ("Dev", 3)]
+    assert (made.count, made.uncovered) == (4, ())
+    assert len(made.cited) == 4
+
+
+def test_items_still_left_out_after_the_second_try_are_listed_not_covered() -> None:
+    repo = repository()
+    for n in range(3):
+        repo.save(make_item(f"https://a.test/{n}", title=f"Story {n}", channel="Dev"))
+
+    class Stubborn(ChunkWriter):
+        def write_section(self, title: str, items: tuple[Item, ...], watch: Any) -> tuple[Point, ...]:
+            self.calls.append((title, len(items)))
+            if len(self.calls) > 1:
+                raise DigestError("the model is on strike")
+            return (Point("Only one", (items[0].id,)),)
+
+    writer = Stubborn()
+    made = Digester(repo, writer, SqliteDigestRepository(Database(":memory:")), FixedClock()).create(
+        InboxQuery(), "x"
+    )
+
+    assert writer.calls == [("Dev", 3), ("Dev", 2)]
+    assert (len(made.cited), len(made.uncovered)) == (1, 2)
 
 
 def test_an_empty_selection_and_a_silent_model_are_errors() -> None:
