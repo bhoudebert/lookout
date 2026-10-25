@@ -8,14 +8,20 @@ Learn from what the user does, and show why an item ranks where it does.
 
 ### Requirement: Signals
 
-Opening, starring, marking done, snoozing and dismissing SHALL be recorded as signals with weights (star and done
-positive and strong, open mildly positive, dismiss negative, snooze neutral). Signals SHALL decay with a configurable
-half-life.
+Opening, starring and snoozing SHALL be recorded as signals (star strong and positive, open mildly positive, snooze
+neutral), and a rating stored on an item SHALL count as a signal of its own (up positive, down negative, as strong as a
+star), at the time it was set. Marking done SHALL teach nothing. Signals SHALL decay with a configurable half-life.
+Changing or clearing a rating SHALL change what is learnt.
 
-#### Scenario: Dismissals teach
+#### Scenario: Thumbs down teach
 
-- **WHEN** the user dismisses five items from one source in a category
+- **WHEN** the user rates five items from one source in a category down
 - **THEN** later items of that source and category rank lower inside their priority band
+
+#### Scenario: Tidying teaches nothing
+
+- **WHEN** the user marks twenty items from one source done
+- **THEN** the profile is unchanged
 
 ### Requirement: Profile
 

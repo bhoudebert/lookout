@@ -32,7 +32,7 @@ or without a date. Older items are ranked by the model's score alone.
 An item in the state `new` or `seen`, not starred, SHALL move to the state `expired` when its age passes the limit of its
 priority: P3 7 days, P2 14, P1 30 and P0 never by default, set by `retention.expire_after_days`. Age is counted from the
 publication date, else from when the item was stored. Expiry SHALL run at every run and at startup, SHALL record no
-signal, and SHALL never touch `done`, `dismissed`, `snoozed` or starred items.
+signal, and SHALL never touch `done`, `snoozed` or starred items.
 
 #### Scenario: A quiet fortnight
 

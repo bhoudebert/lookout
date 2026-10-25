@@ -43,9 +43,9 @@ dependency in use) are never lost; the model adds nuance; the user's feedback pe
 - **Rule floor**: the minimum priority imposed by a deterministic rule (e.g. critical advisory on a declared package).
 - **Stack**: the packages, frameworks, tools and versions the user declares; used to match items.
 - **Watchlist**: the repositories the user declares for GitHub sources.
-- **State**: new, seen, done, snoozed (until), dismissed; plus the independent star flag.
+- **State**: new, seen, done, snoozed (until), expired; plus the independent star flag and a rating (up, down, none).
 - **Profile**: what the user's feedback taught: weights per source, category, tag and embedding centroids.
-- **Inbox**: items not done or dismissed and not snoozed, ordered by priority band then personal score.
+- **Inbox**: items not done or expired and not snoozed, ordered by priority band then personal score.
 
 ## Important Constraints
 
