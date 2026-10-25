@@ -9,8 +9,12 @@ A very dense summary of many items, for news: the model condenses a selection in
 The user SHALL be able to ask for a digest of the items a filter selects: the most urgent first, up to a configured
 maximum. The model SHALL write, for each top category of the selection, short points that merge items about the same
 story, each citing the items it was written from, then a headline of two or three sentences on what matters most.
-Category sections SHALL be ordered as their first item is, with Other last. A category too big for the model's context
-SHALL be written in several parts. The text of items SHALL be treated as data, never as instructions.
+Category sections SHALL be ordered as their first item is, with Other last. Points SHALL group items by story, theme
+or region (a point covers several items) so that the digest is much shorter than the items, about twice the square
+root of their number. A category SHALL be written in calls of at most `digest.items_per_call` items that fit the
+model's context, and when it takes several calls their points SHALL be merged by the model, which cites the points it
+merges, so that a big category stays dense. A point the merge forgets SHALL be kept as it was, and a failed merge SHALL
+keep the points as written. The text of items SHALL be treated as data, never as instructions.
 
 #### Scenario: Many items become a few lines
 
@@ -58,6 +62,11 @@ the headline at a smaller bound, and reaching the bound SHALL fail the attempt s
 answer at all, saying that it kept thinking. The model SHALL be asked not to think when the server supports it
 (`digest.reasoning_effort`, empty to not ask) and for at most about one point per three items. An answer wrapped in a
 code fence or a sentence SHALL still be read.
+
+#### Scenario: A big category
+
+- **WHEN** a category holds 140 items
+- **THEN** it is written in several calls, none of which is asked for more than a few dozen points, and the points are merged
 
 #### Scenario: A thinking model
 
