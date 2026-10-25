@@ -2,6 +2,11 @@
 
 Start with `lookout doctor`: one line per check, with the reason and a hint, and a non-zero exit if anything fails.
 
+## It is very slow
+
+Almost always the model does not fit in the free memory of your graphics card and part of it runs on the CPU. Run
+`ollama ps`: anything but `100% GPU` is the cause. See [local models: context, memory and speed](/local-models).
+
 ## "Is Ollama running?"
 
 The model endpoint refused the connection. Start it with `ollama serve`. If doctor says the endpoint answers but has no model, run the `ollama pull` it suggests.

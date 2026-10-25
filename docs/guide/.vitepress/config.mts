@@ -47,6 +47,7 @@ export default defineConfig({
         items: [
           { text: "Configuration", link: "/configuration" },
           { text: "Running and scheduling", link: "/running" },
+          { text: "Local models and memory", link: "/local-models" },
           { text: "Self-hosting", link: "/self-hosting" },
           { text: "Troubleshooting", link: "/troubleshooting" },
         ],
