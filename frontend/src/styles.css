@@ -4,32 +4,32 @@
  * Grid at 1440px: sidebar 228 | sheet. On the sheet the inbox is: list 400 | reader 1fr | details 320.
  */
 :root {
-  --bg: #f3f6f7;
-  --card: #ffffff;
-  --surface-2: #f4f6f8;
-  --active: #ebedee;
-  --fg: #131416;
-  --muted: #5d5f60;
-  --line: #e8eaec;
-  --rule: #f0f1f2;
-  --control: #cdced1;
+  --bg: #e4eaec;
+  --card: #f5f7f8;
+  --surface-2: #ebeff1;
+  --active: #dfe5e7;
+  --fg: #1d2023;
+  --muted: #555b5f;
+  --line: #d5dcdf;
+  --rule: #e1e6e8;
+  --control: #b9c1c5;
   --accent: #1b6c80;
   --accent-text: #1b6c80;
-  --primary: #131416;
+  --primary: #1d2023;
   --on-primary: #ffffff;
   --positive: #1e7b4f;
   --p0: #b42318;
   --p1: #92400e;
-  --p2: #5d5f60;
-  --p3: #5d5f60;
+  --p2: #555b5f;
+  --p3: #555b5f;
   --pill-p0: #ffedea;
   --pill-p0-ink: #831c1e;
   --pill-p1: #fff4dc;
   --pill-p1-ink: #7a3508;
-  --pill-neutral: #ebedee;
+  --pill-neutral: #dfe5e7;
   --pill-neutral-ink: #353736;
   --new: #1b6c80;
-  --known: #dfe3e6;
+  --known: #cfd7da;
   --focus: #1b6c80;
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
