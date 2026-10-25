@@ -29,14 +29,15 @@ digest:
   model: gemma4-digest # writes digests
 ```
 
-`digest.base_url` defaults to `llm.base_url`. The digest model must have room for the whole selection: with Ollama
-the default context is only a few thousand tokens. Do not raise `OLLAMA_CONTEXT_LENGTH` for everything, since every
-model then reserves memory for it. Make a copy of the model that is big only for digests:
+`digest.base_url` defaults to `llm.base_url`. The digest model must have room for the whole selection, about 16 000
+tokens at the default `context_chars`. With Ollama, do not raise the context of the whole server for that: every model
+then reserves the memory, and a model that no longer fits your graphics card runs on the CPU at a fraction of the speed.
+Make a copy of the model that has the context only for digests (24 576 tokens is comfortable):
 
 ```
 # Modelfile
 FROM gemma4:12b
-PARAMETER num_ctx 65536
+PARAMETER num_ctx 24576
 ```
 
 ```
@@ -46,3 +47,6 @@ ollama create gemma4-digest -f Modelfile
 `digest.context_chars` (40000 by default, about 10 000 tokens) is how much one call may read; a category that
 does not fit is written in several parts. Raise it if your model has the room, lower it if it has less. Models that
 "think" before answering work: what is between `<think>` tags is dropped.
+
+How to choose the context so that nothing runs on the CPU, how to read Ollama's memory figures and what to do when a
+digest seems stuck are in [local models: context, memory and speed](/local-models).
