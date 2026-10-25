@@ -12,6 +12,7 @@ from lookout.domain.policy import PriorityPolicy
 from lookout.domain.raw import RawItem
 from lookout.domain.stack import Stack
 from lookout.domain.text import clean_text
+from lookout.domain.urls import is_web_url, redact_addresses
 
 BACKOFF_BASE = timedelta(minutes=5)
 BACKOFF_MAX = timedelta(hours=6)
@@ -74,14 +75,14 @@ class Ingest:
         try:
             raws = fetcher.fetch()
         except SourceError as error:
+            message = redact_addresses(str(error))
             failures = status.failures + 1
             wait = min(BACKOFF_BASE * 2 ** (failures - 1), BACKOFF_MAX)
             self._statuses.save(
-                replace(
-                    status, last_run=now, last_error=str(error), failures=failures, next_attempt=now + wait
-                )
+                replace(status, last_run=now, last_error=message, failures=failures, next_attempt=now + wait)
             )
-            return SourceReport(fetcher.name, error=str(error))
+            return SourceReport(fetcher.name, error=message)
+        raws = tuple(r for r in raws if is_web_url(r.url))
         new = sum(self._store(raw) for raw in raws)
         self._statuses.save(SourceStatus(fetcher.name, last_run=now, items_seen=status.items_seen + new))
         return SourceReport(fetcher.name, fetched=len(raws), new=new)

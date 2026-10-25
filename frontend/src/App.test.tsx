@@ -223,6 +223,15 @@ describe("categories, tags and authors", () => {
 });
 
 describe("one item", () => {
+  it("never links to an address that is not a web page", async () => {
+    const backend = new FakeBackend([makeItem({ id: "x", title: "Sneaky", url: "javascript:alert(1)" })]);
+    const { user } = mount(backend);
+    await user.click(await screen.findByRole("button", { name: "Sneaky" }));
+    const detail = await screen.findByRole("complementary", { name: "Item detail" });
+    expect(within(detail).queryByRole("link", { name: "Open the original" })).toBeNull();
+    expect(within(detail).getByText("No web address to open")).toBeInTheDocument();
+  });
+
   it("opens, marks the new item seen, and explains its rank", async () => {
     const backend = new FakeBackend(three());
     backend.detail = {

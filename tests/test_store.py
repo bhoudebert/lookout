@@ -228,3 +228,19 @@ def test_a_database_from_before_channels_keeps_every_item(tmp_path: Path) -> Non
     assert (tmp_path / "lookout.db.bak-v1").exists()
     repo.save(item)
     assert repo.get("legacy1") == item
+
+
+def test_percent_and_underscore_in_names_and_text_are_not_wildcards() -> None:
+    repo = repository()
+    a = make_item("https://a.test/a", title="100% sure", sources=("a_b",))
+    b = make_item("https://a.test/b", title="1000 sure", sources=("aXb",))
+    repo.save(a)
+    repo.save(b)
+
+    def ids(**kw: object) -> set[str]:
+        return {i.id for i in repo.search(InboxQuery(**kw)).items}  # type: ignore[arg-type]
+
+    assert ids(sources=frozenset({"a_b"})) == {a.id}
+    assert ids(sources=frozenset({"a%"})) == set()
+    assert ids(text="100%") == {a.id}
+    assert ids(text="10_0") == set()
