@@ -15,7 +15,8 @@ short headline on top.
    says "Digest: writing..." on every page, and "ready" when it is done. A failure stays in that row with its reason
    until you dismiss it. These rows live in the server's memory: restarting `lookout serve` forgets a digest that was
    being written.
-4. Read the page: the headline, then a section per top category, each point with its sources as links. Every item is
+4. Read the page: the headline, then a section per top category, each point with its sources as links. The points group items by
+   theme or region, so 140 items become a few dozen lines, not 140. Every item is
    meant to be covered: the model is told to cite them all and merge only the same story, and an item it leaves out is
    asked about once more. Any that is still missing is listed apart as **not covered**, so nothing is hidden.
 5. **Mark the N cited items done** clears what you have read in one action. The digest stays readable, and **Digest**
@@ -50,6 +51,9 @@ PARAMETER num_ctx 24576
 ```
 ollama create gemma4-digest -f Modelfile
 ```
+
+A category is written in calls of at most `digest.items_per_call` items (40 by default); when it takes several calls the
+model merges their points by theme, so a big category stays dense.
 
 `digest.context_chars` (40000 by default, about 10 000 tokens) is how much one call may read; a category that
 does not fit is written in several parts. Raise it if your model has the room, lower it if it has less. Models that

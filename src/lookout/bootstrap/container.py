@@ -564,7 +564,10 @@ def _assemble(
             digests,
             clock,
             DigestLimits(
-                config.digest.max_items, config.digest.context_chars, config.digest.max_answer_tokens
+                max_items=config.digest.max_items,
+                context_chars=config.digest.context_chars,
+                items_per_call=config.digest.items_per_call,
+                max_answer_tokens=config.digest.max_answer_tokens,
             ),
         ),
         digests=digests,

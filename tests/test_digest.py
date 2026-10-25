@@ -127,8 +127,8 @@ def test_the_model_is_asked_for_few_points_streamed_capped_and_without_thinking(
     assert section["reasoning_effort"] == "none"
     assert "response_format" not in section
     prompt = section["messages"][0]["content"]
-    assert "never leave an item out" in prompt
-    assert "Aim for about 1 points" in prompt
+    assert "Group the items by story, theme or region" in prompt
+    assert "write about 1 points" in prompt
 
 
 def test_digests_are_kept_listed_opened_and_deleted(world: tuple[Api, Editor]) -> None:
@@ -380,16 +380,67 @@ def test_a_server_error_or_a_garbled_stream_is_a_failure(body: bytes | int) -> N
         writer_over(body).write_section("News", ITEMS, Watcher())
 
 
+def test_a_writer_merges_points_citing_the_points_it_merges_and_keeps_the_ones_it_forgot() -> None:
+    points = (
+        Point("One", (ITEMS[0].id,)),
+        Point("Two", (ITEMS[1].id,)),
+        Point("Three", ("third",)),
+    )
+    answer = json.dumps(
+        {
+            "points": [
+                {"text": "One and two", "items": [1, 2, 2, 99, "x"]},
+                {"text": "", "items": [3]},
+                {"text": "no list", "items": 3},
+                "not an object",
+            ]
+        }
+    )
+
+    merged = writer_over(sse({"content": answer})).merge_points("News", points, Watcher())
+
+    assert [(p.text, p.items) for p in merged] == [
+        ("One and two", (ITEMS[0].id, ITEMS[1].id)),
+        ("Three", ("third",)),
+    ]
+
+
+@pytest.mark.parametrize(
+    "answer", ["{}", '{"points": "x"}', '{"points": [{"text": "T", "items": [9]}]}', "nope"]
+)
+def test_a_merge_that_cites_nothing_is_a_failure(answer: str) -> None:
+    with pytest.raises(DigestError, match="no valid answer twice"):
+        writer_over(sse({"content": answer})).merge_points("News", (Point("One", ("a",)),), Watcher())
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        '{"points": [{"text": "T", "items": [1]}]',
+        '{"points": [{"text": "T", "items": [1]}',
+        '```json\n{"points": [{"text": "T", "items": [1]}]}\n```',
+    ],
+)
+def test_an_answer_missing_its_closing_brackets_or_fenced_is_read(answer: str) -> None:
+    (point,) = writer_over(sse({"content": answer})).write_section("News", ITEMS, Watcher())
+    assert (point.text, point.items) == ("T", (ITEMS[0].id,))
+
+
 # --- the use case -------------------------------------------------------------------------------------
 
 
 class ChunkWriter:
     def __init__(self) -> None:
         self.calls: list[tuple[str, int]] = []
+        self.merged: list[int] = []
 
     def write_section(self, title: str, items: tuple[Item, ...], watch: Any) -> tuple[Point, ...]:
         self.calls.append((title, len(items)))
         return (Point(f"{len(items)} items", tuple(i.id for i in items)),)
+
+    def merge_points(self, title: str, points: tuple[Point, ...], watch: Any) -> tuple[Point, ...]:
+        self.merged.append(len(points))
+        return (Point("merged", tuple(i for p in points for i in p.items)),)
 
     def write_headline(self, sections: tuple[Section, ...], watch: Any) -> str:
         return f"{len(sections)} sections"
@@ -406,8 +457,49 @@ def test_a_category_too_big_for_the_context_is_written_in_parts() -> None:
     made = Digester(repo, writer, kept, FixedClock(), limits).create(InboxQuery(), "x")
 
     assert writer.calls == [("Dev", 2), ("Dev", 2)]
+    assert writer.merged == [2]
+    assert [(len(s.points), len(s.points[0].items)) for s in made.sections] == [(1, 4)]
     assert (made.count, made.total, made.headline) == (4, 5, "1 sections")
     assert kept.get(made.id) == made
+
+
+def test_a_category_is_written_in_calls_of_a_few_items_and_their_points_merged() -> None:
+    repo = repository()
+    for n in range(5):
+        repo.save(make_item(f"https://a.test/{n}", title=f"Story {n}", channel="Dev"))
+    writer = ChunkWriter()
+
+    made = Digester(
+        repo,
+        writer,
+        SqliteDigestRepository(Database(":memory:")),
+        FixedClock(),
+        DigestLimits(items_per_call=2),
+    ).create(InboxQuery(), "x")
+
+    assert writer.calls == [("Dev", 2), ("Dev", 2), ("Dev", 1)]
+    assert (writer.merged, made.count) == ([3], 5)
+
+
+def test_points_that_cannot_be_merged_are_kept_as_written() -> None:
+    repo = repository()
+    for n in range(4):
+        repo.save(make_item(f"https://a.test/{n}", title=f"Story {n}", channel="Dev"))
+
+    class NoMerge(ChunkWriter):
+        def merge_points(self, title: str, points: tuple[Point, ...], watch: Any) -> tuple[Point, ...]:
+            raise DigestError("cannot merge")
+
+    made = Digester(
+        repo,
+        NoMerge(),
+        SqliteDigestRepository(Database(":memory:")),
+        FixedClock(),
+        DigestLimits(items_per_call=2),
+    ).create(InboxQuery(), "x")
+
+    assert [len(s.points) for s in made.sections] == [2]
+    assert made.uncovered == ()
 
 
 def test_items_the_model_leaves_out_are_asked_about_once_more() -> None:
@@ -706,6 +798,7 @@ def test_the_digest_block_of_the_configuration_is_read_and_checked(tmp_path: Pat
                     "max_items": 50,
                     "context_chars": 9000,
                     "max_answer_tokens": 999,
+                    "items_per_call": 7,
                     "reasoning_effort": "low",
                 }
             }
@@ -714,10 +807,14 @@ def test_the_digest_block_of_the_configuration_is_read_and_checked(tmp_path: Pat
     config = load(path, {})
     assert (config.digest.model, config.digest.max_items, config.digest.context_chars) == ("m", 50, 9000)
     assert (config.digest.max_answer_tokens, config.digest.reasoning_effort) == (999, "low")
+    assert config.digest.items_per_call == 7
     assert (config.digest.base_url, load(tmp_path / "lookout.yaml", {}).digest.base_url) == ("", "")
 
     path.write_text(yaml.safe_dump({"digest": {"max_items": 0}}))
     with pytest.raises(ConfigError, match="max_items"):
+        load(path, {})
+    path.write_text(yaml.safe_dump({"digest": {"items_per_call": 1}}))
+    with pytest.raises(ConfigError, match="items_per_call"):
         load(path, {})
     path.write_text(yaml.safe_dump({"digest": {"max_answer_tokens": 10}}))
     with pytest.raises(ConfigError, match="max_answer_tokens"):

@@ -65,6 +65,10 @@ class DigestWriter(Protocol):
         """Lines for these items, each citing items among them; raise ``DigestError`` or when stopped."""
         ...
 
+    def merge_points(self, title: str, points: tuple[Point, ...], watch: DigestWatch) -> tuple[Point, ...]:
+        """The points with those on one story or theme merged, citing all their items; raise as above."""
+        ...
+
     def write_headline(self, sections: tuple[Section, ...], watch: DigestWatch) -> str:
         """Two or three lines on what matters most across the sections; raise as above."""
         ...
@@ -88,6 +92,7 @@ class DigestLimits:
 
     max_items: int = 200
     context_chars: int = 40_000
+    items_per_call: int = 40
     max_answer_tokens: int = 6144
 
 
@@ -120,6 +125,13 @@ class Digester:
         except DigestError:
             return ()
 
+    def _condense(self, title: str, points: tuple[Point, ...], watch: DigestWatch) -> tuple[Point, ...]:
+        """Merge the points written in several calls; if that fails the points are kept as they are."""
+        try:
+            return self._writer.merge_points(title, points, watch)
+        except DigestError:
+            return points
+
     def create(self, query: InboxQuery, scope: str, watch: DigestWatch = Unwatched()) -> Digest:  # noqa: B008
         """Write and keep a digest of the first items the query lists (the most urgent first).
 
@@ -137,10 +149,13 @@ class Digester:
                 raise DigestCancelledError
             watch.started(title)
             points: list[Point] = []
-            for chunk in _chunks(group, self._limits.context_chars):
+            chunks = _chunks(group, self._limits.context_chars, self._limits.items_per_call)
+            for chunk in chunks:
                 written = self._writer.write_section(title, chunk, watch)
                 points.extend(written)
                 points.extend(self._cover(title, chunk, written, watch))
+            if len(chunks) > 1 and points:
+                points = list(self._condense(title, tuple(points), watch))
             if points:
                 sections.append(Section(title, tuple(points)))
         if not sections:
@@ -179,13 +194,13 @@ def _by_category(items: tuple[Item, ...]) -> list[tuple[str, tuple[Item, ...]]]:
     return [(title, tuple(group)) for title, group in ordered]
 
 
-def _chunks(items: tuple[Item, ...], budget: int) -> list[tuple[Item, ...]]:
-    """Consecutive items, each chunk costing at most ``budget`` characters (at least one item)."""
+def _chunks(items: tuple[Item, ...], budget: int, most: int) -> list[tuple[Item, ...]]:
+    """Consecutive items, each chunk of at most ``most`` items costing at most ``budget`` characters."""
     chunks: list[list[Item]] = [[]]
     used = 0
     for item in items:
         cost = min(len(item.title) + len(_text(item)), ITEM_CHARS)
-        if chunks[-1] and used + cost > budget:
+        if chunks[-1] and (used + cost > budget or len(chunks[-1]) >= most):
             chunks.append([])
             used = 0
         chunks[-1].append(item)
