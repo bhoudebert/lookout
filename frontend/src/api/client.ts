@@ -3,6 +3,7 @@ import type {
   ActionResult,
   Channel,
   Filters,
+  IconResult,
   Item,
   ItemDetail,
   ItemPage,
@@ -136,11 +137,12 @@ export const api = {
   deleteSource: (name: string) => call<undefined>(`/api/sources/${encodeURIComponent(name)}`, { method: "DELETE" }),
   addChannel: (name: string, description: string) =>
     call<Channel>("/api/channels", { method: "POST", body: JSON.stringify({ name, description }) }),
-  updateChannel: (name: string, description: string) =>
+  updateChannel: (name: string, change: { description?: string; icon?: string }) =>
     call<Channel>(`/api/channels/${encodeURIComponent(name)}`, {
       method: "PATCH",
-      body: JSON.stringify({ description }),
+      body: JSON.stringify(change),
     }),
+  suggestIcons: () => call<IconResult>("/api/channels/icons", { method: "POST" }),
   refile: (dryRun = false) => call<RefileResult>(`/api/refile?dry_run=${String(dryRun)}`, { method: "POST" }),
   moveChannel: (name: string, parent: string) =>
     call<Channel>(`/api/channels/${encodeURIComponent(name)}/move`, {

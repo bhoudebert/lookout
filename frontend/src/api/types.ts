@@ -20,6 +20,7 @@ export type Sweep = Schemas["SweepOut"];
 export type BulkRating = Schemas["BulkRatingOut"];
 export type UndoEntry = Schemas["UndoEntry"];
 export type RefileResult = Schemas["RefileOut"];
+export type IconResult = Schemas["IconsOut"];
 /** 1 thumbs up, -1 thumbs down, 0 none. */
 export type Rating = -1 | 0 | 1;
 /** What a sweep does to everything a filter matches: an action, or a rating to set. */

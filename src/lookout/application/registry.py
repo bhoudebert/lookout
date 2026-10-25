@@ -12,6 +12,7 @@ from lookout.domain.channel import (
     ChannelCatalogue,
     InvalidCategoryError,
     ancestors,
+    clean_icon,
     is_within,
     normalize,
 )
@@ -69,6 +70,19 @@ class Flags(Protocol):
 
 
 SEEDED = "seeded"
+
+
+def _icon(icon: str | None) -> str | None:
+    """The icon as the user gave it: one emoji, empty to have none, ``None`` to let the model suggest one."""
+    if icon is None:
+        return None
+    if not icon.strip():
+        return ""
+    cleaned = clean_icon(icon)
+    if not cleaned:
+        msg = "an icon is one emoji"
+        raise InvalidError(msg)
+    return cleaned
 
 
 class Registry:
@@ -200,16 +214,20 @@ class Registry:
         for parent in ancestors(path):
             if self._channel(parent) is None:
                 self._channels.save(Channel(parent))
-        stored = Channel(path, channel.description.strip())
+        stored = Channel(path, channel.description.strip(), _icon(channel.icon))
         self._channels.save(stored)
         return stored
 
-    def update_channel(self, name: str, description: str) -> Channel:
-        """Change a category's description."""
+    def update_channel(self, name: str, description: str | None = None, icon: str | None = None) -> Channel:
+        """Change a category's description, icon or both; what is not given stays. An empty icon clears it."""
         existing = self._channel(name)
         if existing is None:
             raise NotFoundError(name)
-        stored = Channel(existing.name, description.strip())
+        stored = Channel(
+            existing.name,
+            existing.description if description is None else description.strip(),
+            existing.icon if icon is None else _icon(icon),
+        )
         self._channels.save(stored)
         return stored
 
@@ -275,7 +293,7 @@ class Registry:
         for old, new in renames.items():
             self._channels.rename(old, new)
         self._follow(renames)
-        return Channel(renames[existing.name], existing.description)
+        return Channel(renames[existing.name], existing.description, existing.icon)
 
     def _follow(self, renames: dict[str, str]) -> None:
         """Point the sources and the items that named a moved category at its new path."""

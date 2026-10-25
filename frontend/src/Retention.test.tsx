@@ -272,7 +272,7 @@ describe("the counts beside the list", () => {
     // Five of the six items are in the AI or Dev branches, but one is done and one expired.
     expect(screen.getByText("4 of 4")).toBeInTheDocument();
     expect(row(/^All/)).toBe("All4");
-    expect(row(/^AI/)).toBe("AI3");
+    expect(row(/^AI/)).toBe("🤖AI3");
     expect(row(/^Dev/)).toBe("Dev1");
   });
 
@@ -281,7 +281,7 @@ describe("the counts beside the list", () => {
     await screen.findByRole("button", { name: "Story 1" });
     await user.selectOptions(screen.getByLabelText("Age"), "older30");
     await waitFor(() => {
-      expect(row(/^AI/)).toBe("AI1");
+      expect(row(/^AI/)).toBe("🤖AI1");
     });
     expect(row(/^All/)).toBe("All1");
     await user.click(tree().getByRole("button", { name: /^AI/ }));
@@ -292,7 +292,7 @@ describe("the counts beside the list", () => {
     await user.selectOptions(screen.getByLabelText("Age"), "");
     await user.selectOptions(screen.getByLabelText("View"), "expired");
     await waitFor(() => {
-      expect(row(/^AI/)).toBe("AI1");
+      expect(row(/^AI/)).toBe("🤖AI1");
     });
     expect(row(/^All/)).toBe("All1");
     expect(screen.getByText("1 of 1")).toBeInTheDocument();

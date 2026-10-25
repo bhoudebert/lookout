@@ -1,5 +1,6 @@
 import type { Channel } from "../api/types";
 import { categoryRows } from "../categories";
+import { CategoryIcon } from "./CategoryIcon";
 
 interface Props {
   channels: Channel[];
@@ -42,7 +43,10 @@ export function CategoryTree({ channels, selected, onSelect }: Props) {
                 onSelect(row.path);
               }}
             >
-              <span>{row.name}</span>
+              <span>
+                <CategoryIcon icon={row.icon} />
+                {row.name}
+              </span>
               <span className="count">{row.total}</span>
             </button>
           </li>

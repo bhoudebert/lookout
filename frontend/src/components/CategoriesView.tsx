@@ -3,6 +3,7 @@ import type { RefileResult } from "../api/types";
 import { categoryRows, SEP } from "../categories";
 import type { CategoryRow } from "../categories";
 import { useManage, useTaxonomy } from "../hooks";
+import { CategoryIcon } from "./CategoryIcon";
 import { StateView } from "./StateView";
 
 const message = (error: unknown): string => (error as Error).message;
@@ -28,7 +29,7 @@ function Category({
   row: CategoryRow;
   /** Where this category could go: the paths it may sit inside, "" being the top level. */
   destinations: string[];
-  onSave: (description: string) => void;
+  onSave: (description: string, icon: string) => void;
   onMove: (parent: string) => void;
   onDelete: () => void;
 }) {
@@ -36,12 +37,24 @@ function Category({
   const [destination, setDestination] = useState(destinations[0] as string);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(row.description);
+  const [iconDraft, setIconDraft] = useState(row.icon);
   return (
     <li style={{ paddingLeft: `${row.depth * 1.5}rem` }}>
+      <CategoryIcon icon={row.icon} />
       <strong title={row.path}>{row.name}</strong>
       <span className="count">{row.total} in the inbox</span>
       {editing ? (
         <>
+          <input
+            aria-label={`Icon of ${row.path}`}
+            className="icon-input"
+            maxLength={24}
+            placeholder="🙂"
+            value={iconDraft}
+            onChange={(e) => {
+              setIconDraft(e.target.value);
+            }}
+          />
           <input
             aria-label={`Description of ${row.path}`}
             value={draft}
@@ -52,7 +65,7 @@ function Category({
           <button
             type="button"
             onClick={() => {
-              onSave(draft);
+              onSave(draft, iconDraft);
               setEditing(false);
             }}
           >
@@ -75,6 +88,7 @@ function Category({
             aria-label={`Edit ${row.path}`}
             onClick={() => {
               setDraft(row.description);
+              setIconDraft(row.icon);
               setEditing(true);
             }}
           >
@@ -143,12 +157,13 @@ function Category({
 /** Categories, as one tree (ADR 0015): what you look at, from broad to specific. */
 export function CategoriesView() {
   const taxonomy = useTaxonomy();
-  const { addChannel, updateChannel, moveChannel, deleteChannel, refile, previewRefile } = useManage();
+  const { addChannel, updateChannel, moveChannel, deleteChannel, refile, previewRefile, suggestIcons } = useManage();
   const [name, setName] = useState("");
   const [parent, setParent] = useState("");
   const [description, setDescription] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [offer, setOffer] = useState<RefileResult | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   if (taxonomy.isPending) return <StateView kind="loading" />;
   if (taxonomy.isError) {
@@ -205,6 +220,27 @@ export function CategoriesView() {
           items in the categories you tick for it, or lets the model choose the most specific one that fits; the model
           uses Other only as a last resort.
         </p>
+        <p>
+          <button
+            type="button"
+            onClick={() => {
+              setNote(null);
+              attempt(
+                suggestIcons.mutateAsync().then((result) => {
+                  setNote(
+                    result.failed
+                      ? "The model could not be reached: try again when it is up."
+                      : `${String(result.suggested)} icons suggested.`,
+                  );
+                }),
+              );
+            }}
+          >
+            Suggest icons
+          </button>
+          <span className="hint"> The model picks one emoji for each category that has none; you can change any.</span>
+        </p>
+        {note && <p role="status">{note}</p>}
         {problem && (
           <p role="alert" className="form-error">
             {problem}
@@ -258,8 +294,8 @@ export function CategoriesView() {
             <Category
               key={row.path}
               row={row}
-              onSave={(text) => {
-                attempt(updateChannel.mutateAsync({ name: row.path, description: text }));
+              onSave={(text, icon) => {
+                attempt(updateChannel.mutateAsync({ name: row.path, description: text, icon }));
               }}
               destinations={destinationsOf(row)}
               onMove={(parent) => {

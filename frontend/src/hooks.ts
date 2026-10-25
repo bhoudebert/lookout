@@ -26,6 +26,12 @@ export const useTaxonomy = (filters: Filters = NO_FILTERS) =>
     staleTime: 60_000,
   });
 
+/** The icon of each category by path, for the places that only know an item's category. */
+export function useIcons(): Record<string, string> {
+  const { data } = useTaxonomy();
+  return Object.fromEntries((data?.channels ?? []).map((c) => [c.name, c.icon]));
+}
+
 export const useSourceTypes = () =>
   useQuery({ queryKey: ["source-types"], queryFn: api.sourceTypes, staleTime: Infinity });
 
@@ -141,10 +147,11 @@ export function useManage() {
       ...options,
     }),
     updateChannel: useMutation({
-      mutationFn: ({ name, description }: { name: string; description: string }) =>
-        api.updateChannel(name, description),
+      mutationFn: ({ name, ...change }: { name: string; description?: string; icon?: string }) =>
+        api.updateChannel(name, change),
       ...options,
     }),
+    suggestIcons: useMutation({ mutationFn: api.suggestIcons, ...options }),
     moveChannel: useMutation({
       mutationFn: ({ name, parent }: { name: string; parent: string }) => api.moveChannel(name, parent),
       ...options,

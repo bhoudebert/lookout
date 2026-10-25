@@ -40,6 +40,7 @@ from lookout.application.enrich import Enrich
 from lookout.application.errors import ConfigError
 from lookout.application.expire import AgeLimited, Expire
 from lookout.application.github import GitHubGateway
+from lookout.application.iconify import Iconify
 from lookout.application.ingest import Ingest
 from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
@@ -348,6 +349,7 @@ class Container:
     reassess: Reassess
     expire: Expire
     refile: Refile
+    iconify: Iconify
     personalize: Personalize
     sources: SourceDirectory
     registry: Registry
@@ -382,6 +384,7 @@ class Container:
             inbox=self.inbox,
             reassess=self.reassess,
             refile=self.refile,
+            iconify=self.iconify,
             personalize=self.personalize,
             sources=self.sources,
             registry=self.registry,
@@ -410,6 +413,7 @@ class Container:
 
     def _run(self) -> RunReport:
         report = RunReport(self.ingest.run(self.fetchers()), self.enrich.run())
+        self.iconify.run()
         self.personalize.rerank()
         self.expire.run()
         return report
@@ -532,6 +536,7 @@ def _assemble(
         reassess=Reassess(items, policy, config.stack, clock),
         expire=Expire(items, clock, config.retention),
         refile=Refile(items, registry.catalogue),
+        iconify=Iconify(registry, enricher),
         personalize=personalize,
         sources=SourceDirectory(registry, statuses),
         registry=registry,

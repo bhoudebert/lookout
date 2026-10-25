@@ -7,7 +7,7 @@ from typing import Any, cast
 import yaml
 
 from lookout.application.errors import ConfigError
-from lookout.domain.channel import OTHER, Channel, InvalidCategoryError, ancestors, normalize
+from lookout.domain.channel import OTHER, Channel, InvalidCategoryError, ancestors, clean_icon, normalize
 from lookout.domain.policy import Thresholds
 from lookout.domain.priority import Priority
 from lookout.domain.retention import DEFAULT_EXPIRY, Retention
@@ -193,7 +193,10 @@ def _channels(reader: _Reader, raw: object) -> tuple[Channel, ...]:
             raise reader.error(f"channels[{number}]: {error}") from error
         if path.lower() in declared:
             raise reader.error(f"two channels are named '{path}'")
-        declared[path.lower()] = Channel(path, reader.text(data, "description", ""))
+        icon = reader.text(data, "icon", "")
+        if icon and not clean_icon(icon):
+            raise reader.error(f"channels[{number}]: 'icon' is one emoji")
+        declared[path.lower()] = Channel(path, reader.text(data, "description", ""), icon or None)
     found: dict[str, Channel] = {}
     for channel in declared.values():
         for parent in ancestors(channel.name):

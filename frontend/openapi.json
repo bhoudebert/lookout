@@ -173,6 +173,18 @@
             "title": "Description",
             "type": "string"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "One emoji; empty for none; absent: the model suggests.",
+            "title": "Icon"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -203,6 +215,12 @@
             "title": "Description",
             "type": "string"
           },
+          "icon": {
+            "default": "",
+            "description": "One emoji, or empty.",
+            "title": "Icon",
+            "type": "string"
+          },
           "items": {
             "default": 0,
             "title": "Items",
@@ -229,16 +247,32 @@
         "type": "object"
       },
       "ChannelPatch": {
-        "description": "A new description for a channel.",
+        "description": "A new description and/or icon for a channel; what is absent stays.",
         "properties": {
           "description": {
-            "title": "Description",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "One emoji, or empty to clear it.",
+            "title": "Icon"
           }
         },
-        "required": [
-          "description"
-        ],
         "title": "ChannelPatch",
         "type": "object"
       },
@@ -373,6 +407,27 @@
           "version"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "IconsOut": {
+        "description": "What asking the model for icons did.",
+        "properties": {
+          "failed": {
+            "description": "True when the model could not be reached.",
+            "title": "Failed",
+            "type": "boolean"
+          },
+          "suggested": {
+            "description": "Categories that got an icon.",
+            "title": "Suggested",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "suggested",
+          "failed"
+        ],
+        "title": "IconsOut",
         "type": "object"
       },
       "ItemDetail": {
@@ -1382,6 +1437,25 @@
           }
         },
         "summary": "Add Channel"
+      }
+    },
+    "/api/channels/icons": {
+      "post": {
+        "description": "Ask the model for an icon for every category that has none.",
+        "operationId": "suggest_icons_api_channels_icons_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IconsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Suggest Icons"
       }
     },
     "/api/channels/{name}": {

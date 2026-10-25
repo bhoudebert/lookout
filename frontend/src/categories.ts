@@ -8,6 +8,8 @@ export interface CategoryRow {
   name: string;
   depth: number;
   description: string;
+  /** One emoji, or an empty string. */
+  icon: string;
   /** Items filed exactly here. */
   items: number;
   /** Items filed here or anywhere under it. */
@@ -28,6 +30,7 @@ export function categoryRows(channels: Channel[]): CategoryRow[] {
       name: parts[parts.length - 1] as string,
       depth: parts.length - 1,
       description: channel.description,
+      icon: channel.icon,
       items: channel.items,
       total: channels.filter((c) => within(c.name, channel.name)).reduce((sum, c) => sum + c.items, 0),
       sources: channel.sources ?? [],

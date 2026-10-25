@@ -1,6 +1,8 @@
 import { Fragment } from "react";
 import type { Item, Rating } from "../api/types";
 import { timeAgo } from "../format";
+import { useIcons } from "../hooks";
+import { CategoryIcon } from "./CategoryIcon";
 import { PriorityBadge } from "./PriorityBadge";
 import { DoneButton, RatingButtons } from "./RatingButtons";
 
@@ -30,6 +32,7 @@ export function ItemList({
   onRate,
   onDone,
 }: Props) {
+  const icons = useIcons();
   return (
     <ul className="items" aria-label="Items">
       {items.map((item, index) => (
@@ -69,6 +72,7 @@ export function ItemList({
                 </button>
               </div>
               <p className="meta">
+                <CategoryIcon icon={icons[item.channel]} />
                 <span className="channel">{item.channel}</span> · {item.sources.join(", ")}
                 {item.author && <> · by {item.author}</>} · {timeAgo(item.published_at, now)}
                 {item.state !== "new" && item.state !== "seen" && <> · {item.state}</>}
