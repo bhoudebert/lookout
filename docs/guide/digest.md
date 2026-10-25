@@ -15,8 +15,9 @@ short headline on top.
    says "Digest: writing..." on every page, and "ready" when it is done. A failure stays in that row with its reason
    until you dismiss it. These rows live in the server's memory: restarting `lookout serve` forgets a digest that was
    being written.
-4. Read the page: the headline, then a section per top category, each point with its sources as links. Items no point
-   cites are listed apart as **not covered**, so nothing is hidden.
+4. Read the page: the headline, then a section per top category, each point with its sources as links. Every item is
+   meant to be covered: the model is told to cite them all and merge only the same story, and an item it leaves out is
+   asked about once more. Any that is still missing is listed apart as **not covered**, so nothing is hidden.
 5. **Mark the N cited items done** clears what you have read in one action. The digest stays readable, and **Digest**
    in the menu lists the recent ones. A digest is kept as written: opening it again costs nothing.
 

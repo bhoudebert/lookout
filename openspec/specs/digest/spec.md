@@ -69,6 +69,15 @@ code fence or a sentence SHALL still be read.
 A point SHALL cite only items that were given to the model. A citation of a number outside them SHALL be dropped, and a
 point left with no valid citation SHALL be dropped. Items no point cites SHALL be listed apart as not covered.
 
+The model SHALL be asked to cite every item it is given, merging only items about the same story, and an item it leaves
+out SHALL be asked about once more, apart from the others. Items still left out after that SHALL be listed as not
+covered.
+
+#### Scenario: The model skips items
+
+- **WHEN** the model writes points citing 5 of 13 items
+- **THEN** it is asked again about the other 8, and the digest covers all 13 if it answers
+
 #### Scenario: The model invents a source
 
 - **WHEN** the model cites item 99 among 5
