@@ -37,6 +37,14 @@ class Enricher(Protocol):
         ...
 
 
+class IconSuggester(Protocol):
+    """Asks a model for the icon of a category."""
+
+    def suggest_icon(self, channel: Channel) -> str:
+        """Return one emoji (possibly empty when the model has none), or raise ``EnrichmentError``."""
+        ...
+
+
 @dataclass(frozen=True, slots=True)
 class SourceStatus:
     """How a source did the last time."""

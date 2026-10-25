@@ -1,5 +1,6 @@
 """Scenarios of openspec/specs/categories: one hierarchy, counted categories, filing existing items again."""
 
+import json
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
@@ -95,6 +96,8 @@ def test_a_source_feeding_a_parent_feeds_everything_under_it(tmp_path: Path) -> 
 
         def answer(request: Any) -> str:
             system = request.content.decode()
+            if "single emoji" in system:
+                return json.dumps({"icon": "🧭"})
             offered.append("Dev > Web" in system and "AI:" not in system and "- AI" not in system)
             return reading(channel="Dev > Web")
 

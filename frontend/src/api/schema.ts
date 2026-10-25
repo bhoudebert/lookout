@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/channels/icons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Icons
+         * @description Ask the model for an icon for every category that has none.
+         */
+        post: operations["suggest_icons_api_channels_icons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/channels/{name}": {
         parameters: {
             query?: never;
@@ -457,6 +477,11 @@ export interface components {
              * @default
              */
             description: string;
+            /**
+             * Icon
+             * @description One emoji; empty for none; absent: the model suggests.
+             */
+            icon?: string | null;
             /** Name */
             name: string;
         };
@@ -479,6 +504,12 @@ export interface components {
             /** Description */
             description: string;
             /**
+             * Icon
+             * @description One emoji, or empty.
+             * @default
+             */
+            icon: string;
+            /**
              * Items
              * @default 0
              */
@@ -493,11 +524,16 @@ export interface components {
         };
         /**
          * ChannelPatch
-         * @description A new description for a channel.
+         * @description A new description and/or icon for a channel; what is absent stays.
          */
         ChannelPatch: {
             /** Description */
-            description: string;
+            description?: string | null;
+            /**
+             * Icon
+             * @description One emoji, or empty to clear it.
+             */
+            icon?: string | null;
         };
         /**
          * ContributionOut
@@ -560,6 +596,22 @@ export interface components {
             status: string;
             /** Version */
             version: string;
+        };
+        /**
+         * IconsOut
+         * @description What asking the model for icons did.
+         */
+        IconsOut: {
+            /**
+             * Failed
+             * @description True when the model could not be reached.
+             */
+            failed: boolean;
+            /**
+             * Suggested
+             * @description Categories that got an icon.
+             */
+            suggested: number;
         };
         /**
          * ItemDetail
@@ -1000,6 +1052,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_icons_api_channels_icons_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IconsOut"];
                 };
             };
         };

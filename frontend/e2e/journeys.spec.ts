@@ -359,6 +359,28 @@ test("categories are defined on their own page, and a new source is filed into t
   await expect(items(page).filter({ hasText: "Rust 1.99 ships async closures" })).toHaveCount(1);
 });
 
+test("a category gets an icon, shown in the tree and beside its items, and loses it again", async ({ page }) => {
+  await page.goto("/categories");
+  await page.getByRole("button", { name: "Edit Dev > Rust" }).click();
+  await page.getByLabel("Icon of Dev > Rust").fill("rust");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("region", { name: "Categories" }).getByRole("alert")).toContainText("one emoji");
+
+  await page.getByRole("button", { name: "Edit Dev > Rust" }).click();
+  await page.getByLabel("Icon of Dev > Rust").fill("🦀");
+  await page.getByRole("button", { name: "Save" }).click();
+  await nav(page, "Inbox").click();
+  await expect(tree(page).getByRole("button", { name: /^Rust/ })).toContainText("🦀");
+  await expect(items(page).filter({ hasText: RUST }).locator(".category-icon")).toHaveText("🦀");
+
+  await nav(page, "Categories").click();
+  await page.getByRole("button", { name: "Edit Dev > Rust" }).click();
+  await page.getByLabel("Icon of Dev > Rust").fill("");
+  await page.getByRole("button", { name: "Save" }).click();
+  await nav(page, "Inbox").click();
+  await expect(tree(page).getByRole("button", { name: /^Rust/ })).not.toContainText("🦀");
+});
+
 test("items already in Other can be filed again, and a parent cannot be deleted while it has children", async ({
   page,
 }) => {

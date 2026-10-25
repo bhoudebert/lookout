@@ -159,6 +159,7 @@ def test_the_default_is_only_other(tmp_path: Path) -> None:
         ),
         ({"stack": [{"name": "a", "aliases": [1]}]}, "'aliases' must be a list of text"),
         ({"channels": [{"name": "AI", "description": 3}]}, "'description' must be text"),
+        ({"channels": [{"name": "AI", "icon": "robot"}]}, "channels[0]: 'icon' is one emoji"),
     ],
 )
 def test_bad_categories_are_refused(tmp_path: Path, data: Any, message: str) -> None:
@@ -199,3 +200,8 @@ def test_a_malformed_category_path_is_refused(tmp_path: Path, name: str) -> None
 def test_a_declared_other_channel_keeps_its_description_and_is_not_added_twice(tmp_path: Path) -> None:
     config = load(write(tmp_path, {"channels": [{"name": "other", "description": "Everything else"}]}), {})
     assert [(c.name, c.description) for c in config.channels] == [("other", "Everything else")]
+
+
+def test_a_declared_icon_is_kept(tmp_path: Path) -> None:
+    config = load(write(tmp_path, {"channels": [{"name": "AI", "icon": "🤖"}, {"name": "Rust"}]}), {})
+    assert [(c.name, c.icon) for c in config.channels] == [("AI", "🤖"), ("Rust", None), ("Other", None)]

@@ -1,5 +1,6 @@
 """Categories (channels in the code): a hierarchy the user defines, and the catalogue (ADR 0015)."""
 
+import unicodedata
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
@@ -7,6 +8,8 @@ OTHER = "Other"
 SEP = " > "
 MAX_DEPTH = 4
 MAX_SEGMENT_CHARS = 40
+MAX_ICON_CHARS = 12
+_ICON_JOINERS = frozenset({"\u200d", "\ufe0f"})
 
 
 class UnknownChannelError(Exception):
@@ -49,12 +52,27 @@ def leaf(path: str) -> str:
     return path.rsplit(SEP, maxsplit=1)[-1]
 
 
+def clean_icon(text: str) -> str:
+    """The text when it is one emoji, else an empty string: an icon is never text, digits or markup."""
+    text = text.strip()
+    if not text or len(text) > MAX_ICON_CHARS:
+        return ""
+    if unicodedata.category(text[0]) not in ("So", "Sk"):
+        return ""
+    ok = all(unicodedata.category(c) in ("So", "Sk") or c in _ICON_JOINERS for c in text)
+    return text if ok else ""
+
+
 @dataclass(frozen=True, slots=True)
 class Channel:
-    """A category with a one-line description the model can use. ``name`` is the whole path."""
+    """A category with a one-line description the model can use. ``name`` is the whole path.
+
+    ``icon`` is one emoji; ``None`` means nobody chose one yet, an empty string that none is wanted.
+    """
 
     name: str
     description: str = ""
+    icon: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

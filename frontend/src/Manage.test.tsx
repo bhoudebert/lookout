@@ -448,7 +448,7 @@ describe("categories", () => {
 
   it("copes with a category the server sends without its sources", async () => {
     const backend = world();
-    backend.taxonomy.channels = [{ name: "Web", description: "", items: 0 }];
+    backend.taxonomy.channels = [{ name: "Web", description: "", icon: "", items: 0 }];
     mount(backend, "/categories");
     const web = (await screen.findByRole("button", { name: "Edit Web" })).closest("li") as HTMLElement;
     expect(web).toHaveTextContent("any source may file items here");
@@ -486,7 +486,7 @@ describe("categories", () => {
       "Cloud",
       "Data",
       "Other",
-    ].map((name) => ({ name, description: "", items: 0, sources: [] }));
+    ].map((name) => ({ name, description: "", icon: "", items: 0, sources: [] }));
     mount(backend, "/categories");
     await screen.findByRole("region", { name: "Categories" });
     expect(screen.queryByRole("group", { name: "Suggested categories" })).not.toBeInTheDocument();
@@ -538,7 +538,56 @@ describe("categories", () => {
     await user.type(input, "Models and agents");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Models and agents")).toBeInTheDocument();
-    expect(calls(backend, "PATCH", "/api/channels/AI")[0]?.body).toEqual({ description: "Models and agents" });
+    expect(calls(backend, "PATCH", "/api/channels/AI")[0]?.body).toEqual({
+      description: "Models and agents",
+      icon: "🤖",
+    });
+  });
+
+  it("shows the icon of a category on its page and in the tree, for the eye only", async () => {
+    mount(world(), "/categories");
+    const ai = (await screen.findByRole("button", { name: "Edit AI" })).closest("li") as HTMLElement;
+    expect(within(ai).getByText("🤖")).toHaveAttribute("aria-hidden", "true");
+    const rust = screen.getByRole("button", { name: "Edit Dev > Rust" }).closest("li") as HTMLElement;
+    expect(rust.querySelector(".category-icon")).toBeNull();
+  });
+
+  it("sets, changes and clears an icon", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/categories");
+    await user.click(await screen.findByRole("button", { name: "Edit Dev > Rust" }));
+    await user.type(screen.getByLabelText("Icon of Dev > Rust"), "🦀");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("🦀")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit AI" }));
+    expect(screen.getByLabelText("Icon of AI")).toHaveValue("🤖");
+    await user.clear(screen.getByLabelText("Icon of AI"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(screen.queryByText("🤖")).not.toBeInTheDocument();
+    });
+    expect(calls(backend, "PATCH", "/api/channels/AI")[0]?.body).toEqual({ description: "Models", icon: "" });
+  });
+
+  it("refuses an icon that is text, saying why", async () => {
+    const { user } = mount(world(), "/categories");
+    await user.click(await screen.findByRole("button", { name: "Edit AI" }));
+    await user.clear(screen.getByLabelText("Icon of AI"));
+    await user.type(screen.getByLabelText("Icon of AI"), "robot");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("an icon is one emoji");
+  });
+
+  it("asks the model for icons and says how it went", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/categories");
+    await user.click(await screen.findByRole("button", { name: "Suggest icons" }));
+    expect(await screen.findByText("2 icons suggested.")).toBeInTheDocument();
+
+    backend.iconsSuggested = { suggested: 0, failed: true };
+    await user.click(screen.getByRole("button", { name: "Suggest icons" }));
+    expect(await screen.findByText(/model could not be reached/)).toBeInTheDocument();
   });
 
   it("shows why a move was refused and keeps the tree as the server has it", async () => {
@@ -553,7 +602,7 @@ describe("categories", () => {
 
   it("offers no move when there is nowhere to go", async () => {
     const backend = world();
-    backend.taxonomy.channels = [{ name: "AI", description: "", items: 0, sources: [] }];
+    backend.taxonomy.channels = [{ name: "AI", description: "", icon: "", items: 0, sources: [] }];
     mount(backend, "/categories");
     expect(await screen.findByRole("button", { name: "Edit AI" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Move AI" })).not.toBeInTheDocument();

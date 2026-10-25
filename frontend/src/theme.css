@@ -51,6 +51,15 @@ body {
 h1,
 h2,
 legend,
+.category-icon {
+  margin-right: 0.4em;
+}
+
+.icon-input {
+  width: 3.2rem;
+  text-align: center;
+}
+
 .tree-title,
 header nav a,
 .title,

@@ -336,12 +336,23 @@ class ChannelIn(BaseModel):
 
     name: str
     description: str = ""
+    icon: str | None = Field(
+        default=None, description="One emoji; empty for none; absent: the model suggests."
+    )
 
 
 class ChannelPatch(BaseModel):
-    """A new description for a channel."""
+    """A new description and/or icon for a channel; what is absent stays."""
 
-    description: str
+    description: str | None = None
+    icon: str | None = Field(default=None, description="One emoji, or empty to clear it.")
+
+    @model_validator(mode="after")
+    def _something_to_change(self) -> "ChannelPatch":
+        if self.description is None and self.icon is None:
+            msg = "give a description, an icon, or both"
+            raise ValueError(msg)
+        return self
 
 
 class ChannelMove(BaseModel):
@@ -410,8 +421,16 @@ class ChannelOut(BaseModel):
 
     name: str
     description: str
+    icon: str = Field(default="", description="One emoji, or empty.")
     items: int = 0
     sources: list[str] = Field(default_factory=list[str], description="The sources that name this category.")
+
+
+class IconsOut(BaseModel):
+    """What asking the model for icons did."""
+
+    suggested: int = Field(description="Categories that got an icon.")
+    failed: bool = Field(description="True when the model could not be reached.")
 
 
 class RefileOut(BaseModel):

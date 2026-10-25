@@ -80,10 +80,10 @@ export class FakeBackend {
   sources: Source[];
   taxonomy: Taxonomy = {
     channels: [
-      { name: "AI", description: "Models", items: 2, sources: ["blog"] },
-      { name: "Dev", description: "", items: 0, sources: [] },
-      { name: "Dev > Rust", description: "", items: 1, sources: [] },
-      { name: "Other", description: "", items: 0, sources: [] },
+      { name: "AI", description: "Models", icon: "🤖", items: 2, sources: ["blog"] },
+      { name: "Dev", description: "", icon: "", items: 0, sources: [] },
+      { name: "Dev > Rust", description: "", icon: "", items: 1, sources: [] },
+      { name: "Other", description: "", icon: "", items: 0, sources: [] },
     ],
   };
   sourceTypes: SourceType[] = [
@@ -129,6 +129,7 @@ export class FakeBackend {
     },
   ];
   refiled = { filed: 2, queued: 5 };
+  iconsSuggested = { suggested: 2, failed: false };
   run: RunStatus = IDLE;
   runPolls = 0;
   calls: Call[] = [];
@@ -184,8 +185,10 @@ export class FakeBackend {
     if (path === "/api/sources" && method === "POST") return this.addSource(body as Partial<Source>);
     if (path.startsWith("/api/sources/"))
       return this.changeSource(method, decodeURIComponent(path.slice(13)), body as Partial<Source>);
-    if (path === "/api/channels" && method === "POST") return this.addChannel(body as Channel);
+    if (path === "/api/channels" && method === "POST")
+      return this.addChannel(body as Partial<Channel> & { name: string });
     if (path === "/api/refile") return this.json(this.refiled);
+    if (path === "/api/channels/icons") return this.json(this.iconsSuggested);
     if (path.startsWith("/api/channels/") && path.endsWith("/move"))
       return this.moveChannel(decodeURIComponent(path.slice(14, -5)), (body as { parent: string }).parent);
     if (path.startsWith("/api/channels/"))
@@ -427,8 +430,8 @@ export class FakeBackend {
     return this.json(source);
   }
 
-  private addChannel(body: Channel): Response {
-    this.taxonomy.channels.push({ ...body, items: 0, sources: [] });
+  private addChannel(body: Partial<Channel> & { name: string }): Response {
+    this.taxonomy.channels.push({ description: "", ...body, icon: body.icon ?? "", items: 0, sources: [] });
     return this.json(body, 201);
   }
 
@@ -446,7 +449,7 @@ export class FakeBackend {
       if (item.channel === name || item.channel.startsWith(`${name} > `))
         item.channel = target + item.channel.slice(name.length);
     }
-    return this.json({ name: target, description: "" });
+    return this.json({ name: target, description: "", icon: "" });
   }
 
   private changeChannel(method: string, name: string, body: Partial<Channel>): Response {
@@ -456,6 +459,8 @@ export class FakeBackend {
       return new Response(null, { status: 204 });
     }
     const channel = this.taxonomy.channels[index] as Channel;
+    // Like the server: an icon is one emoji, or empty.
+    if (body.icon && /[\p{L}\p{N}<>]/u.test(body.icon)) return this.json({ detail: "an icon is one emoji" }, 422);
     Object.assign(channel, body);
     return this.json(channel);
   }

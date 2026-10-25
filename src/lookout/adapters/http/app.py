@@ -24,6 +24,7 @@ from lookout.adapters.http.schemas import (
     ChannelPatch,
     ExplanationOut,
     Health,
+    IconsOut,
     ItemDetail,
     ItemFilter,
     ItemOut,
@@ -187,6 +188,7 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
                 ChannelOut(
                     name=c.name,
                     description=c.description,
+                    icon=c.icon or "",
                     items=counts.get(c.name, 0),
                     sources=[s.name for s in feeders if c.name.lower() in (n.lower() for n in s.channels)],
                 )
@@ -228,18 +230,25 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
 
     @app.post("/api/channels", status_code=201)
     def add_channel(body: ChannelIn) -> ChannelOut:
-        stored = _guard(lambda: services.registry.add_channel(Channel(body.name, body.description)))
-        return ChannelOut(name=stored.name, description=stored.description)
+        channel = Channel(body.name, body.description, body.icon)
+        stored = _guard(lambda: services.registry.add_channel(channel))
+        return ChannelOut(name=stored.name, description=stored.description, icon=stored.icon or "")
+
+    @app.post("/api/channels/icons")
+    def suggest_icons() -> IconsOut:
+        """Ask the model for an icon for every category that has none."""
+        report = services.iconify.run(again=True)
+        return IconsOut(suggested=report.suggested, failed=report.failed)
 
     @app.patch("/api/channels/{name}")
     def change_channel(name: str, body: ChannelPatch) -> ChannelOut:
-        stored = _guard(lambda: services.registry.update_channel(name, body.description))
-        return ChannelOut(name=stored.name, description=stored.description)
+        stored = _guard(lambda: services.registry.update_channel(name, body.description, body.icon))
+        return ChannelOut(name=stored.name, description=stored.description, icon=stored.icon or "")
 
     @app.post("/api/channels/{name}/move")
     def move_channel(name: str, body: ChannelMove) -> ChannelOut:
         stored = _guard(lambda: services.registry.move_channel(name, body.parent))
-        return ChannelOut(name=stored.name, description=stored.description)
+        return ChannelOut(name=stored.name, description=stored.description, icon=stored.icon or "")
 
     @app.delete("/api/channels/{name}", status_code=204)
     def delete_channel(name: str) -> None:

@@ -180,6 +180,16 @@ describe("views", () => {
 });
 
 describe("categories, tags and authors", () => {
+  it("shows the icon of the category in the list, the detail and the tree", async () => {
+    const { user } = mount(new FakeBackend(three()));
+    const row = (await screen.findByRole("button", { name: "Django flaw" })).closest("li") as HTMLElement;
+    expect(within(row).getByText("🤖")).toHaveAttribute("aria-hidden", "true");
+    expect(within(screen.getByRole("navigation", { name: "Categories" })).getByText("🤖")).toBeInTheDocument();
+    await user.click(within(row).getByRole("button", { name: "Django flaw" }));
+    const detail = await screen.findByRole("complementary", { name: "Item detail" });
+    expect(within(detail).getByText("🤖")).toBeInTheDocument();
+  });
+
   it("shows the category, the tags and the author of every item, and searches the author", async () => {
     const { user } = mount(new FakeBackend(three()));
     const row = (await screen.findByRole("button", { name: "Django flaw" })).closest("li") as HTMLElement;
@@ -196,7 +206,7 @@ describe("categories, tags and authors", () => {
     mount(new FakeBackend(three()));
     const tree = within(await screen.findByRole("navigation", { name: "Categories" }));
     const rows = tree.getAllByRole("listitem").map((li) => li.textContent);
-    expect(rows).toEqual(["All3", "AI2", "Dev1", "Rust1", "Other0"]);
+    expect(rows).toEqual(["All3", "🤖AI2", "Dev1", "Rust1", "Other0"]);
     expect(tree.getByRole("button", { name: /^All/ })).toHaveAttribute("aria-current", "true");
   });
 

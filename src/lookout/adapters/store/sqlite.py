@@ -147,6 +147,11 @@ def migrate_v6(db: sqlite3.Connection) -> None:
     db.execute("DELETE FROM signals WHERE kind IN ('done', 'dismiss')")
 
 
+def migrate_v7(db: sqlite3.Connection) -> None:
+    """An icon for each category: NULL until chosen, empty when none is wanted."""
+    db.execute("ALTER TABLE channel_defs ADD COLUMN icon TEXT")
+
+
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     migrate_v1,
     migrate_v2,
@@ -154,6 +159,7 @@ MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     migrate_v4,
     migrate_v5,
     migrate_v6,
+    migrate_v7,
 )
 
 
@@ -496,18 +502,18 @@ class SqliteChannelDefinitions:
 
     def all(self) -> tuple[Channel, ...]:
         """Every channel."""
-        rows = self._db.query("SELECT name, description FROM channel_defs ORDER BY position")
-        return tuple(Channel(r["name"], r["description"]) for r in rows)
+        rows = self._db.query("SELECT name, description, icon FROM channel_defs ORDER BY position")
+        return tuple(Channel(r["name"], r["description"], r["icon"]) for r in rows)
 
     def save(self, channel: Channel) -> None:
-        """Insert a channel, or change the description of the one with this name."""
+        """Insert a channel, or change the description and icon of the one with this name."""
         self._db.run(
             """
-            INSERT INTO channel_defs (name, description, position)
-            VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM channel_defs))
-            ON CONFLICT(name) DO UPDATE SET description = excluded.description
+            INSERT INTO channel_defs (name, description, icon, position)
+            VALUES (?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM channel_defs))
+            ON CONFLICT(name) DO UPDATE SET description = excluded.description, icon = excluded.icon
             """,
-            (channel.name, channel.description),
+            (channel.name, channel.description, channel.icon),
         )
 
     def rename(self, old: str, new: str) -> None:

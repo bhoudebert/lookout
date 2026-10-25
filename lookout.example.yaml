@@ -16,6 +16,7 @@ interests: Backend engineering in Python, PostgreSQL, React, and the security of
 channels:
   - name: AI
     description: Models, agents, and the tooling around them
+    icon: "🤖" # optional, one emoji; without it the local model suggests one
   - name: Dev > Python
     description: Python and its ecosystem
   - name: Dev > Rust

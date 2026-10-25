@@ -1,5 +1,6 @@
 import type { Action, Rating } from "../api/types";
-import { useItem } from "../hooks";
+import { useIcons, useItem } from "../hooks";
+import { CategoryIcon } from "./CategoryIcon";
 import { until, webUrl } from "../format";
 import { PriorityBadge } from "./PriorityBadge";
 import { DoneButton, RatingButtons } from "./RatingButtons";
@@ -14,6 +15,7 @@ interface Props {
 
 export function ItemDetail({ id, onAction, onRate, onSnooze, onClose }: Props) {
   const query = useItem(id);
+  const icons = useIcons();
   if (query.isPending)
     return (
       <aside className="detail" aria-busy="true">
@@ -45,6 +47,7 @@ export function ItemDetail({ id, onAction, onRate, onSnooze, onClose }: Props) {
       {item.action_needed && <p className="action-needed">Action needed</p>}
       {item.summary && <p className="summary">{item.summary}</p>}
       <p className="facets">
+        <CategoryIcon icon={icons[item.channel]} />
         <span className="channel">{item.channel}</span>
         {item.unread && <> · not read yet</>}
         {item.author && <> · by {item.author}</>}

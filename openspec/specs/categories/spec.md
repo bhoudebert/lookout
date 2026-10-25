@@ -83,3 +83,26 @@ and SHALL describe `Other` that way unless the user wrote a description for it.
 ### Requirement: Say when nothing is filed
 
 While every item shown in the inbox is in `Other`, the inbox SHALL say so and link to the categories page.
+
+### Requirement: An icon for each category
+
+A category MAY have one icon: a single emoji, shown before its name in the tree, on the categories page and beside
+items. The local model suggests one for each category that has none, once, at the end of a run or when asked
+("Suggest icons"). The user can set, change or clear any icon. A run never suggests one again for a category the
+user cleared; "Suggest icons" asks for every category without one. Only emoji
+are accepted, from the model and from the user: text, digits, markup and anything longer than one emoji are refused.
+
+#### Scenario: The model suggests an icon
+
+- **WHEN** a run ends and a category has no icon yet
+- **THEN** the model is asked for one emoji for it, and the icon appears in the tree
+
+#### Scenario: Text where an icon should be
+
+- **WHEN** the model answers `<script>` or `rocket`, or the user types `abc`
+- **THEN** the answer is not stored, and the user is told an icon is one emoji
+
+#### Scenario: The user clears an icon
+
+- **WHEN** the user clears the icon of a category
+- **THEN** the category shows none and the model is not asked for it again
