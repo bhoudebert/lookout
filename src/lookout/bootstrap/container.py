@@ -87,7 +87,7 @@ def _rss(source: SourceDef, ways: Ways) -> SourceFetcher:
     return RssFetcher(source.name, url, ways.http, keywords=source.keywords)
 
 
-REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+REPO = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*/(?!\.{1,2}$)[A-Za-z0-9_.-]+$")
 
 
 def _github(source: SourceDef, ways: Ways) -> SourceFetcher:

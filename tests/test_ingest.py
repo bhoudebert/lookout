@@ -6,6 +6,7 @@ from tests.support import NOW, FakeFetcher, FixedClock, database, raw
 
 from lookout.adapters.store.sqlite import SqliteItemRepository, SqliteSourceStatusRepository
 from lookout.application.ingest import BACKOFF_BASE, BACKOFF_MAX, Ingest
+from lookout.application.ports import InboxQuery
 from lookout.domain.advisory import Advisory
 from lookout.domain.policy import PriorityPolicy
 from lookout.domain.priority import Priority
@@ -128,3 +129,38 @@ def test_critical_advisory_on_a_declared_package_is_p0_before_any_model_call() -
     ingest.run((FakeFetcher("osv", (raw(title="Django SQL injection", source="osv", advisory=advisory),)),))
     (item,) = items.all()
     assert (item.priority, item.stack_matches, item.enrichment) == (Priority.P0, ("django",), None)
+
+
+def test_entries_whose_address_is_not_a_web_page_are_dropped() -> None:
+    ingest, items, _, _ = build()
+    bad = (
+        "javascript:alert(1)",
+        "data:text/html,x",
+        "file:///etc/passwd",
+        "ftp://x/y",
+        "//evil/x",
+        "not a url",
+    )
+
+    report = ingest.run((FakeFetcher("blog", (*(raw(u) for u in bad), raw("HTTPS://example.com/ok"))),))
+
+    assert report.sources[0].new == 1
+    assert [i.url for i in items.search(InboxQuery()).items] == ["HTTPS://example.com/ok"]
+
+
+def test_a_failure_shows_no_secret_from_the_address() -> None:
+    ingest, _, statuses, _ = build()
+    error = "https://user:pw@example.com/feed?token=abc#x: 500 and https://b.org/p?k=v"
+
+    report = ingest.run((FakeFetcher("blog", error=error),))
+
+    for shown in (report.sources[0].error, statuses.get("blog").last_error):
+        assert shown == "https://example.com/feed?…: 500 and https://b.org/p?…"
+
+
+def test_credentials_in_an_address_are_hidden_even_without_a_query() -> None:
+    ingest, _, _, _ = build()
+
+    report = ingest.run((FakeFetcher("blog", error="https://me:pw@example.com/feed: refused"),))
+
+    assert report.sources[0].error == "https://example.com/feed: refused"

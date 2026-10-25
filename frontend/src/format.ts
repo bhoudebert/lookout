@@ -11,3 +11,8 @@ export function timeAgo(iso: string, now: Date): string {
 export function until(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
+
+/** The address when it is a web page; anything else (javascript:, data:) must never become a link. */
+export function webUrl(url: string): string | undefined {
+  return /^https?:\/\/\S/i.test(url.trim()) ? url.trim() : undefined;
+}

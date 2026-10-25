@@ -1,6 +1,6 @@
 import type { Action, Rating } from "../api/types";
 import { useItem } from "../hooks";
-import { until } from "../format";
+import { until, webUrl } from "../format";
 import { PriorityBadge } from "./PriorityBadge";
 import { DoneButton, RatingButtons } from "./RatingButtons";
 
@@ -58,9 +58,13 @@ export function ItemDetail({ id, onAction, onRate, onSnooze, onClose }: Props) {
       )}
       <p className="excerpt">{body}</p>
       <p>
-        <a href={item.url} target="_blank" rel="noreferrer noopener">
-          Open the original
-        </a>
+        {webUrl(item.url) ? (
+          <a href={webUrl(item.url)} target="_blank" rel="noreferrer noopener">
+            Open the original
+          </a>
+        ) : (
+          <span>No web address to open</span>
+        )}
       </p>
       {item.stack_matches.length > 0 && <p>Touches your stack: {item.stack_matches.join(", ")}</p>}
       {item.snoozed_until && <p>Snoozed until {until(item.snoozed_until)}</p>}

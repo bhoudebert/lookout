@@ -322,14 +322,14 @@ def _where(query: InboxQuery) -> tuple[str, list[object]]:
         clauses.append(f"state IN ({_marks(query.states)})")
         args.extend(s.value for s in query.states)
     if query.sources:
-        clauses.append("(" + " OR ".join("sources LIKE ?" for _ in query.sources) + ")")
-        args.extend(f"%|{name}|%" for name in query.sources)
+        clauses.append("(" + " OR ".join("sources LIKE ? ESCAPE '\\'" for _ in query.sources) + ")")
+        args.extend(f"%|{_like(name)}|%" for name in query.sources)
     if query.starred is not None:
         clauses.append("starred = ?")
         args.append(int(query.starred))
     if query.text:
-        clauses.append("search LIKE ?")
-        args.append(f"%{query.text.lower()}%")
+        clauses.append("search LIKE ? ESCAPE '\\'")
+        args.append(f"%{_like(query.text.lower())}%")
     if query.published_before is not None:
         clauses.append("published_at < ?")
         args.append(query.published_before.astimezone(UTC).isoformat())
@@ -337,6 +337,11 @@ def _where(query: InboxQuery) -> tuple[str, list[object]]:
         clauses.append("published_at >= ?")
         args.append(query.published_after.astimezone(UTC).isoformat())
     return ("WHERE " + " AND ".join(clauses)) if clauses else "", args
+
+
+def _like(text: str) -> str:
+    """The text with LIKE's wildcards made plain, for a pattern that ends ``ESCAPE '\\'``."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _marks(values: object) -> str:
