@@ -126,7 +126,7 @@ class Choosing(ScriptedEnricher):
         self.answer = answer
         self.offered: list[tuple[str, ...]] = []
 
-    def enrich(self, item, channels):  # type: ignore[no-untyped-def]
+    def enrich(self, item, channels, examples=()):  # type: ignore[no-untyped-def]
         self.offered.append(tuple(c.name for c in channels))
         return enrichment(60, channel=self.answer)
 

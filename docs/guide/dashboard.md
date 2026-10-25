@@ -25,7 +25,7 @@ Click a title, or press `o`, and the panel opens on the right. Moving with `j` a
 
 Every item, in the list and in its panel, has three controls:
 
-- **Thumbs up** and **thumbs down** say whether you want more or less of this. The pressed thumb is the item's rating; pressing it again clears it. A rating teaches your profile (its source, author, category and tags) and **never removes the item**.
+- **Thumbs up** and **thumbs down** say whether you want more or less of this. The pressed thumb is the item's rating; pressing it again clears it. A rating teaches your profile about the content (its author, category and tags, never its source), shows the model your taste on later items, and **never removes the item**.
 - **Done** clears the item from the inbox and teaches nothing. The panel moves on to the next item, which takes the focus, so you can keep going with `e`.
 
 Use a thumb down and Done together for noise, a thumb up for what you want more of, and Done alone to tidy. See [how it learns your taste](/personalization).

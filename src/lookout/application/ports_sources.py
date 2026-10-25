@@ -7,6 +7,7 @@ from typing import Protocol
 from lookout.domain.channel import Channel
 from lookout.domain.enrichment import Enrichment
 from lookout.domain.item import Item
+from lookout.domain.profile import Example
 from lookout.domain.raw import RawItem
 
 
@@ -32,8 +33,13 @@ class SourceFetcher(Protocol):
 class Enricher(Protocol):
     """Asks a model to read one item."""
 
-    def enrich(self, item: Item, channels: tuple[Channel, ...]) -> Enrichment:
-        """Return a validated reading, with the channel among ``channels``, or raise ``EnrichmentError``."""
+    def enrich(
+        self, item: Item, channels: tuple[Channel, ...], examples: tuple[Example, ...] = ()
+    ) -> Enrichment:
+        """Return a validated reading, with the channel among ``channels``, or raise ``EnrichmentError``.
+
+        ``examples`` are items the user rated, as a sample of taste.
+        """
         ...
 
 

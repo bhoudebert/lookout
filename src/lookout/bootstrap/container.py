@@ -530,6 +530,7 @@ def _assemble(
             daily_limit=config.llm.daily_limit,
             profile=personalize.profile,
             catalogue=registry.catalogue,
+            examples=personalize.examples,
         ),
         triage=Triage(items, personalize, clock),
         inbox=Inbox(items, clock),

@@ -61,6 +61,45 @@ def features(item: Item) -> tuple[str, ...]:
     return tuple(found)
 
 
+def content_features(item: Item) -> tuple[str, ...]:
+    """What a rating teaches: the content (author, category, tags), never where it was published."""
+    return tuple(f for f in features(item) if not f.startswith("source:"))
+
+
+@dataclass(frozen=True, slots=True)
+class Example:
+    """An item the user rated, shown to the model as a sample of taste."""
+
+    title: str
+    tags: tuple[str, ...]
+    rating: Rating
+
+
+MAX_EXAMPLES_PER_SIDE = 5
+EXAMPLE_TITLE_CHARS = 120
+EXAMPLE_TAGS = 5
+
+
+def examples(items: Iterable[Item], *, per_side: int = MAX_EXAMPLES_PER_SIDE) -> tuple[Example, ...]:
+    """The most recently liked and disliked items, up to ``per_side`` of each, liked first."""
+    rated = sorted(
+        (i for i in items if i.rating is not Rating.NONE and i.rated_at is not None),
+        key=lambda i: i.rated_at or datetime.min,
+        reverse=True,
+    )
+    chosen = [
+        i for side in (Rating.UP, Rating.DOWN) for i in [r for r in rated if r.rating is side][:per_side]
+    ]
+    return tuple(
+        Example(
+            i.title[:EXAMPLE_TITLE_CHARS],
+            tuple(dict.fromkeys((*(i.enrichment.tags if i.enrichment else ()), *i.feed_tags)))[:EXAMPLE_TAGS],
+            i.rating,
+        )
+        for i in chosen
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class Profile:
     """Feature weights learnt from signals. Empty until enough signals exist."""
@@ -88,6 +127,8 @@ def learn(
 ) -> Profile:
     """Fold signals and ratings into weights, older ones counting less.
 
+    A rating teaches about the content, never about the source.
+
     Ratings live on the items, so changing or clearing one changes what is learnt. Below ``minimum`` signals
     and ratings together nothing is learnt.
     """
@@ -99,15 +140,15 @@ def learn(
         return Profile({})
     weights: dict[str, float] = {}
 
-    def learn_from(item: Item, strength: float, at: datetime) -> None:
+    def learn_from(item: Item, strength: float, at: datetime, taught: tuple[str, ...]) -> None:
         age_days = max((now - at).total_seconds() / 86400, 0.0)
         decayed = strength * math.pow(0.5, age_days / half_life_days)
-        for feature in features(item):
+        for feature in taught:
             weights[feature] = weights.get(feature, 0.0) + decayed
 
     for signal in signals:
         if (item := items.get(signal.item_id)) is not None:
-            learn_from(item, WEIGHTS[signal.kind], signal.at)
+            learn_from(item, WEIGHTS[signal.kind], signal.at, features(item))
     for item, at in rated:
-        learn_from(item, RATING_WEIGHT * int(item.rating), at)
+        learn_from(item, RATING_WEIGHT * int(item.rating), at, content_features(item))
     return Profile(weights)
