@@ -320,8 +320,8 @@ describe("acting", () => {
     await waitFor(() => {
       expect(titles()).not.toContain("Django flaw");
     });
-    // The finished item's detail goes with it, and the next item is the one in focus.
-    expect(screen.queryByRole("complementary", { name: "Item detail" })).not.toBeInTheDocument();
+    // The panel moves on to the next item, which is also the one in focus.
+    expect(await screen.findByRole("heading", { name: "React 20 RC" })).toBeInTheDocument();
     expect(screen.getByRole("listitem", { current: true })).toHaveTextContent("React 20 RC");
     await user.click(screen.getByRole("button", { name: "Undo" }));
     await waitFor(() => {
@@ -528,7 +528,9 @@ describe("bulk actions", () => {
     expect(await screen.findByText("Marked done: 2 items")).toBeInTheDocument();
 
     await user.keyboard("x");
-    await user.click(screen.getByRole("button", { name: "Snooze…" }));
+    await user.click(
+      within(screen.getByRole("group", { name: "Bulk actions" })).getByRole("button", { name: "Snooze…" }),
+    );
     await user.click(screen.getByRole("button", { name: "Tomorrow" }));
     expect(await screen.findByText(/Snoozed/, { selector: ".toast" })).toBeInTheDocument();
   });
@@ -807,6 +809,46 @@ describe("rating several items at once", () => {
     await user.click(undo);
     await waitFor(() => {
       expect(screen.getAllByText("no item a").length).toBeGreaterThan(0);
+    });
+  });
+});
+
+describe("the panel follows the keys", () => {
+  it("shows the next item in the panel as j and k move, without marking it seen or crowding the history", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    await screen.findByRole("button", { name: "Django flaw" });
+    expect(screen.queryByRole("complementary", { name: "Item detail" })).not.toBeInTheDocument();
+    const before = window.history.length;
+
+    await user.keyboard("j");
+    expect(await screen.findByRole("heading", { name: "React 20 RC" })).toBeInTheDocument();
+    expect(window.location.search).toBe("?item=b");
+    await user.keyboard("j");
+    expect(await screen.findByRole("heading", { name: "Rust reader" })).toBeInTheDocument();
+    await user.keyboard("k");
+    expect(await screen.findByRole("heading", { name: "React 20 RC" })).toBeInTheDocument();
+    expect(window.history.length).toBe(before); // previews replace the page in the history
+
+    // A preview is not a reading: nothing was marked seen, so nothing was taught.
+    expect(backend.items.find((i) => i.id === "b")?.state).toBe("new");
+    expect(backend.calls.filter((c) => c.path.endsWith("/actions"))).toHaveLength(0);
+
+    await user.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(backend.items.find((i) => i.id === "b")?.state).toBe("seen");
+    });
+  });
+
+  it("keeps the panel on the last item and closes it when nothing is left", async () => {
+    const backend = new FakeBackend([makeItem({ id: "only", title: "Only one" })]);
+    const { user } = mount(backend);
+    await screen.findByRole("button", { name: "Only one" });
+    await user.keyboard("jj");
+    expect(await screen.findByRole("heading", { name: "Only one" })).toBeInTheDocument();
+    await user.keyboard("e");
+    await waitFor(() => {
+      expect(screen.queryByRole("complementary", { name: "Item detail" })).not.toBeInTheDocument();
     });
   });
 });

@@ -98,7 +98,10 @@ test("done can be undone", async ({ page }) => {
   await page.getByRole("complementary").getByRole("button", { name: /^Done/ }).click();
   await expect(toast(page, "Marked done")).toBeVisible();
   await expect(items(page)).toHaveCount(5);
-  await expect(page.getByRole("complementary", { name: "Item detail" })).toHaveCount(0);
+  // The panel moves on to another item instead of staying on the finished one.
+  await expect(
+    page.getByRole("complementary", { name: "Item detail" }).getByRole("heading", { name: REACT }),
+  ).toHaveCount(0);
   await toast(page, "Marked done").getByRole("button", { name: "Undo" }).click();
   await expect(items(page)).toHaveCount(6);
 });
@@ -129,6 +132,23 @@ test("a row has thumbs that teach and a Done that clears", async ({ page }) => {
     "aria-pressed",
     "false",
   );
+});
+
+test("j and k show each item in the panel without marking it seen", async ({ page }) => {
+  await page.goto("/");
+  await expect(items(page)).toHaveCount(6);
+  await page.keyboard.press("j");
+  const panel = page.getByRole("complementary", { name: "Item detail" });
+  await expect(panel).toBeVisible();
+  await expect(page).toHaveURL(/item=/);
+  const first = await panel.getByRole("heading", { level: 2 }).innerText();
+  await page.keyboard.press("j");
+  await expect(panel.getByRole("heading", { level: 2 })).not.toHaveText(first);
+  await page.keyboard.press("k");
+  await expect(panel.getByRole("heading", { level: 2 })).toHaveText(first);
+  await expect(items(page).filter({ hasText: first }).first()).not.toContainText("seen");
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(panel).toHaveCount(0);
 });
 
 test("a whole selection, or a whole filter, can be rated at once", async ({ page }) => {
