@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from lookout.domain.advisory import Advisory
 from lookout.domain.channel import OTHER
+from lookout.domain.digest import Digest, Point, Section
 from lookout.domain.enrichment import MAX_TAGS, Enrichment
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
@@ -131,4 +132,39 @@ def _read_enrichment(raw: dict[str, Any] | None) -> Enrichment | None:
         score=raw["score"],
         action_needed=raw["action_needed"],
         reason=raw["reason"],
+    )
+
+
+def encode_digest(digest: Digest) -> str:
+    """Serialise a digest."""
+    return json.dumps(
+        {
+            "id": digest.id,
+            "created_at": _dt(digest.created_at),
+            "scope": digest.scope,
+            "headline": digest.headline,
+            "sections": [
+                {"title": s.title, "points": [{"text": p.text, "items": list(p.items)} for p in s.points]}
+                for s in digest.sections
+            ],
+            "uncovered": list(digest.uncovered),
+            "total": digest.total,
+        }
+    )
+
+
+def decode_digest(text: str) -> Digest:
+    """Read a digest back."""
+    raw = cast("dict[str, Any]", json.loads(text))
+    return Digest(
+        id=raw["id"],
+        created_at=datetime.fromisoformat(raw["created_at"]),
+        scope=raw["scope"],
+        headline=raw["headline"],
+        sections=tuple(
+            Section(s["title"], tuple(Point(p["text"], tuple(p["items"])) for p in s["points"]))
+            for s in raw["sections"]
+        ),
+        uncovered=tuple(raw["uncovered"]),
+        total=raw["total"],
     )

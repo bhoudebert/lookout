@@ -381,6 +381,24 @@ test("a category gets an icon, shown in the tree and beside its items, and loses
   await expect(tree(page).getByRole("button", { name: /^Rust/ })).not.toContainText("🦀");
 });
 
+test("a selection is condensed into a digest that cites its sources, and can be deleted", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Summarise these \d+/ }).click();
+
+  const digest = page.getByRole("article", { name: "Digest" });
+  await expect(digest).toBeVisible();
+  await expect(digest.getByText("Python and Rust both shipped.")).toBeVisible();
+  await expect(digest.getByRole("region", { name: "Dev" }).locator("li").first()).toContainText("Digest point");
+  await expect(digest.getByRole("link", { name: PYTHON })).toHaveAttribute("href", "https://fake.test/python-315");
+  await expect(page).toHaveURL(/\/digest\/[0-9a-f]{12}$/);
+
+  await nav(page, "Digest").click();
+  await expect(page.getByRole("region", { name: "Digests" }).getByRole("button")).toHaveCount(1);
+  await page.getByRole("button", { name: "Python and Rust both shipped." }).click();
+  await page.getByRole("button", { name: "Delete this digest" }).click();
+  await expect(page.getByText(/None yet/)).toBeVisible();
+});
+
 test("items already in Other can be filed again, and a parent cannot be deleted while it has children", async ({
   page,
 }) => {
@@ -548,6 +566,14 @@ for (const scheme of ["light", "dark"] as const) {
       await page.locator("summary", { hasText: /^Reddit communities/ }).click();
       await expect(page.getByRole("button", { name: "+ Reddit: AI" })).toBeVisible();
       await scan(page);
+    });
+
+    test("a digest", async ({ page }) => {
+      await page.goto("/");
+      await page.getByRole("button", { name: /^Summarise these \d+/ }).click();
+      await expect(page.getByRole("article", { name: "Digest" })).toBeVisible();
+      await scan(page);
+      await page.getByRole("button", { name: "Delete this digest" }).click();
     });
 
     test("the categories", async ({ page }) => {

@@ -8,10 +8,11 @@ from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
-from lookout.adapters.store.codec import decode, encode
+from lookout.adapters.store.codec import decode, decode_digest, encode, encode_digest
 from lookout.application.ports import InboxQuery, Order, Page
 from lookout.application.ports_sources import SourceStatus
 from lookout.domain.channel import SEP, Channel
+from lookout.domain.digest import Digest
 from lookout.domain.item import Item
 from lookout.domain.priority import Priority
 from lookout.domain.profile import Signal, SignalKind
@@ -152,6 +153,11 @@ def migrate_v7(db: sqlite3.Connection) -> None:
     db.execute("ALTER TABLE channel_defs ADD COLUMN icon TEXT")
 
 
+def migrate_v8(db: sqlite3.Connection) -> None:
+    """Digests of many items, kept to be read again."""
+    db.execute("CREATE TABLE digests (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, data TEXT NOT NULL)")
+
+
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     migrate_v1,
     migrate_v2,
@@ -160,6 +166,7 @@ MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     migrate_v5,
     migrate_v6,
     migrate_v7,
+    migrate_v8,
 )
 
 
@@ -538,3 +545,33 @@ class SqliteFlags:
     def set(self, name: str) -> None:
         """Remember that ``name`` happened."""
         self._db.run("INSERT OR IGNORE INTO flags (name) VALUES (?)", (name,))
+
+
+class SqliteDigestRepository:
+    """Digests, newest first."""
+
+    def __init__(self, database: Database) -> None:
+        self._db = database
+
+    def save(self, digest: Digest) -> None:
+        """Insert or replace a digest."""
+        self._db.run(
+            "INSERT OR REPLACE INTO digests (id, created_at, data) VALUES (?, ?, ?)",
+            (digest.id, digest.created_at.astimezone(UTC).isoformat(), encode_digest(digest)),
+        )
+
+    def get(self, digest_id: str) -> Digest | None:
+        """The digest with this id, or ``None``."""
+        rows = self._db.query("SELECT data FROM digests WHERE id = ?", (digest_id,))
+        return decode_digest(rows[0]["data"]) if rows else None
+
+    def recent(self, limit: int) -> tuple[Digest, ...]:
+        """The newest digests."""
+        rows = self._db.query("SELECT data FROM digests ORDER BY created_at DESC, id LIMIT ?", (limit,))
+        return tuple(decode_digest(r["data"]) for r in rows)
+
+    def delete(self, digest_id: str) -> bool:
+        """Forget a digest; whether there was one."""
+        found = self.get(digest_id) is not None
+        self._db.run("DELETE FROM digests WHERE id = ?", (digest_id,))
+        return found

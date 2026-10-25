@@ -3,6 +3,7 @@ import type { Action, Filters, Item, Rating, Sweep } from "../api/types";
 import {
   useAct,
   useBulk,
+  useCreateDigest,
   useItems,
   useRate,
   useRateMany,
@@ -37,6 +38,8 @@ interface Props {
   filters: Filters;
   openId: string | null;
   onFilters: (filters: Filters) => void;
+  /** Show a digest that was just written. */
+  onDigest: (id: string) => void;
   /** Show an item in the panel, or close it. ``replace`` previews without adding to the browser history. */
   onOpen: (id: string | null, replace?: boolean) => void;
 }
@@ -46,12 +49,13 @@ interface Message {
   undo?: () => void;
 }
 
-export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
+export function Inbox({ filters, openId, onFilters, onDigest, onOpen }: Props) {
   const items = useItems(filters);
   const sources = useSources();
   const taxonomy = useTaxonomy(filters);
   const act = useAct();
   const bulk = useBulk();
+  const digest = useCreateDigest();
   const restore = useRestore();
   const restoreMany = useRestoreMany();
   const rate = useRate();
@@ -394,6 +398,25 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
               Act on all {total}…
             </button>
           )}
+          {total > 0 && (
+            <button
+              type="button"
+              disabled={digest.isPending}
+              onClick={() => {
+                digest.mutate(filters, {
+                  onSuccess: (made) => {
+                    onDigest(made.id);
+                  },
+                  onError: (error) => {
+                    setMessage({ text: errorText(error) });
+                  },
+                });
+              }}
+            >
+              Summarise these {total}…
+            </button>
+          )}
+          {digest.isPending && <span role="status">Writing the digest, it can take a minute or two…</span>}
           <button
             type="button"
             onClick={() => {

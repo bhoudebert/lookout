@@ -233,3 +233,44 @@ select:hover {
   border-top-style: solid;
   border-top-color: var(--line);
 }
+
+.digest .headline {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  line-height: 1.5;
+  margin: 0.4rem 0 1.2rem;
+}
+
+.digest section {
+  border-top: 1px solid var(--line);
+  padding-top: 0.6rem;
+}
+
+.digest ul,
+.digests {
+  list-style: none;
+  padding: 0;
+}
+
+.digest li,
+.digests li {
+  margin: 0.45rem 0;
+}
+
+.digest .sources {
+  display: inline-flex;
+  gap: 0.4rem;
+  font-size: 0.85em;
+}
+
+.digest .actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+}
+
+.digests li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}

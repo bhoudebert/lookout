@@ -2,6 +2,8 @@ import type {
   Action,
   ActionResult,
   Channel,
+  Digest,
+  DigestSummary,
   Filters,
   IconResult,
   Item,
@@ -142,6 +144,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(change),
     }),
+  digests: () => call<DigestSummary[]>("/api/digests"),
+  digest: (id: string) => call<Digest>(`/api/digests/${encodeURIComponent(id)}`),
+  createDigest: (filters: Filters) =>
+    call<Digest>("/api/digests", { method: "POST", body: JSON.stringify({ filter: filterBody(filters) }) }),
+  deleteDigest: (id: string) => call<undefined>(`/api/digests/${encodeURIComponent(id)}`, { method: "DELETE" }),
   suggestIcons: () => call<IconResult>("/api/channels/icons", { method: "POST" }),
   refile: (dryRun = false) => call<RefileResult>(`/api/refile?dry_run=${String(dryRun)}`, { method: "POST" }),
   moveChannel: (name: string, parent: string) =>

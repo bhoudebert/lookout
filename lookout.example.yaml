@@ -11,6 +11,11 @@ llm:
 # Told to the model so scores reflect you.
 interests: Backend engineering in Python, PostgreSQL, React, and the security of what I run.
 
+# A bigger model for digests (the "Summarise these" button), if you have one. Optional; see the guide.
+# digest:
+#   model: gemma4-digest
+#   max_items: 200
+
 # The categories you look at, from broad to specific ("Dev > Rust" sits inside "Dev"). "Other" always exists.
 # The description helps the model choose.
 channels:

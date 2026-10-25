@@ -4,6 +4,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from lookout.application.digester import Digester, DigestRepository
 from lookout.application.iconify import Iconify
 from lookout.application.personalize import Personalize
 from lookout.application.ports import Clock, ItemRepository
@@ -45,6 +46,8 @@ class Services:
     export: Callable[[], Iterable[str]]
     refile: Refile
     iconify: Iconify
+    digester: Digester
+    digests: DigestRepository
     schedule_minutes: int
     dashboard_dir: Path
     close: Callable[[], None]

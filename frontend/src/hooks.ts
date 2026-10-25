@@ -32,6 +32,30 @@ export function useIcons(): Record<string, string> {
   return Object.fromEntries((data?.channels ?? []).map((c) => [c.name, c.icon]));
 }
 
+export const useDigests = () => useQuery({ queryKey: ["digests"], queryFn: api.digests });
+
+/** One digest; an empty id (the list page) asks for nothing. */
+export const useDigest = (id: string) =>
+  useQuery({ queryKey: ["digest", id], queryFn: () => api.digest(id), enabled: id !== "" });
+
+/** Have the model condense a selection; it can take minutes, and nothing is kept when it fails. */
+export function useCreateDigest() {
+  const refresh = useRefresh();
+  return useMutation({ mutationFn: api.createDigest, onSuccess: refresh });
+}
+
+/** Delete a digest. ``onDeleted`` runs first, to leave the page before anything tries to load the digest again. */
+export function useDeleteDigest(onDeleted: () => void) {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: api.deleteDigest,
+    onSuccess: () => {
+      onDeleted();
+      return refresh();
+    },
+  });
+}
+
 export const useSourceTypes = () =>
   useQuery({ queryKey: ["source-types"], queryFn: api.sourceTypes, staleTime: Infinity });
 

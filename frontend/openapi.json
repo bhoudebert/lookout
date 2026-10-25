@@ -295,6 +295,123 @@
         "title": "ContributionOut",
         "type": "object"
       },
+      "DigestIn": {
+        "description": "What to condense: the items a filter selects (the most urgent first, up to the configured maximum).",
+        "properties": {
+          "filter": {
+            "$ref": "#/components/schemas/ItemFilter"
+          }
+        },
+        "title": "DigestIn",
+        "type": "object"
+      },
+      "DigestOut": {
+        "description": "A digest with the items it cites.",
+        "properties": {
+          "cited": {
+            "description": "Ids of the items some point cites.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Cited",
+            "type": "array"
+          },
+          "count": {
+            "description": "Items the model was given.",
+            "title": "Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionOut"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "total": {
+            "description": "Items the selection matched.",
+            "title": "Total",
+            "type": "integer"
+          },
+          "uncovered": {
+            "items": {
+              "$ref": "#/components/schemas/ItemRef"
+            },
+            "title": "Uncovered",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "scope",
+          "headline",
+          "sections",
+          "uncovered",
+          "cited",
+          "count",
+          "total"
+        ],
+        "title": "DigestOut",
+        "type": "object"
+      },
+      "DigestSummary": {
+        "description": "A digest as the list shows it.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "scope",
+          "headline",
+          "count",
+          "total"
+        ],
+        "title": "DigestSummary",
+        "type": "object"
+      },
       "ExplanationOut": {
         "description": "Why an item ranks where it does.",
         "properties": {
@@ -720,6 +837,48 @@
         "title": "ItemPage",
         "type": "object"
       },
+      "ItemRef": {
+        "description": "An item a digest cites.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/State"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "description": "Empty when the item has no web address.",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "url",
+          "sources",
+          "priority",
+          "state"
+        ],
+        "title": "ItemRef",
+        "type": "object"
+      },
       "Order": {
         "description": "How a listing is ordered: by priority band (triage) or strictly newest first (latest), ADR 0016.",
         "enum": [
@@ -728,6 +887,28 @@
         ],
         "title": "Order",
         "type": "string"
+      },
+      "PointOut": {
+        "description": "One line of a digest, with the items it was written from.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemRef"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "items"
+        ],
+        "title": "PointOut",
+        "type": "object"
       },
       "RatingIn": {
         "description": "Thumbs up (1), thumbs down (-1); the rating the item already has clears it.",
@@ -863,6 +1044,28 @@
           "waiting"
         ],
         "title": "RunOut",
+        "type": "object"
+      },
+      "SectionOut": {
+        "description": "The points of one category.",
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PointOut"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "points"
+        ],
+        "title": "SectionOut",
         "type": "object"
       },
       "SeenBelowIn": {
@@ -1584,6 +1787,134 @@
           }
         },
         "summary": "Move Channel"
+      }
+    },
+    "/api/digests": {
+      "get": {
+        "operationId": "list_digests_api_digests_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DigestSummary"
+                  },
+                  "title": "Response List Digests Api Digests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Digests"
+      },
+      "post": {
+        "description": "Have the model condense what a filter selects. It can take a minute or two.",
+        "operationId": "create_digest_api_digests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DigestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DigestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Digest"
+      }
+    },
+    "/api/digests/{digest_id}": {
+      "delete": {
+        "operationId": "delete_digest_api_digests__digest_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "digest_id",
+            "required": true,
+            "schema": {
+              "title": "Digest Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Digest"
+      },
+      "get": {
+        "operationId": "get_digest_api_digests__digest_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "digest_id",
+            "required": true,
+            "schema": {
+              "title": "Digest Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DigestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Digest"
       }
     },
     "/api/health": {

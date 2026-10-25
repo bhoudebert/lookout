@@ -19,6 +19,9 @@ export type Channel = Schemas["ChannelOut"];
 export type Sweep = Schemas["SweepOut"];
 export type BulkRating = Schemas["BulkRatingOut"];
 export type UndoEntry = Schemas["UndoEntry"];
+export type Digest = Schemas["DigestOut"];
+export type DigestSummary = Schemas["DigestSummary"];
+export type DigestItem = Schemas["ItemRef"];
 export type RefileResult = Schemas["RefileOut"];
 export type IconResult = Schemas["IconsOut"];
 /** 1 thumbs up, -1 thumbs down, 0 none. */
