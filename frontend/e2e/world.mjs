@@ -51,7 +51,13 @@ const server = createServer((request, response) => {
     let body = "";
     request.on("data", (chunk) => (body += chunk));
     request.on("end", () => {
-      const content = JSON.stringify(reading(body));
+      // The digest model: one point per item, citing it by its number in the prompt.
+      const numbers = [...body.matchAll(/\[(\d+)\] /g)].map((m) => Number(m[1]));
+      const content = body.includes("top of a news digest")
+        ? JSON.stringify({ headline: "Python and Rust both shipped." })
+        : body.includes("one section of a very dense news digest")
+          ? JSON.stringify({ points: numbers.map((n) => ({ text: `Digest point ${n}.`, items: [n] })) })
+          : JSON.stringify(reading(body));
       response
         .writeHead(200, { "Content-Type": "application/json" })
         .end(JSON.stringify({ choices: [{ message: { content } }] }));

@@ -76,6 +76,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/digests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Digests */
+        get: operations["list_digests_api_digests_get"];
+        put?: never;
+        /**
+         * Create Digest
+         * @description Have the model condense what a filter selects. It can take a minute or two.
+         */
+        post: operations["create_digest_api_digests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/digests/{digest_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Digest */
+        get: operations["get_digest_api_digests__digest_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Digest */
+        delete: operations["delete_digest_api_digests__digest_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -546,6 +585,70 @@ export interface components {
             points: number;
         };
         /**
+         * DigestIn
+         * @description What to condense: the items a filter selects (the most urgent first, up to the configured maximum).
+         */
+        DigestIn: {
+            filter?: components["schemas"]["ItemFilter"];
+        };
+        /**
+         * DigestOut
+         * @description A digest with the items it cites.
+         */
+        DigestOut: {
+            /**
+             * Cited
+             * @description Ids of the items some point cites.
+             */
+            cited: string[];
+            /**
+             * Count
+             * @description Items the model was given.
+             */
+            count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Headline */
+            headline: string;
+            /** Id */
+            id: string;
+            /** Scope */
+            scope: string;
+            /** Sections */
+            sections: components["schemas"]["SectionOut"][];
+            /**
+             * Total
+             * @description Items the selection matched.
+             */
+            total: number;
+            /** Uncovered */
+            uncovered: components["schemas"]["ItemRef"][];
+        };
+        /**
+         * DigestSummary
+         * @description A digest as the list shows it.
+         */
+        DigestSummary: {
+            /** Count */
+            count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Headline */
+            headline: string;
+            /** Id */
+            id: string;
+            /** Scope */
+            scope: string;
+            /** Total */
+            total: number;
+        };
+        /**
          * ExplanationOut
          * @description Why an item ranks where it does.
          */
@@ -721,11 +824,41 @@ export interface components {
             total: number;
         };
         /**
+         * ItemRef
+         * @description An item a digest cites.
+         */
+        ItemRef: {
+            /** Id */
+            id: string;
+            /** Priority */
+            priority: string;
+            /** Sources */
+            sources: string[];
+            state: components["schemas"]["State"];
+            /** Title */
+            title: string;
+            /**
+             * Url
+             * @description Empty when the item has no web address.
+             */
+            url: string;
+        };
+        /**
          * Order
          * @description How a listing is ordered: by priority band (triage) or strictly newest first (latest), ADR 0016.
          * @enum {string}
          */
         Order: "priority" | "date";
+        /**
+         * PointOut
+         * @description One line of a digest, with the items it was written from.
+         */
+        PointOut: {
+            /** Items */
+            items: components["schemas"]["ItemRef"][];
+            /** Text */
+            text: string;
+        };
         /**
          * RatingIn
          * @description Thumbs up (1), thumbs down (-1); the rating the item already has clears it.
@@ -784,6 +917,16 @@ export interface components {
             started_at: string | null;
             /** Waiting */
             waiting: number;
+        };
+        /**
+         * SectionOut
+         * @description The points of one category.
+         */
+        SectionOut: {
+            /** Points */
+            points: components["schemas"]["PointOut"][];
+            /** Title */
+            title: string;
         };
         /**
          * SeenBelowIn
@@ -1163,6 +1306,119 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ChannelOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_digests_api_digests_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DigestSummary"][];
+                };
+            };
+        };
+    };
+    create_digest_api_digests_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DigestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DigestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_digest_api_digests__digest_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                digest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DigestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_digest_api_digests__digest_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                digest_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

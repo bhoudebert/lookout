@@ -1,4 +1,14 @@
-import type { ActionResult, Channel, Item, ItemDetail, RunStatus, Source, SourceType, Taxonomy } from "../api/types";
+import type {
+  ActionResult,
+  Channel,
+  Digest,
+  Item,
+  ItemDetail,
+  RunStatus,
+  Source,
+  SourceType,
+  Taxonomy,
+} from "../api/types";
 
 export function makeItem(overrides: Partial<Item> = {}): Item {
   return {
@@ -129,6 +139,10 @@ export class FakeBackend {
     },
   ];
   refiled = { filed: 2, queued: 5 };
+  digests: Digest[] = [];
+  digestFails: string | null = null;
+  /** While set, writing a digest waits for it, like a model that takes its time. */
+  digestGate: Promise<void> | null = null;
   iconsSuggested = { suggested: 2, failed: false };
   run: RunStatus = IDLE;
   runPolls = 0;
@@ -157,6 +171,9 @@ export class FakeBackend {
     if (this.failWith) {
       const { status, detail } = this.failWith;
       return Promise.resolve(new Response(JSON.stringify({ detail }), { status }));
+    }
+    if (this.digestGate && method === "POST" && url.pathname === "/api/digests") {
+      return this.digestGate.then(() => this.route(method, url, body));
     }
     return Promise.resolve(this.route(method, url, body));
   };
@@ -187,6 +204,9 @@ export class FakeBackend {
       return this.changeSource(method, decodeURIComponent(path.slice(13)), body as Partial<Source>);
     if (path === "/api/channels" && method === "POST")
       return this.addChannel(body as Partial<Channel> & { name: string });
+    if (path === "/api/digests" && method === "POST") return this.makeDigest(body as { filter: { text: string } });
+    if (path === "/api/digests") return this.json(this.digests);
+    if (path.startsWith("/api/digests/")) return this.oneDigest(method, decodeURIComponent(path.slice(13)));
     if (path === "/api/refile") return this.json(this.refiled);
     if (path === "/api/channels/icons") return this.json(this.iconsSuggested);
     if (path.startsWith("/api/channels/") && path.endsWith("/move"))
@@ -428,6 +448,59 @@ export class FakeBackend {
     const source = this.sources[index] as Source;
     Object.assign(source, body);
     return this.json(source);
+  }
+
+  /** Like the server: a digest of nothing is refused, and one is kept when the model succeeds. */
+  private makeDigest(body: { filter: { text: string } }): Response {
+    if (this.digestFails) return this.json({ detail: this.digestFails }, 502);
+    const chosen = this.items.filter((i) => i.title.toLowerCase().includes(body.filter.text.toLowerCase()));
+    if (chosen.length === 0) return this.json({ detail: "nothing matches this selection" }, 422);
+    const ref = (i: Item) => ({
+      id: i.id,
+      title: i.title,
+      url: i.url,
+      sources: i.sources,
+      priority: i.priority,
+      state: i.state,
+    });
+    const made: Digest = {
+      id: `d${String(this.digests.length + 1)}`,
+      created_at: "2026-10-24T09:00:00Z",
+      scope: body.filter.text ? `matching '${body.filter.text}'` : "Inbox",
+      headline: "Today: a security fix and a release.",
+      sections: [
+        { title: "Dev", points: chosen.slice(0, 2).map((i) => ({ text: `About ${i.title}.`, items: [ref(i)] })) },
+      ],
+      uncovered: chosen.slice(2).map(ref),
+      cited: chosen.slice(0, 2).map((i) => i.id),
+      count: chosen.length,
+      total: chosen.length,
+    };
+    this.digests.unshift(made);
+    return this.json(made, 201);
+  }
+
+  private oneDigest(method: string, id: string): Response {
+    const index = this.digests.findIndex((d) => d.id === id);
+    if (index < 0) return this.json({ detail: `no digest ${id}` }, 404);
+    if (method === "DELETE") {
+      this.digests.splice(index, 1);
+      return new Response(null, { status: 204 });
+    }
+    const digest = this.digests[index] as Digest;
+    // The state of the cited items is today's, not the day it was written.
+    const state = (ref: Digest["uncovered"][number]) => ({
+      ...ref,
+      state: this.items.find((i) => i.id === ref.id)?.state ?? ref.state,
+    });
+    return this.json({
+      ...digest,
+      sections: digest.sections.map((s) => ({
+        ...s,
+        points: s.points.map((p) => ({ ...p, items: p.items.map(state) })),
+      })),
+      uncovered: digest.uncovered.map(state),
+    });
   }
 
   private addChannel(body: Partial<Channel> & { name: string }): Response {

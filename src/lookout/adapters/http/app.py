@@ -22,6 +22,9 @@ from lookout.adapters.http.schemas import (
     ChannelMove,
     ChannelOut,
     ChannelPatch,
+    DigestIn,
+    DigestOut,
+    DigestSummary,
     ExplanationOut,
     Health,
     IconsOut,
@@ -29,10 +32,13 @@ from lookout.adapters.http.schemas import (
     ItemFilter,
     ItemOut,
     ItemPage,
+    ItemRef,
+    PointOut,
     RatingIn,
     RefileOut,
     RestoreIn,
     RunOut,
+    SectionOut,
     SeenBelowIn,
     SourceBody,
     SourceCreate,
@@ -46,18 +52,22 @@ from lookout.adapters.http.schemas import (
     UndoOut,
     Wake,
 )
+from lookout.application.digester import DigestError, EmptyDigestError
 from lookout.application.ports import InboxQuery, Order
 from lookout.application.registry import DuplicateError, InUseError, InvalidError, NotFoundError
 from lookout.application.services import Services
 from lookout.application.triage import Action, ItemNotFoundError, TooManyItemsError, Undo
 from lookout.domain.channel import Channel
+from lookout.domain.digest import Digest
 from lookout.domain.item import InvalidTransitionError
 from lookout.domain.priority import Priority
 from lookout.domain.rating import Rating
 from lookout.domain.source import SourceDef
 from lookout.domain.state import State
+from lookout.domain.urls import is_web_url
 
 DEFAULT_STATES = frozenset({State.NEW, State.SEEN})
+RECENT_DIGESTS = 30
 
 
 def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
@@ -196,6 +206,8 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
             ],
         )
 
+    _digest_routes(app, services)
+
     @app.post("/api/refile")
     def refile(dry_run: bool = False) -> RefileOut:
         report = services.refile.run(dry_run=dry_run)
@@ -303,6 +315,100 @@ def _undo(item_id: str, body: UndoOut) -> Undo:
         body.starred,
         Rating(body.rating),
         body.rated_at,
+    )
+
+
+def _digest_routes(app: FastAPI, services: Services) -> None:
+    """Condensing many items into a digest, and reading the ones kept."""
+
+    @app.post("/api/digests", status_code=201)
+    def create_digest(body: DigestIn) -> DigestOut:
+        """Have the model condense what a filter selects. It can take a minute or two."""
+        try:
+            digest = services.digester.create(_query(body.filter, services.clock.now()), _scope(body.filter))
+        except EmptyDigestError as error:
+            raise HTTPException(422, str(error)) from None
+        except DigestError as error:
+            raise HTTPException(502, f"the model could not write the digest: {error}") from None
+        return _digest_out(services, digest)
+
+    @app.get("/api/digests")
+    def list_digests() -> list[DigestSummary]:
+        return [
+            DigestSummary(
+                id=d.id,
+                created_at=d.created_at,
+                scope=d.scope,
+                headline=d.headline,
+                count=d.count,
+                total=d.total,
+            )
+            for d in services.digests.recent(RECENT_DIGESTS)
+        ]
+
+    @app.get("/api/digests/{digest_id}")
+    def get_digest(digest_id: str) -> DigestOut:
+        digest = services.digests.get(digest_id)
+        if digest is None:
+            raise HTTPException(404, f"no digest {digest_id}")
+        return _digest_out(services, digest)
+
+    @app.delete("/api/digests/{digest_id}", status_code=204)
+    def delete_digest(digest_id: str) -> None:
+        if not services.digests.delete(digest_id):
+            raise HTTPException(404, f"no digest {digest_id}")
+
+
+def _scope(selection: ItemFilter) -> str:
+    """The selection in words, to title a digest."""
+    parts = [
+        *(selection.channel or []),
+        *(selection.priority or []),
+        *(f"from {s}" for s in selection.source),
+        *(s.value for s in selection.state),
+        *(["starred"] if selection.starred else []),
+        *([f"matching '{selection.text}'"] if selection.text else []),
+        *([f"older than {selection.older_than_days} days"] if selection.older_than_days is not None else []),
+        *([f"last {selection.newer_than_days} days"] if selection.newer_than_days is not None else []),
+    ]
+    return ", ".join(parts) or "Inbox"
+
+
+def _digest_out(services: Services, digest: Digest) -> DigestOut:
+    """A digest with its cited items resolved; an item that has been deleted since is left out."""
+    known = {i: services.items.get(i) for i in {*digest.cited, *digest.uncovered}}
+
+    def ref(item_id: str) -> list[ItemRef]:
+        item = known[item_id]
+        if item is None:
+            return []
+        return [
+            ItemRef(
+                id=item.id,
+                title=item.title,
+                url=item.url if is_web_url(item.url) else "",
+                sources=list(item.sources),
+                priority=item.priority.name,
+                state=item.state,
+            )
+        ]
+
+    return DigestOut(
+        id=digest.id,
+        created_at=digest.created_at,
+        scope=digest.scope,
+        headline=digest.headline,
+        sections=[
+            SectionOut(
+                title=s.title,
+                points=[PointOut(text=p.text, items=[r for i in p.items for r in ref(i)]) for p in s.points],
+            )
+            for s in digest.sections
+        ],
+        uncovered=[r for i in digest.uncovered for r in ref(i)],
+        cited=[i for i in digest.cited if known[i] is not None],
+        count=digest.count,
+        total=digest.total,
     )
 
 

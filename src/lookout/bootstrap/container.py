@@ -14,6 +14,7 @@ from lookout.adapters.github.gh_cli import GhCliGateway, gh_is_logged_in
 from lookout.adapters.github.rest import RestGateway
 from lookout.adapters.github.unavailable import UnavailableGateway
 from lookout.adapters.llm.openai_compatible import OpenAiEnricher
+from lookout.adapters.llm.openai_digest import OpenAiDigestWriter
 from lookout.adapters.sources.github import WATCHABLE as GITHUB_WATCHABLE
 from lookout.adapters.sources.github import GitHubFetcher, repo_path
 from lookout.adapters.sources.hackernews import FEEDS as HN_FEEDS
@@ -29,6 +30,7 @@ from lookout.adapters.store.codec import encode
 from lookout.adapters.store.sqlite import (
     Database,
     SqliteChannelDefinitions,
+    SqliteDigestRepository,
     SqliteFlags,
     SqliteItemRepository,
     SqliteSignalRepository,
@@ -36,6 +38,7 @@ from lookout.adapters.store.sqlite import (
     SqliteSourceStatusRepository,
     SqliteUsageRepository,
 )
+from lookout.application.digester import Digester, DigestLimits, DigestRepository
 from lookout.application.enrich import Enrich
 from lookout.application.errors import ConfigError
 from lookout.application.expire import AgeLimited, Expire
@@ -350,6 +353,8 @@ class Container:
     expire: Expire
     refile: Refile
     iconify: Iconify
+    digester: Digester
+    digests: DigestRepository
     personalize: Personalize
     sources: SourceDirectory
     registry: Registry
@@ -385,6 +390,8 @@ class Container:
             reassess=self.reassess,
             refile=self.refile,
             iconify=self.iconify,
+            digester=self.digester,
+            digests=self.digests,
             personalize=self.personalize,
             sources=self.sources,
             registry=self.registry,
@@ -478,6 +485,7 @@ def _assemble(
 ) -> Container:
     items = SqliteItemRepository(database)
     statuses = SqliteSourceStatusRepository(database)
+    digests = SqliteDigestRepository(database)
     personalize = Personalize(
         items,
         SqliteSignalRepository(database),
@@ -538,6 +546,20 @@ def _assemble(
         expire=Expire(items, clock, config.retention),
         refile=Refile(items, registry.catalogue),
         iconify=Iconify(registry, enricher),
+        digester=Digester(
+            items,
+            OpenAiDigestWriter(
+                llm_http,
+                base_url=config.digest.base_url or config.llm.base_url,
+                model=config.digest.model or config.llm.model,
+                api_key=config.llm.api_key,
+                interests=config.interests,
+            ),
+            digests,
+            clock,
+            DigestLimits(config.digest.max_items, config.digest.context_chars),
+        ),
+        digests=digests,
         personalize=personalize,
         sources=SourceDirectory(registry, statuses),
         registry=registry,

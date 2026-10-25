@@ -37,6 +37,7 @@ export default defineConfig({
           { text: "The dashboard", link: "/dashboard" },
           { text: "How priority is decided", link: "/priorities" },
           { text: "How it learns your taste", link: "/personalization" },
+          { text: "Digests of many items", link: "/digest" },
           { text: "Sources", link: "/sources" },
           { text: "Keeping the inbox small", link: "/inbox-size" },
         ],

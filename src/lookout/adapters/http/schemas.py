@@ -433,6 +433,62 @@ class IconsOut(BaseModel):
     failed: bool = Field(description="True when the model could not be reached.")
 
 
+class DigestIn(BaseModel):
+    """What to condense: the items a filter selects (the most urgent first, up to the configured maximum)."""
+
+    filter: ItemFilter = Field(default_factory=ItemFilter)
+
+
+class ItemRef(BaseModel):
+    """An item a digest cites."""
+
+    id: str
+    title: str
+    url: str = Field(description="Empty when the item has no web address.")
+    sources: list[str]
+    priority: str
+    state: State
+
+
+class PointOut(BaseModel):
+    """One line of a digest, with the items it was written from."""
+
+    text: str
+    items: list[ItemRef]
+
+
+class SectionOut(BaseModel):
+    """The points of one category."""
+
+    title: str
+    points: list[PointOut]
+
+
+class DigestOut(BaseModel):
+    """A digest with the items it cites."""
+
+    id: str
+    created_at: datetime
+    scope: str
+    headline: str
+    sections: list[SectionOut]
+    uncovered: list[ItemRef]
+    cited: list[str] = Field(description="Ids of the items some point cites.")
+    count: int = Field(description="Items the model was given.")
+    total: int = Field(description="Items the selection matched.")
+
+
+class DigestSummary(BaseModel):
+    """A digest as the list shows it."""
+
+    id: str
+    created_at: datetime
+    scope: str
+    headline: str
+    count: int
+    total: int
+
+
 class RefileOut(BaseModel):
     """What filing existing items again did."""
 

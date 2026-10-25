@@ -27,6 +27,16 @@ class LlmConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class DigestConfig:
+    """The model that writes digests and how much one digest takes on; empty values follow ``llm``."""
+
+    base_url: str = ""
+    model: str = ""
+    max_items: int = 200
+    context_chars: int = 40_000
+
+
+@dataclass(frozen=True, slots=True)
 class PersonalizationConfig:
     """How fast the profile forgets and how much it needs before it learns."""
 
@@ -54,6 +64,7 @@ class Config:
 
     database: Path = Path("data/lookout.db")
     llm: LlmConfig = field(default_factory=LlmConfig)
+    digest: DigestConfig = field(default_factory=DigestConfig)
     interests: str = ""
     channels: tuple[Channel, ...] = (Channel(OTHER),)
     stack: Stack = field(default_factory=Stack)
@@ -87,6 +98,7 @@ def load_config(
     return Config(
         database=Path(reader.text(root, "database", env.get("LOOKOUT_DATABASE", "data/lookout.db"))),
         llm=_llm(reader, reader.mapping(root.get("llm", {}), "llm"), env),
+        digest=_digest(reader, reader.mapping(root.get("digest", {}), "digest")),
         interests=reader.text(root, "interests", ""),
         channels=_channels(reader, root.get("channels", [])),
         stack=_stack(reader, root.get("stack", [])),
@@ -162,6 +174,16 @@ def _llm(reader: _Reader, data: dict[str, Any], env: dict[str, str]) -> LlmConfi
         api_key=env.get("LOOKOUT_LLM_API_KEY", ""),
         daily_limit=reader.integer(data, "daily_limit", base.daily_limit),
         summary_chars=reader.integer(data, "summary_chars", base.summary_chars, minimum=50),
+    )
+
+
+def _digest(reader: _Reader, data: dict[str, Any]) -> DigestConfig:
+    base = DigestConfig()
+    return DigestConfig(
+        base_url=reader.text(data, "base_url", base.base_url),
+        model=reader.text(data, "model", base.model),
+        max_items=reader.integer(data, "max_items", base.max_items, minimum=1),
+        context_chars=reader.integer(data, "context_chars", base.context_chars, minimum=2000),
     )
 
 

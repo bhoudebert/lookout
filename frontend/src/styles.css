@@ -64,8 +64,10 @@ h1 {
 }
 header nav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
   flex: 1;
+  min-width: 0;
 }
 header nav a {
   color: var(--fg);
@@ -170,7 +172,8 @@ button:disabled {
 .toolbar,
 .bulk {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
   align-items: center;
   color: var(--muted);
   margin-bottom: 0.75rem;
