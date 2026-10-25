@@ -21,15 +21,52 @@ class EmptyDigestError(Exception):
     """Nothing matches the selection."""
 
 
+class DigestCancelledError(Exception):
+    """The user stopped the digest."""
+
+
+class DigestWatch(Protocol):
+    """Who follows a digest being written: told how far it is, and asked whether to stop."""
+
+    def planned(self, sections: int) -> None:
+        """How many parts the digest has: its sections, then the headline."""
+        ...
+
+    def started(self, title: str) -> None:
+        """Writing of this part begins."""
+        ...
+
+    def wrote(self, tokens: int) -> None:
+        """The model wrote this many more tokens."""
+        ...
+
+    def stopped(self) -> bool:
+        """Whether the user asked to stop."""
+        ...
+
+
+class Unwatched:
+    """Nobody follows: never stops, remembers nothing."""
+
+    def planned(self, sections: int) -> None: ...
+
+    def started(self, title: str) -> None: ...
+
+    def wrote(self, tokens: int) -> None: ...
+
+    def stopped(self) -> bool:
+        return False
+
+
 class DigestWriter(Protocol):
     """Asks a model for the lines of a digest."""
 
-    def write_section(self, title: str, items: tuple[Item, ...]) -> tuple[Point, ...]:
-        """Lines for these items, each citing items among them; raise ``DigestError``."""
+    def write_section(self, title: str, items: tuple[Item, ...], watch: DigestWatch) -> tuple[Point, ...]:
+        """Lines for these items, each citing items among them; raise ``DigestError`` or when stopped."""
         ...
 
-    def write_headline(self, sections: tuple[Section, ...]) -> str:
-        """Two or three lines on what matters most across the sections; raise ``DigestError``."""
+    def write_headline(self, sections: tuple[Section, ...], watch: DigestWatch) -> str:
+        """Two or three lines on what matters most across the sections; raise as above."""
         ...
 
 
@@ -51,6 +88,7 @@ class DigestLimits:
 
     max_items: int = 200
     context_chars: int = 40_000
+    max_answer_tokens: int = 6144
 
 
 class Digester:
@@ -70,23 +108,34 @@ class Digester:
         self._clock = clock
         self._limits = limits
 
-    def create(self, query: InboxQuery, scope: str) -> Digest:
-        """Write and keep a digest of the first items the query lists (the most urgent first)."""
+    def create(self, query: InboxQuery, scope: str, watch: DigestWatch = Unwatched()) -> Digest:  # noqa: B008
+        """Write and keep a digest of the first items the query lists (the most urgent first).
+
+        ``watch`` is told how far it is and may ask to stop, which raises ``DigestCancelledError``.
+        """
         page = self._items.search(replace(query, limit=self._limits.max_items, offset=0))
         if not page.items:
             msg = "nothing matches this selection"
             raise EmptyDigestError(msg)
+        groups = _by_category(page.items)
+        watch.planned(len(groups) + 1)
         sections: list[Section] = []
-        for title, group in _by_category(page.items):
+        for title, group in groups:
+            if watch.stopped():
+                raise DigestCancelledError
+            watch.started(title)
             points: list[Point] = []
             for chunk in _chunks(group, self._limits.context_chars):
-                points.extend(self._writer.write_section(title, chunk))
+                points.extend(self._writer.write_section(title, chunk, watch))
             if points:
                 sections.append(Section(title, tuple(points)))
         if not sections:
             msg = "the model wrote nothing for this selection"
             raise DigestError(msg)
-        headline = self._writer.write_headline(tuple(sections))
+        if watch.stopped():
+            raise DigestCancelledError
+        watch.started("Headline")
+        headline = self._writer.write_headline(tuple(sections), watch)
         now = self._clock.now()
         cited = {i for s in sections for p in s.points for i in p.items}
         digest = Digest(

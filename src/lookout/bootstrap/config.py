@@ -34,6 +34,8 @@ class DigestConfig:
     model: str = ""
     max_items: int = 200
     context_chars: int = 40_000
+    max_answer_tokens: int = 6144
+    reasoning_effort: str = "none"
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,6 +186,8 @@ def _digest(reader: _Reader, data: dict[str, Any]) -> DigestConfig:
         model=reader.text(data, "model", base.model),
         max_items=reader.integer(data, "max_items", base.max_items, minimum=1),
         context_chars=reader.integer(data, "context_chars", base.context_chars, minimum=2000),
+        reasoning_effort=reader.text(data, "reasoning_effort", base.reasoning_effort),
+        max_answer_tokens=reader.integer(data, "max_answer_tokens", base.max_answer_tokens, minimum=256),
     )
 
 

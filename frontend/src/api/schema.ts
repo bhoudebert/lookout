@@ -88,9 +88,60 @@ export interface paths {
         put?: never;
         /**
          * Create Digest
-         * @description Have the model condense what a filter selects. It can take a minute or two.
+         * @description Start writing a digest of what a filter selects, in the background; one at a time.
          */
         post: operations["create_digest_api_digests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/digests/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Digest Jobs */
+        get: operations["list_digest_jobs_api_digests_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/digests/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Dismiss Digest Job */
+        delete: operations["dismiss_digest_job_api_digests_jobs__job_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/digests/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Digest Job */
+        post: operations["cancel_digest_job_api_digests_jobs__job_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -590,6 +641,55 @@ export interface components {
          */
         DigestIn: {
             filter?: components["schemas"]["ItemFilter"];
+        };
+        /**
+         * DigestJobOut
+         * @description A digest being written, or how an attempt ended. Kept in memory: a restart forgets it.
+         */
+        DigestJobOut: {
+            /**
+             * Digest Id
+             * @description The digest, once written.
+             */
+            digest_id: string | null;
+            /** Error */
+            error: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: string;
+            /** Scope */
+            scope: string;
+            /**
+             * Section
+             * @description The part being written: a category, then the headline.
+             */
+            section: string;
+            /** Section Number */
+            section_number: number;
+            /** Sections Total */
+            sections_total: number;
+            /**
+             * Started
+             * @description True when this request started it.
+             * @default false
+             */
+            started: boolean;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "running" | "done" | "failed" | "cancelled";
+            /**
+             * Tokens
+             * @description About how many tokens the model has written so far.
+             */
+            tokens: number;
         };
         /**
          * DigestOut
@@ -1352,12 +1452,92 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DigestOut"];
+                    "application/json": components["schemas"]["DigestJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_digest_jobs_api_digests_jobs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DigestJobOut"][];
+                };
+            };
+        };
+    };
+    dismiss_digest_job_api_digests_jobs__job_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_digest_job_api_digests_jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DigestJobOut"];
                 };
             };
             /** @description Validation Error */

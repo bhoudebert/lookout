@@ -381,9 +381,16 @@ test("a category gets an icon, shown in the tree and beside its items, and loses
   await expect(tree(page).getByRole("button", { name: /^Rust/ })).not.toContainText("🦀");
 });
 
-test("a selection is condensed into a digest that cites its sources, and can be deleted", async ({ page }) => {
+test("a digest is written in the background, followed from anywhere, read and deleted", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /^Summarise these \d+/ }).click();
+  await expect(page.getByText(/Writing the digest in the background: it will appear under Digest/)).toBeVisible();
+
+  // The user is free to go elsewhere; the header keeps telling, then offers the digest.
+  await nav(page, "Categories").click();
+  const ready = page.getByRole("link", { name: "Digest ready" });
+  await expect(ready).toBeVisible();
+  await ready.click();
 
   const digest = page.getByRole("article", { name: "Digest" });
   await expect(digest).toBeVisible();
@@ -393,7 +400,11 @@ test("a selection is condensed into a digest that cites its sources, and can be 
   await expect(page).toHaveURL(/\/digest\/[0-9a-f]{12}$/);
 
   await nav(page, "Digest").click();
-  await expect(page.getByRole("region", { name: "Digests" }).getByRole("button")).toHaveCount(1);
+  const rows = page.getByRole("list", { name: "Being written" });
+  await expect(rows).toContainText("Ready");
+  await expect(page.getByRole("region", { name: "Digests" }).locator("ul.digests button")).toHaveCount(1);
+  await rows.getByRole("button", { name: /^Dismiss/ }).click();
+  await expect(rows).toHaveCount(0);
   await page.getByRole("button", { name: "Python and Rust both shipped." }).click();
   await page.getByRole("button", { name: "Delete this digest" }).click();
   await expect(page.getByText(/None yet/)).toBeVisible();
@@ -571,9 +582,14 @@ for (const scheme of ["light", "dark"] as const) {
     test("a digest", async ({ page }) => {
       await page.goto("/");
       await page.getByRole("button", { name: /^Summarise these \d+/ }).click();
+      await page.getByRole("link", { name: "Digest ready" }).click();
       await expect(page.getByRole("article", { name: "Digest" })).toBeVisible();
       await scan(page);
       await page.getByRole("button", { name: "Delete this digest" }).click();
+      await page
+        .getByRole("list", { name: "Being written" })
+        .getByRole("button", { name: /^Dismiss/ })
+        .click();
     });
 
     test("the categories", async ({ page }) => {

@@ -23,6 +23,7 @@ from lookout.adapters.http.schemas import (
     ChannelOut,
     ChannelPatch,
     DigestIn,
+    DigestJobOut,
     DigestOut,
     DigestSummary,
     ExplanationOut,
@@ -52,7 +53,7 @@ from lookout.adapters.http.schemas import (
     UndoOut,
     Wake,
 )
-from lookout.application.digester import DigestError, EmptyDigestError
+from lookout.application.digest_jobs import DigestJob, JobRunningError, UnknownJobError
 from lookout.application.ports import InboxQuery, Order
 from lookout.application.registry import DuplicateError, InUseError, InvalidError, NotFoundError
 from lookout.application.services import Services
@@ -321,16 +322,33 @@ def _undo(item_id: str, body: UndoOut) -> Undo:
 def _digest_routes(app: FastAPI, services: Services) -> None:
     """Condensing many items into a digest, and reading the ones kept."""
 
-    @app.post("/api/digests", status_code=201)
-    def create_digest(body: DigestIn) -> DigestOut:
-        """Have the model condense what a filter selects. It can take a minute or two."""
+    @app.post("/api/digests", status_code=202)
+    def create_digest(body: DigestIn) -> DigestJobOut:
+        """Start writing a digest of what a filter selects, in the background; one at a time."""
+        job, started = services.digest_jobs.start(
+            _query(body.filter, services.clock.now()), _scope(body.filter)
+        )
+        return _job_out(job, started=started)
+
+    @app.get("/api/digests/jobs")
+    def list_digest_jobs() -> list[DigestJobOut]:
+        return [_job_out(j) for j in services.digest_jobs.jobs()]
+
+    @app.post("/api/digests/jobs/{job_id}/cancel")
+    def cancel_digest_job(job_id: str) -> DigestJobOut:
         try:
-            digest = services.digester.create(_query(body.filter, services.clock.now()), _scope(body.filter))
-        except EmptyDigestError as error:
-            raise HTTPException(422, str(error)) from None
-        except DigestError as error:
-            raise HTTPException(502, f"the model could not write the digest: {error}") from None
-        return _digest_out(services, digest)
+            return _job_out(services.digest_jobs.cancel(job_id))
+        except UnknownJobError:
+            raise HTTPException(404, f"no digest job {job_id}") from None
+
+    @app.delete("/api/digests/jobs/{job_id}", status_code=204)
+    def dismiss_digest_job(job_id: str) -> None:
+        try:
+            services.digest_jobs.dismiss(job_id)
+        except UnknownJobError:
+            raise HTTPException(404, f"no digest job {job_id}") from None
+        except JobRunningError as error:
+            raise HTTPException(409, str(error)) from None
 
     @app.get("/api/digests")
     def list_digests() -> list[DigestSummary]:
@@ -357,6 +375,23 @@ def _digest_routes(app: FastAPI, services: Services) -> None:
     def delete_digest(digest_id: str) -> None:
         if not services.digests.delete(digest_id):
             raise HTTPException(404, f"no digest {digest_id}")
+
+
+def _job_out(job: DigestJob, *, started: bool = False) -> DigestJobOut:
+    return DigestJobOut(
+        id=job.id,
+        scope=job.scope,
+        started_at=job.started_at,
+        state=job.state.value,
+        section=job.section,
+        section_number=job.section_number,
+        sections_total=job.sections_total,
+        tokens=job.tokens,
+        finished_at=job.finished_at,
+        error=job.error,
+        digest_id=job.digest_id,
+        started=started,
+    )
 
 
 def _scope(selection: ItemFilter) -> str:

@@ -3,7 +3,8 @@ import type { Action, Filters, Item, Rating, Sweep } from "../api/types";
 import {
   useAct,
   useBulk,
-  useCreateDigest,
+  useDigestJobs,
+  useStartDigest,
   useItems,
   useRate,
   useRateMany,
@@ -38,8 +39,6 @@ interface Props {
   filters: Filters;
   openId: string | null;
   onFilters: (filters: Filters) => void;
-  /** Show a digest that was just written. */
-  onDigest: (id: string) => void;
   /** Show an item in the panel, or close it. ``replace`` previews without adding to the browser history. */
   onOpen: (id: string | null, replace?: boolean) => void;
 }
@@ -49,13 +48,15 @@ interface Message {
   undo?: () => void;
 }
 
-export function Inbox({ filters, openId, onFilters, onDigest, onOpen }: Props) {
+export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   const items = useItems(filters);
   const sources = useSources();
   const taxonomy = useTaxonomy(filters);
   const act = useAct();
   const bulk = useBulk();
-  const digest = useCreateDigest();
+  const startDigest = useStartDigest();
+  const jobs = useDigestJobs();
+  const writing = jobs.data?.some((j) => j.state === "running") ?? false;
   const restore = useRestore();
   const restoreMany = useRestoreMany();
   const rate = useRate();
@@ -401,11 +402,12 @@ export function Inbox({ filters, openId, onFilters, onDigest, onOpen }: Props) {
           {total > 0 && (
             <button
               type="button"
-              disabled={digest.isPending}
+              disabled={writing || startDigest.isPending}
+              title={writing ? "A digest is already being written: follow it under Digest." : undefined}
               onClick={() => {
-                digest.mutate(filters, {
-                  onSuccess: (made) => {
-                    onDigest(made.id);
+                startDigest.mutate(filters, {
+                  onSuccess: () => {
+                    setMessage({ text: "Writing the digest in the background: it will appear under Digest." });
                   },
                   onError: (error) => {
                     setMessage({ text: errorText(error) });
@@ -416,7 +418,6 @@ export function Inbox({ filters, openId, onFilters, onDigest, onOpen }: Props) {
               Summarise these {total}…
             </button>
           )}
-          {digest.isPending && <span role="status">Writing the digest, it can take a minute or two…</span>}
           <button
             type="button"
             onClick={() => {

@@ -7,12 +7,13 @@ from typing import Any, cast
 
 import httpx
 
-from lookout.application.digester import ITEM_CHARS, DigestError
+from lookout.application.digester import ITEM_CHARS, DigestCancelledError, DigestError, DigestWatch
 from lookout.domain.digest import Point, Section
 from lookout.domain.item import Item
 
 MAX_POINT_CHARS = 600
 MAX_HEADLINE_CHARS = 700
+HEADLINE_TOKENS = 600
 DIGEST_TIMEOUT = 900.0
 _THINKING = re.compile(r"<think>.*?</think>", re.DOTALL)
 
@@ -26,6 +27,7 @@ Rules:
 - Merge items about the same story into ONE point. Skip what is trivial or repeats another point.
 - Each point is one or two short sentences of plain text: the fact, the number, the consequence. No filler, no
   "the article says", no markdown.
+- Write at most {limit} points, fewer if the items are few: the whole point is to be shorter than the items.
 - Order the points from the most important to the least.
 - Write in the language of the items; if they are mixed, in English.
 - Each point cites the numbers of the items it was written from.
@@ -63,6 +65,8 @@ class OpenAiDigestWriter:
         api_key: str = "",
         interests: str = "",
         timeout: float = DIGEST_TIMEOUT,
+        max_answer_tokens: int = 6144,
+        reasoning_effort: str = "none",
     ) -> None:
         self._client = client
         self._url = base_url.rstrip("/") + "/chat/completions"
@@ -70,21 +74,31 @@ class OpenAiDigestWriter:
         self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self._interests = interests or "not stated"
         self._timeout = timeout
+        self._max_answer = max_answer_tokens
+        self._reasoning = reasoning_effort
 
-    def write_section(self, title: str, items: tuple[Item, ...]) -> tuple[Point, ...]:
+    def write_section(self, title: str, items: tuple[Item, ...], watch: DigestWatch) -> tuple[Point, ...]:
         """The points for these items; each cites items among them."""
-        system = SECTION_PROMPT.format(interests=self._interests)
+        system = SECTION_PROMPT.format(interests=self._interests, limit=max(3, -(-len(items) // 3)))
         numbered = "\n".join(_line(n, item) for n, item in enumerate(items, start=1))
-        return self._converse(system, f"Category: {title}\n\n{numbered}", lambda raw: _points(raw, items))
+        return self._converse(
+            system,
+            f"Category: {title}\n\n{numbered}",
+            lambda raw: _points(raw, items),
+            watch,
+            self._max_answer,
+        )
 
-    def write_headline(self, sections: tuple[Section, ...]) -> str:
+    def write_headline(self, sections: tuple[Section, ...], watch: DigestWatch) -> str:
         """Two or three sentences on what matters most."""
         body = "\n\n".join(f"{s.title}\n" + "\n".join(f"- {p.text}" for p in s.points) for s in sections)
-        return self._converse(HEADLINE_PROMPT, body, _headline)
+        return self._converse(HEADLINE_PROMPT, body, _headline, watch, min(self._max_answer, HEADLINE_TOKENS))
 
-    def _converse[T](self, system: str, user: str, parse: Callable[[str], T]) -> T:
+    def _converse[T](
+        self, system: str, user: str, parse: Callable[[str], T], watch: DigestWatch, cap: int
+    ) -> T:
         messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-        answer = self._ask(messages)
+        answer = self._ask(messages, watch, cap)
         try:
             return parse(answer)
         except ValueError as problem:
@@ -96,34 +110,60 @@ class OpenAiDigestWriter:
                 },
             ]
         try:
-            return parse(self._ask(messages))
+            return parse(self._ask(messages, watch, cap))
         except ValueError as problem:
             msg = f"the model gave no valid answer twice: {problem}"
             raise DigestError(msg) from problem
 
-    def _ask(self, messages: list[dict[str, str]]) -> str:
+    def _ask(self, messages: list[dict[str, str]], watch: DigestWatch, cap: int) -> str:
+        """The model's answer, read as it is written so progress shows and the user can stop it."""
         payload = {
             "model": self._model,
             "messages": messages,
-            "response_format": {"type": "json_object"},
             "temperature": 0.2,
-            "stream": False,
+            "stream": True,
+            "max_tokens": cap,
         }
+        if self._reasoning:
+            payload["reasoning_effort"] = self._reasoning
+        parts: list[str] = []
         try:
-            response = self._client.post(
-                self._url, json=payload, headers=self._headers, timeout=self._timeout
-            )
-            response.raise_for_status()
-            body = cast("dict[str, Any]", response.json())
-            return _strip_thinking(str(body["choices"][0]["message"]["content"]))
+            with self._client.stream(
+                "POST", self._url, json=payload, headers=self._headers, timeout=self._timeout
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if watch.stopped():
+                        raise DigestCancelledError
+                    if not line.startswith("data:") or line.removeprefix("data:").strip() == "[DONE]":
+                        continue
+                    choice = cast("dict[str, Any]", json.loads(line.removeprefix("data:")))["choices"][0]
+                    delta = choice.get("delta", {})
+                    piece = delta.get("content") or ""
+                    if piece:
+                        parts.append(piece)
+                    if piece or delta.get("reasoning") or delta.get("reasoning_content"):
+                        watch.wrote(1)
+                    if choice.get("finish_reason") == "length":
+                        raise DigestError(_too_long(cap, answered=bool(parts)))
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as error:
             msg = f"{self._url}: {error}"
             raise DigestError(msg) from error
+        return _strip_thinking("".join(parts))
+
+
+def _too_long(cap: int, *, answered: bool) -> str:
+    base = f"the model did not stop writing: it reached the limit of {cap} tokens"
+    if answered:
+        return base
+    return f"{base} without answering, it kept thinking (see digest.reasoning_effort in the guide)"
 
 
 def _object(answer: str) -> dict[str, Any]:
+    # Models wrap the object in a code fence or a sentence: take what is between the outer braces.
+    start, end = answer.find("{"), answer.rfind("}")
     try:
-        raw = json.loads(answer)
+        raw = json.loads(answer[start : end + 1] if 0 <= start < end else answer)
     except json.JSONDecodeError as error:
         msg = "not JSON"
         raise ValueError(msg) from error

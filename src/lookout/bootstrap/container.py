@@ -38,6 +38,7 @@ from lookout.adapters.store.sqlite import (
     SqliteSourceStatusRepository,
     SqliteUsageRepository,
 )
+from lookout.application.digest_jobs import DigestJobs
 from lookout.application.digester import Digester, DigestLimits, DigestRepository
 from lookout.application.enrich import Enrich
 from lookout.application.errors import ConfigError
@@ -363,9 +364,11 @@ class Container:
     github_via: str
     llm_http: httpx.Client
     runs: RunCoordinator = field(init=False)
+    digest_jobs: DigestJobs = field(init=False)
 
     def __post_init__(self) -> None:
         self.runs = RunCoordinator(self._run, self.clock)
+        self.digest_jobs = DigestJobs(self.digester, self.clock)
 
     def fetchers(self) -> tuple[SourceFetcher, ...]:
         """A fetcher for every enabled source as stored now (ADR 0013), without its old entries."""
@@ -392,6 +395,7 @@ class Container:
             iconify=self.iconify,
             digester=self.digester,
             digests=self.digests,
+            digest_jobs=self.digest_jobs,
             personalize=self.personalize,
             sources=self.sources,
             registry=self.registry,
@@ -554,10 +558,14 @@ def _assemble(
                 model=config.digest.model or config.llm.model,
                 api_key=config.llm.api_key,
                 interests=config.interests,
+                max_answer_tokens=config.digest.max_answer_tokens,
+                reasoning_effort=config.digest.reasoning_effort,
             ),
             digests,
             clock,
-            DigestLimits(config.digest.max_items, config.digest.context_chars),
+            DigestLimits(
+                config.digest.max_items, config.digest.context_chars, config.digest.max_answer_tokens
+            ),
         ),
         digests=digests,
         personalize=personalize,
