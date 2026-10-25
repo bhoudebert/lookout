@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, taxonomyQuery } from "./api/client";
 import { NO_FILTERS } from "./api/types";
-import type { Action, Filters, Rating, SourceBody, UndoEntry } from "./api/types";
+import type { Action, Filters, Rating, SourceBody, SweepChoice, UndoEntry } from "./api/types";
 
 /** The items of a selection, a page at a time: the next page starts after what is already loaded. */
 export const useItems = (filters: Filters) =>
@@ -65,8 +65,8 @@ export function useBulk() {
 export function useSweep() {
   const refresh = useRefresh();
   return useMutation({
-    mutationFn: ({ filters, action, dryRun }: { filters: Filters; action: Action; dryRun: boolean }) =>
-      api.sweep(filters, action, dryRun),
+    mutationFn: ({ filters, choice, dryRun }: { filters: Filters; choice: SweepChoice; dryRun: boolean }) =>
+      api.sweep(filters, choice, dryRun),
     onSuccess: (_result, { dryRun }) => (dryRun ? undefined : refresh()),
   });
 }
@@ -74,6 +74,15 @@ export function useSweep() {
 export function useRestoreMany() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: (entries: UndoEntry[]) => api.restoreMany(entries), onSuccess: refresh });
+}
+
+/** Give several items one rating (set, never toggled). */
+export function useRateMany() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: ({ ids, rating }: { ids: string[]; rating: Rating }) => api.rateMany(ids, rating),
+    onSuccess: refresh,
+  });
 }
 
 /** Thumbs up or down; the same thumb again clears it. */

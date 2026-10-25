@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from lookout.application.personalize import Explanation
 from lookout.application.runs import RunStatus
@@ -117,12 +117,17 @@ class ItemDetail(BaseModel):
     explanation: ExplanationOut
 
 
-class ActionIn(BaseModel):
+class Wake(BaseModel):
+    """When a snoozed item comes back."""
+
+    hours: float = Field(default=24.0, gt=0, description="Snooze duration, used by `snooze` without `until`.")
+    until: datetime | None = None
+
+
+class ActionIn(Wake):
     """Do something to an item."""
 
     action: Action
-    hours: float = Field(default=24.0, gt=0, description="Snooze duration, used by `snooze` without `until`.")
-    until: datetime | None = None
 
 
 class UndoOut(BaseModel):
@@ -180,11 +185,34 @@ class ItemFilter(BaseModel):
     newer_than_days: int | None = Field(default=None, ge=0)
 
 
-class SweepIn(ActionIn):
-    """An action on everything a filter matches; with ``dry_run`` it only says what would change."""
+class SweepIn(Wake):
+    """An action or a rating on everything a filter matches; ``dry_run`` only says what would change."""
 
+    action: Action | None = None
+    rating: int | None = Field(default=None, ge=-1, le=1, description="Set this rating instead of acting.")
     filter: ItemFilter = Field(default_factory=ItemFilter)
     dry_run: bool = False
+
+    @model_validator(mode="after")
+    def _one_of_action_or_rating(self) -> "SweepIn":
+        if (self.action is None) == (self.rating is None):
+            msg = "give an action or a rating, not both and not neither"
+            raise ValueError(msg)
+        return self
+
+
+class BulkRatingIn(BaseModel):
+    """Give these items one rating (set, never toggled): 1, -1, or 0 to clear."""
+
+    ids: list[str] = Field(min_length=1)
+    rating: int = Field(ge=-1, le=1)
+
+
+class BulkRatingOut(BaseModel):
+    """How many items were rated, and how to put them back."""
+
+    changed: int
+    undo: list["UndoEntry"]
 
 
 class UndoEntry(UndoOut):

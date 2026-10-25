@@ -28,6 +28,13 @@ the HTTP API and the command line. `done` SHALL remove the item from the inbox a
 - **WHEN** the user rates an item down and then marks it done
 - **THEN** the item stays in the inbox after the first action, leaves it after the second, and keeps its down rating
 
+### Requirement: Rating several items
+
+The user SHALL be able to give several items one rating at once, by selection or by filter (with a dry run first, like
+any action on a filter). A group rating SHALL set the rating on all of them and never toggle it, so items already rated
+that way stay so; rating 0 SHALL clear it. It SHALL teach the profile like any rating, leave the items in the inbox, and be
+undoable. Rating a group with an item that does not exist SHALL change nothing.
+
 ### Requirement: Transitions
 
 `done` and `snoozed` SHALL be reachable from any other state, and reopening SHALL return the item to

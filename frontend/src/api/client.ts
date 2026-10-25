@@ -14,6 +14,8 @@ import type {
   SourceCreate,
   SourceType,
   Sweep,
+  SweepChoice,
+  BulkRating,
   Taxonomy,
   Undo,
   UndoEntry,
@@ -117,11 +119,13 @@ export const api = {
     call<{ changed: number }>("/api/items/bulk", { method: "POST", body: JSON.stringify({ ids, action, hours }) }),
   seenBelow: (priority: string) =>
     call<{ changed: number }>("/api/items/seen-below", { method: "POST", body: JSON.stringify({ priority }) }),
-  sweep: (filters: Filters, action: Action, dryRun: boolean) =>
+  sweep: (filters: Filters, choice: SweepChoice, dryRun: boolean) =>
     call<Sweep>("/api/items/sweep", {
       method: "POST",
-      body: JSON.stringify({ action, dry_run: dryRun, filter: filterBody(filters) }),
+      body: JSON.stringify({ ...choice, dry_run: dryRun, filter: filterBody(filters) }),
     }),
+  rateMany: (ids: string[], rating: Rating) =>
+    call<BulkRating>("/api/items/bulk-rating", { method: "POST", body: JSON.stringify({ ids, rating }) }),
   restoreMany: (entries: UndoEntry[]) =>
     call<{ changed: number }>("/api/items/restore-many", { method: "POST", body: JSON.stringify({ entries }) }),
   taxonomy: (filters: Filters) => call<Taxonomy>(`/api/taxonomy?${taxonomyQuery(filters)}`),

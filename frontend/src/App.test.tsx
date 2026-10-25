@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Item } from "./api/types";
 import { FakeBackend, makeItem, makeSource } from "./test/fakeBackend";
 import { mount } from "./test/render";
 
@@ -731,5 +732,81 @@ describe("thumbs and done on every row", () => {
     backend.failWith = { status: 404, detail: "no item a" };
     await user.click(undo);
     expect(await screen.findByText("no item a")).toBeInTheDocument();
+  });
+});
+
+describe("rating several items at once", () => {
+  const ratings = (backend: FakeBackend) => backend.items.map((i) => [i.id, i.rating]);
+
+  it("applies the thumb keys to the whole selection, setting rather than toggling, and can undo", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    await screen.findByRole("button", { name: "Django flaw" });
+    const already = backend.items.find((i) => i.id === "a") as Item;
+    already.rating = 1;
+    await user.click(screen.getByLabelText("Select Django flaw"));
+    await user.click(screen.getByLabelText("Select React 20 RC"));
+
+    await user.keyboard("+");
+    expect(await screen.findByText("More like this: 2 items", { selector: ".toast" })).toBeInTheDocument();
+    expect(ratings(backend)).toEqual([
+      ["a", 1], // already up: stays up instead of being cleared
+      ["b", 1],
+      ["c", 0], // not selected: untouched
+    ]);
+
+    await user.keyboard("-");
+    expect(await screen.findByText("Less like this: 2 items", { selector: ".toast" })).toBeInTheDocument();
+    expect(ratings(backend)).toEqual([
+      ["a", -1],
+      ["b", -1],
+      ["c", 0],
+    ]);
+    await user.keyboard("=");
+    await screen.findByText("More like this: 2 items", { selector: ".toast" });
+
+    await user.keyboard("u");
+    await waitFor(() => {
+      expect(ratings(backend)).toEqual([
+        ["a", -1],
+        ["b", -1],
+        ["c", 0],
+      ]);
+    });
+    expect(screen.getByLabelText("Select Django flaw")).toBeChecked(); // the selection is kept for the next thumb
+  });
+
+  it("has thumbs in the bar of the selection", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    await screen.findByRole("button", { name: "Django flaw" });
+    await user.click(screen.getByLabelText("Select Django flaw"));
+    const bar = screen.getByRole("group", { name: "Bulk actions" });
+    await user.click(within(bar).getByRole("button", { name: "Less like this" }));
+    expect(await screen.findByText("Less like this: 1 items", { selector: ".toast" })).toBeInTheDocument();
+    expect(ratings(backend)[0]).toEqual(["a", -1]);
+    await user.click(within(bar).getByRole("button", { name: "More like this" }));
+    await screen.findByText("More like this: 1 items", { selector: ".toast" });
+    expect(ratings(backend)[0]).toEqual(["a", 1]);
+  });
+
+  it("shows when rating the selection or undoing it failed", async () => {
+    const backend = new FakeBackend(three());
+    const { user } = mount(backend);
+    await screen.findByRole("button", { name: "Django flaw" });
+    await user.click(screen.getByLabelText("Select Django flaw"));
+    const bar = screen.getByRole("group", { name: "Bulk actions" });
+    backend.failWith = { status: 404, detail: "no item a" };
+    await user.click(within(bar).getByRole("button", { name: "More like this" }));
+    expect(await screen.findByText("no item a")).toBeInTheDocument();
+
+    backend.failWith = null;
+    await user.click(within(bar).getByRole("button", { name: "More like this" }));
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    backend.failWith = { status: 404, detail: "no item a" };
+    await user.click(undo);
+    await waitFor(() => {
+      expect(screen.getAllByText("no item a").length).toBeGreaterThan(0);
+    });
   });
 });

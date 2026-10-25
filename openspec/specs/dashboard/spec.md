@@ -38,7 +38,9 @@ last action SHALL be undoable.
 
 Each item in the list and in the detail SHALL show a thumbs up, a thumbs down and a Done button; a pressed thumb shows the
 item's rating and pressing it again clears it. Done SHALL remove the item from the list, close its detail if it was
-open, and move to the next item. A rating SHALL leave the item where it is.
+open, and move to the next item. A rating SHALL leave the item where it is. The thumb shortcuts SHALL apply to the
+whole selection when items are selected (setting, not toggling), the bar of the selection SHALL have both thumbs, and the
+dialog that acts on a whole filter SHALL offer both thumbs and clearing a rating next to done and seen.
 
 ### Requirement: Sources view
 

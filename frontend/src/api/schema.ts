@@ -107,6 +107,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/bulk-rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk Rating */
+        post: operations["bulk_rating_api_items_bulk_rating_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/items/restore-many": {
         parameters: {
             query?: never;
@@ -409,6 +426,26 @@ export interface components {
         BulkOut: {
             /** Changed */
             changed: number;
+        };
+        /**
+         * BulkRatingIn
+         * @description Give these items one rating (set, never toggled): 1, -1, or 0 to clear.
+         */
+        BulkRatingIn: {
+            /** Ids */
+            ids: string[];
+            /** Rating */
+            rating: number;
+        };
+        /**
+         * BulkRatingOut
+         * @description How many items were rated, and how to put them back.
+         */
+        BulkRatingOut: {
+            /** Changed */
+            changed: number;
+            /** Undo */
+            undo: components["schemas"]["UndoEntry"][];
         };
         /**
          * ChannelIn
@@ -828,10 +865,10 @@ export interface components {
         State: "new" | "seen" | "done" | "snoozed" | "expired";
         /**
          * SweepIn
-         * @description An action on everything a filter matches; with ``dry_run`` it only says what would change.
+         * @description An action or a rating on everything a filter matches; ``dry_run`` only says what would change.
          */
         SweepIn: {
-            action: components["schemas"]["Action"];
+            action?: components["schemas"]["Action"] | null;
             /**
              * Dry Run
              * @default false
@@ -844,6 +881,11 @@ export interface components {
              * @default 24
              */
             hours: number;
+            /**
+             * Rating
+             * @description Set this rating instead of acting.
+             */
+            rating?: number | null;
             /** Until */
             until?: string | null;
         };
@@ -1142,6 +1184,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_rating_api_items_bulk_rating_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkRatingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkRatingOut"];
                 };
             };
             /** @description Validation Error */

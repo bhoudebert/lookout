@@ -15,7 +15,8 @@ from tests.test_personalization import World
 from lookout.adapters.store import sqlite as store
 from lookout.adapters.store.codec import encode
 from lookout.adapters.store.sqlite import SqliteItemRepository, SqliteSignalRepository
-from lookout.application.triage import Action, Undo
+from lookout.application.ports import InboxQuery
+from lookout.application.triage import Action, ItemNotFoundError, Undo
 from lookout.domain.profile import SignalKind, learn
 from lookout.domain.rating import Rating
 from lookout.domain.state import State
@@ -247,3 +248,69 @@ def test_opening_an_older_database_turns_dismissed_into_done_and_old_signals_int
     assert (tmp_path / "lookout.db.bak-v5").exists()
     states = {r["state"] for r in db.query("SELECT state FROM items")}
     assert states == {"done", "new"}
+
+
+# --- rating many at once ---
+
+
+def test_a_group_is_rated_exactly_not_toggled() -> None:
+    world = World(minimum=1)
+    already, fresh = world.add(1, source="s", channel="c"), world.add(2, source="s", channel="c")
+    world.triage.rate(already.id, Rating.UP)
+    outcomes = world.triage.rate_many((already.id, fresh.id), Rating.UP)
+    assert [o.after.rating for o in outcomes] == [Rating.UP, Rating.UP]  # the one already up stays up
+    assert (world.stored(already).rating, world.stored(fresh).rating) == (Rating.UP, Rating.UP)
+    world.triage.rate_many((already.id, fresh.id), Rating.NONE)
+    assert (world.stored(already).rated_at, world.stored(fresh).rating) == (None, Rating.NONE)
+    assert world.personalize.profile().weights == {}
+
+
+def test_rating_a_group_with_a_missing_item_changes_nothing() -> None:
+    world = World()
+    item = world.add(1, source="s", channel="c")
+    with pytest.raises(ItemNotFoundError):
+        world.triage.rate_many((item.id, "nope"), Rating.DOWN)
+    assert world.stored(item).rating is Rating.NONE
+
+
+def test_a_sweep_without_an_action_or_a_rating_is_refused() -> None:
+    world = World()
+    world.add(1, source="s", channel="c")
+    with pytest.raises(ValueError, match="needs an action or a rating"):
+        world.triage.sweep(InboxQuery(), None)
+
+
+def bulk_rating(api: Any, ids: list[str], rating: int) -> Any:
+    return api.client.post("/api/items/bulk-rating", json={"ids": ids, "rating": rating})
+
+
+def test_the_api_rates_a_selection_and_says_how_to_put_it_back(api: Any) -> None:
+    api.services.items.save(make_item("https://x/b", title="Beta"))
+    ids = [i["id"] for i in api.items()]
+    answer = bulk_rating(api, ids, -1).json()
+    assert answer["changed"] == 2
+    assert {i["rating"] for i in api.items()} == {-1}
+    assert bulk_rating(api, ids, -1).json()["changed"] == 2  # again: still down, not cleared
+    assert {i["rating"] for i in api.items()} == {-1}
+    api.client.post("/api/items/restore-many", json={"entries": answer["undo"]})
+    assert {i["rating"] for i in api.items()} == {0}
+    assert bulk_rating(api, ["nope"], 1).status_code == 404
+    assert bulk_rating(api, [], 1).status_code == 422
+    assert bulk_rating(api, ids, 3).status_code == 422
+
+
+def test_a_sweep_can_rate_everything_a_filter_matches_and_a_dry_run_changes_nothing(api: Any) -> None:
+    api.services.items.save(make_item("https://x/b", title="Beta", channel="Other"))
+    dry = api.client.post("/api/items/sweep", json={"rating": 1, "dry_run": True, "filter": {}}).json()
+    assert (dry["matched"], dry["changed"]) == (2, 0)
+    assert {i["rating"] for i in api.items()} == {0}
+    done = api.client.post("/api/items/sweep", json={"rating": -1, "filter": {}}).json()
+    assert (done["matched"], done["changed"]) == (2, 2)
+    assert {i["rating"] for i in api.items()} == {-1}
+    assert api.client.post("/api/items/restore-many", json={"entries": done["undo"]}).status_code == 200
+    assert {i["rating"] for i in api.items()} == {0}
+
+
+@pytest.mark.parametrize("body", [{"filter": {}}, {"action": "done", "rating": 1, "filter": {}}])
+def test_a_sweep_needs_exactly_one_of_an_action_and_a_rating(api: Any, body: dict[str, Any]) -> None:
+    assert api.client.post("/api/items/sweep", json=body).status_code == 422
