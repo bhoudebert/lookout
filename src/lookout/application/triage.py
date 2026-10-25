@@ -108,20 +108,29 @@ class Triage:
     def sweep(
         self,
         query: InboxQuery,
-        action: Action,
+        action: Action | None,
         *,
+        rating: Rating | None = None,
         until: datetime | None = None,
         dry_run: bool = False,
         sample: int = 5,
     ) -> Sweep:
-        """Apply ``action`` to all ``query`` matches, learning nothing; a dry run only counts and samples."""
+        """Apply ``action``, or set ``rating``, on all ``query`` matches; a dry run only counts and samples.
+
+        An action learns nothing; a rating teaches the profile, like any rating.
+        """
         page = self._items.search(replace(query, limit=MAX_SWEEP + 1, offset=0))
         if page.total > MAX_SWEEP:
             raise TooManyItemsError(page.total)
         if dry_run:
             return Sweep(page.total, page.items[:sample])
-        outcomes = self.act_many(tuple(i.id for i in page.items), action, until=until, learn=False)
-        return Sweep(page.total, page.items[:sample], outcomes)
+        ids = tuple(i.id for i in page.items)
+        if rating is not None:
+            return Sweep(page.total, page.items[:sample], self.rate_many(ids, rating))
+        if action is None:
+            msg = "a sweep needs an action or a rating"
+            raise ValueError(msg)
+        return Sweep(page.total, page.items[:sample], self.act_many(ids, action, until=until, learn=False))
 
     def _existing(self, item_id: str) -> Item:
         item = self._items.get(item_id)
@@ -146,6 +155,18 @@ class Triage:
         self._items.save(after)
         self._feedback.rated()
         return Outcome(before, after)
+
+    def rate_many(self, item_ids: tuple[str, ...], rating: Rating) -> tuple[Outcome, ...]:
+        """Give several items the same rating, all or none. Unlike one thumb, it never toggles: it sets."""
+        now = self._clock.now()
+        outcomes = tuple(
+            Outcome(before, before.with_rating(rating, now))
+            for before in (self._existing(item_id) for item_id in item_ids)
+        )
+        for outcome in outcomes:
+            self._items.save(outcome.after)
+        self._feedback.rated()
+        return outcomes
 
     def restore(self, undo: "Undo") -> Item:
         """Put an item's triage fields back as a client remembered them (undo across requests)."""

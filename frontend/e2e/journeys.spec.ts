@@ -131,6 +131,41 @@ test("a row has thumbs that teach and a Done that clears", async ({ page }) => {
   );
 });
 
+test("a whole selection, or a whole filter, can be rated at once", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel(`Select ${AI}`).check();
+  await page.getByLabel(`Select ${RUST}`).check();
+  await page.keyboard.press("-");
+  await expect(toast(page, "Less like this: 2 items")).toBeVisible();
+  for (const text of [AI, RUST]) {
+    await expect(items(page).filter({ hasText: text }).getByRole("button", { name: "Less like this" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  }
+  await page.keyboard.press("-"); // set, not toggled: still down
+  await expect(items(page).filter({ hasText: AI }).getByRole("button", { name: "Less like this" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("group", { name: "Bulk actions" }).getByRole("button", { name: "Clear" }).click();
+
+  await page.getByRole("button", { name: /^Act on all \d+…$/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Act on everything shown" });
+  await dialog.getByRole("button", { name: "More like this (6)" }).click();
+  await expect(toast(page, "More like this: 6 items")).toBeVisible();
+  await expect(items(page)).toHaveCount(6); // rated, none removed
+  await toast(page, "More like this").getByRole("button", { name: "Undo" }).click();
+  await expect(items(page).first().getByRole("button", { name: "More like this" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await page.getByLabel(`Select ${AI}`).check();
+  await page.getByLabel(`Select ${RUST}`).check();
+  await page.keyboard.press("u"); // undo the earlier selection rating too
+  await page.getByRole("group", { name: "Bulk actions" }).getByRole("button", { name: "Clear" }).click();
+});
+
 test("the keyboard alone triages the inbox", async ({ page }) => {
   await page.goto("/");
   await expect(items(page)).toHaveCount(6);

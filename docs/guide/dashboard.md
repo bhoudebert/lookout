@@ -15,7 +15,7 @@ A search only looks where you are: in the Inbox view, done, snoozed and expired 
 
 The list loads 50 items at a time: **Load more** fetches the next 50, and the count always says the real total ("50 of 2329").
 
-**Mark P2 and P3 as seen** clears the quiet items in one click. **Act on all N…** acts on everything the current filters match, not only what is loaded: it counts first, shows a few examples, asks you to choose (done or seen), and offers Undo. It teaches your profile nothing, and nothing is deleted. See [keeping the inbox small](/inbox-size).
+**Mark P2 and P3 as seen** clears the quiet items in one click. **Act on all N…** acts on everything the current filters match, not only what is loaded: it counts first, shows a few examples, asks you to choose (done, seen, thumbs up, thumbs down or clear the rating), and offers Undo. It teaches your profile nothing, and nothing is deleted. See [keeping the inbox small](/inbox-size).
 
 ## An item
 
@@ -44,7 +44,7 @@ Use a thumb down and Done together for noise, a thumb up for what you want more 
 | `u`        | undo the last action                          |
 | `?`        | help                                          |
 
-With items selected, `e` and `s` apply to all of them; a thumb applies to the focused item. A bulk action is all or nothing.
+With items selected, `e` and `s` apply to all of them; the thumbs `+` and `-` apply to the focused item, or to **all** of them when some are selected (then they _set_ the rating on every one, so ones already rated that way stay so). A bulk action is all or nothing.
 
 Every action shows a message with **Undo** for eight seconds.
 

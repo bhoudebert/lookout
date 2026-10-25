@@ -169,6 +169,7 @@ export class FakeBackend {
     const id = /^\/api\/items\/([^/]+)/.exec(path)?.[1];
     if (path === "/api/items" && method === "GET") return this.list(url.searchParams);
     if (path === "/api/items/sweep") return this.sweep(body as Parameters<FakeBackend["sweep"]>[0]);
+    if (path === "/api/items/bulk-rating") return this.rateMany(body as { ids: string[]; rating: number });
     if (path === "/api/items/restore-many") return this.restoreMany(body as Parameters<FakeBackend["restoreMany"]>[0]);
     if (path === "/api/items/bulk") return this.bulk(body as { ids: string[]; action: string });
     if (path === "/api/items/seen-below") return this.seenBelow();
@@ -278,9 +279,9 @@ export class FakeBackend {
   }
 
   /** An action on everything a filter matches, like the server: a dry run only counts and samples. */
-  private sweep(body: { action: string; dry_run: boolean; filter: Filter }): Response {
+  private sweep(body: { action?: string; rating?: number; dry_run: boolean; filter: Filter }): Response {
     const matches = this.matching(body.filter);
-    const state = { done: "done", open: "seen", snooze: "snoozed" }[body.action] as Item["state"];
+    const state = { done: "done", open: "seen", snooze: "snoozed" }[body.action ?? ""] as Item["state"] | undefined;
     const undo = body.dry_run
       ? []
       : matches.map((i) => ({
@@ -290,7 +291,12 @@ export class FakeBackend {
           starred: i.starred,
           rating: i.rating,
         }));
-    if (!body.dry_run) for (const item of matches) item.state = state;
+    if (!body.dry_run) {
+      for (const item of matches) {
+        if (body.rating !== undefined) item.rating = body.rating;
+        else if (state) item.state = state;
+      }
+    }
     return this.json({
       matched: matches.length,
       changed: body.dry_run ? 0 : matches.length,
@@ -299,10 +305,29 @@ export class FakeBackend {
     });
   }
 
-  private restoreMany(body: { entries: { id: string; state: Item["state"] }[] }): Response {
+  /** Like the server: the same rating for all of them, set and never toggled; a missing item changes nothing. */
+  private rateMany(body: { ids: string[]; rating: number }): Response {
+    const found = body.ids.map((id) => this.items.find((i) => i.id === id));
+    const missing = body.ids.find((_id, index) => !found[index]);
+    if (missing !== undefined) return this.json({ detail: `no item ${missing}` }, 404);
+    const undo = found.map((i) => {
+      const item = i as Item;
+      return {
+        id: item.id,
+        state: item.state,
+        snoozed_until: item.snoozed_until,
+        starred: item.starred,
+        rating: item.rating,
+      };
+    });
+    for (const item of found) (item as Item).rating = body.rating;
+    return this.json({ changed: found.length, undo });
+  }
+
+  private restoreMany(body: { entries: { id: string; state: Item["state"]; rating?: number }[] }): Response {
     for (const entry of body.entries) {
       const item = this.items.find((i) => i.id === entry.id);
-      if (item) item.state = entry.state;
+      if (item) Object.assign(item, { state: entry.state, rating: entry.rating ?? item.rating });
     }
     return this.json({ changed: body.entries.length });
   }

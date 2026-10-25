@@ -1,16 +1,30 @@
 import { useEffect } from "react";
-import type { Action, Filters, Sweep } from "../api/types";
+import type { Filters, Sweep, SweepChoice } from "../api/types";
 import { useSweep } from "../hooks";
 
-const CHOICES: { action: Action; label: string }[] = [
-  { action: "done", label: "done" },
-  { action: "open", label: "seen" },
+interface Choice {
+  choice: SweepChoice;
+  /** On the button, after "Mark N" or by itself. */
+  label: string;
+  /** What the message says afterwards. */
+  said: string;
+}
+
+const CLEARING: Choice[] = [
+  { choice: { action: "done" }, label: "done", said: "Marked done" },
+  { choice: { action: "open" }, label: "seen", said: "Opened" },
+];
+const RATING: Choice[] = [
+  { choice: { rating: 1 }, label: "More like this", said: "More like this" },
+  { choice: { rating: -1 }, label: "Less like this", said: "Less like this" },
+  { choice: { rating: 0 }, label: "Clear the rating", said: "Rating cleared" },
 ];
 
 interface Props {
   filters: Filters;
   onClose: () => void;
-  onDone: (result: Sweep, action: Action) => void;
+  /** Called with what was done and the words for the message. */
+  onDone: (result: Sweep, said: string) => void;
 }
 
 /** Act on everything the current selection matches: says how many first, shows some, and asks. */
@@ -19,8 +33,19 @@ export function SweepDialog({ filters, onClose, onDone }: Props) {
   const apply = useSweep();
   const { mutate } = count;
   useEffect(() => {
-    mutate({ filters, action: "done", dryRun: true });
+    mutate({ filters, choice: { action: "done" }, dryRun: true });
   }, [mutate, filters]);
+
+  const choose = (c: Choice) => {
+    apply.mutate(
+      { filters, choice: c.choice, dryRun: false },
+      {
+        onSuccess: (result) => {
+          onDone(result, c.said);
+        },
+      },
+    );
+  };
 
   const data = count.data;
   const failure = count.error ?? apply.error;
@@ -43,25 +68,35 @@ export function SweepDialog({ filters, onClose, onDone }: Props) {
               <li key={item.id}>{item.title}</li>
             ))}
           </ul>
-          <p className="hint">Nothing is deleted, and this teaches your profile nothing. You can undo it afterwards.</p>
-          <div className="actions">
-            {CHOICES.map((choice) => (
+          <p className="hint">
+            Nothing is deleted, and you can undo it afterwards. <strong>Done</strong> and <strong>seen</strong> teach
+            your profile nothing. A <strong>thumb</strong> does, for every item at once, and leaves them in the inbox.
+          </p>
+          <div className="actions" role="group" aria-label="Clear">
+            {CLEARING.map((c) => (
               <button
-                key={choice.action}
+                key={c.label}
                 type="button"
                 disabled={data.matched === 0}
                 onClick={() => {
-                  apply.mutate(
-                    { filters, action: choice.action, dryRun: false },
-                    {
-                      onSuccess: (result) => {
-                        onDone(result, choice.action);
-                      },
-                    },
-                  );
+                  choose(c);
                 }}
               >
-                Mark {data.matched} {choice.label}
+                Mark {data.matched} {c.label}
+              </button>
+            ))}
+          </div>
+          <div className="actions" role="group" aria-label="Rate">
+            {RATING.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                disabled={data.matched === 0}
+                onClick={() => {
+                  choose(c);
+                }}
+              >
+                {c.label} ({data.matched})
               </button>
             ))}
           </div>

@@ -66,15 +66,22 @@ describe("itemsQuery", () => {
   it("sweeps a selection, with a dry run first, and restores what it changed", async () => {
     const fetch = answer(200, { matched: 0, changed: 0, sample: [], undo: [] });
     vi.stubGlobal("fetch", fetch);
-    await api.sweep({ ...NO_FILTERS, channel: "AI" }, "done", true);
+    await api.sweep({ ...NO_FILTERS, channel: "AI" }, { action: "done" }, true);
+    await api.sweep(NO_FILTERS, { rating: -1 }, false);
+    await api.rateMany(["a"], 1);
     await api.restoreMany([{ id: "a", state: "new", snoozed_until: null, starred: false, rating: 0 }]);
     const calls = fetch.mock.calls as unknown as [string, RequestInit][];
-    expect(calls.map((c) => c[0])).toEqual(["/api/items/sweep", "/api/items/restore-many"]);
-    expect(JSON.parse(calls[0]?.[1].body as string)).toMatchObject({
-      action: "done",
-      dry_run: true,
-      filter: { channel: ["AI"] },
-    });
+    expect(calls.map((c) => c[0])).toEqual([
+      "/api/items/sweep",
+      "/api/items/sweep",
+      "/api/items/bulk-rating",
+      "/api/items/restore-many",
+    ]);
+    const bodies = calls.map((c) => JSON.parse(c[1].body as string) as Record<string, unknown>);
+    expect(bodies[0]).toMatchObject({ action: "done", dry_run: true, filter: { channel: ["AI"] } });
+    expect(bodies[1]).toMatchObject({ rating: -1, dry_run: false });
+    expect(bodies[1]).not.toHaveProperty("action");
+    expect(bodies[2]).toEqual({ ids: ["a"], rating: 1 });
   });
   it("writes nothing for the defaults", () => {
     expect(itemsQuery(NO_FILTERS, 10)).toBe("limit=10");

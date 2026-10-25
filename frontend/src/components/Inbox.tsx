@@ -5,6 +5,7 @@ import {
   useBulk,
   useItems,
   useRate,
+  useRateMany,
   useRestore,
   useRestoreMany,
   useSeenBelow,
@@ -53,6 +54,7 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
   const restore = useRestore();
   const restoreMany = useRestoreMany();
   const rate = useRate();
+  const rateMany = useRateMany();
   const seenBelow = useSeenBelow();
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [picked, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -165,12 +167,46 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
     [act, bulk, restore, moveOn],
   );
 
+  /** Rate everything selected: the same rating for all, never toggled. */
+  const rateSelection = useCallback(
+    async (ids: string[], rating: Exclude<Rating, 0>) => {
+      try {
+        const result = await rateMany.mutateAsync({ ids, rating });
+        setMessage({
+          text: `${rating === 1 ? "More like this" : "Less like this"}: ${result.changed} items`,
+          undo: () => {
+            restoreMany.mutateAsync(result.undo).then(
+              () => {
+                setMessage(null);
+              },
+              (error: unknown) => {
+                setMessage({ text: errorText(error) });
+              },
+            );
+          },
+        });
+      } catch (error) {
+        setMessage({ text: errorText(error) });
+      }
+    },
+    [rateMany, restoreMany],
+  );
+
+  /** A thumb key: on the selection when there is one, else on the focused item (where the same thumb clears). */
+  const thumb = useCallback(
+    (rating: Exclude<Rating, 0>) => {
+      if (selected.size > 0) void rateSelection([...selected], rating);
+      else if (focused) void rateItem(focused.id, rating);
+    },
+    [selected, focused, rateSelection, rateItem],
+  );
+
   const swept = useCallback(
-    (result: Sweep, action: Action) => {
+    (result: Sweep, said: string) => {
       setSweeping(false);
       setSelected(new Set());
       setMessage({
-        text: `${DONE_TEXT[action]}: ${result.changed} items`,
+        text: `${said}: ${result.changed} items`,
         undo: () => {
           restoreMany.mutateAsync(result.undo).then(
             () => {
@@ -233,13 +269,13 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         void perform("done", targets());
       },
       "+": () => {
-        if (focused) void rateItem(focused.id, 1);
+        thumb(1);
       },
       "=": () => {
-        if (focused) void rateItem(focused.id, 1);
+        thumb(1);
       },
       "-": () => {
-        if (focused) void rateItem(focused.id, -1);
+        thumb(-1);
       },
       s: () => {
         const ids = targets();
@@ -258,7 +294,7 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
         setHelp(true);
       },
     }),
-    [move, open, perform, rateItem, targets, toggle, focused, message],
+    [move, open, perform, thumb, targets, toggle, focused, message],
   );
   const overlay = snoozing !== null || help;
   useShortcuts(handlers, !overlay);
@@ -387,6 +423,22 @@ export function Inbox({ filters, openId, onFilters, onOpen }: Props) {
               }}
             >
               Snooze…
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void rateSelection([...selected], 1);
+              }}
+            >
+              More like this
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void rateSelection([...selected], -1);
+              }}
+            >
+              Less like this
             </button>
             <button
               type="button"

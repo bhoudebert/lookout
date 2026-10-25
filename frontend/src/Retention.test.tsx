@@ -170,6 +170,37 @@ describe("acting on everything a selection matches", () => {
     });
   });
 
+  it("can rate everything the selection matches, up, down, or clear it, and says what that teaches", async () => {
+    const fake = backend();
+    const { user } = mount(fake);
+    await screen.findByRole("button", { name: "Story 0" });
+    await user.click(screen.getByRole("button", { name: "Act on all 61…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Act on everything shown" });
+    await within(dialog).findByText("61 items");
+    expect(within(dialog).getByText("thumb")).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Less like this (61)" }));
+    expect(await screen.findByText("Less like this: 61 items")).toBeInTheDocument();
+    expect(fake.items.every((i) => i.rating === -1 && i.state === "new")).toBe(true); // rated, still in the inbox
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() => {
+      expect(fake.items.every((i) => i.rating === 0)).toBe(true);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Act on all 61…" }));
+    const again = await screen.findByRole("dialog", { name: "Act on everything shown" });
+    await user.click(await within(again).findByRole("button", { name: "More like this (61)" }));
+    await screen.findByText("More like this: 61 items");
+    expect(fake.items.every((i) => i.rating === 1)).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: "Act on all 61…" }));
+    const last = await screen.findByRole("dialog", { name: "Act on everything shown" });
+    await user.click(await within(last).findByRole("button", { name: "Clear the rating (61)" }));
+    await screen.findByText("Rating cleared: 61 items");
+    expect(fake.items.every((i) => i.rating === 0)).toBe(true);
+  });
+
   it("can dismiss or mark seen, and shows why it could not", async () => {
     const fake = backend();
     const { user } = mount(fake);

@@ -16,6 +16,8 @@ from lookout.adapters.http.schemas import (
     ActionOut,
     BulkIn,
     BulkOut,
+    BulkRatingIn,
+    BulkRatingOut,
     ChannelIn,
     ChannelMove,
     ChannelOut,
@@ -41,6 +43,7 @@ from lookout.adapters.http.schemas import (
     TaxonomyOut,
     UndoEntry,
     UndoOut,
+    Wake,
 )
 from lookout.application.ports import InboxQuery, Order
 from lookout.application.registry import DuplicateError, InUseError, InvalidError, NotFoundError
@@ -134,9 +137,10 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
     def sweep(body: SweepIn) -> SweepOut:
         now = services.clock.now()
         until = _wake(now, body) if body.action is Action.SNOOZE else None
+        rating = None if body.rating is None else Rating(body.rating)
         try:
             result = services.triage.sweep(
-                _query(body.filter, now), body.action, until=until, dry_run=body.dry_run
+                _query(body.filter, now), body.action, rating=rating, until=until, dry_run=body.dry_run
             )
         except TooManyItemsError as error:
             raise HTTPException(422, str(error)) from error
@@ -147,6 +151,17 @@ def create_app(services: Services, static_dir: Path | None = None) -> FastAPI:
             changed=len(result.outcomes),
             sample=[ItemOut.of(i) for i in result.sample],
             undo=[UndoEntry(id=o.before.id, **UndoOut.of(o.before).model_dump()) for o in result.outcomes],
+        )
+
+    @app.post("/api/items/bulk-rating")
+    def bulk_rating(body: BulkRatingIn) -> BulkRatingOut:
+        try:
+            outcomes = services.triage.rate_many(tuple(body.ids), Rating(body.rating))
+        except ItemNotFoundError as error:
+            raise HTTPException(404, f"no item {error}") from error
+        return BulkRatingOut(
+            changed=len(outcomes),
+            undo=[UndoEntry(id=o.before.id, **UndoOut.of(o.before).model_dump()) for o in outcomes],
         )
 
     @app.post("/api/items/restore-many")
@@ -300,7 +315,7 @@ def _query(selection: ItemFilter, now: datetime) -> InboxQuery:
     )
 
 
-def _wake(now: datetime, body: ActionIn) -> datetime:
+def _wake(now: datetime, body: Wake) -> datetime:
     if body.until is None:
         return now + timedelta(hours=body.hours)
     return body.until if body.until.tzinfo else body.until.replace(tzinfo=now.tzinfo)

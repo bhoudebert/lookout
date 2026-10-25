@@ -99,8 +99,10 @@ class Item:
 
     def rated(self, rating: Rating, at: datetime) -> Self:
         """Set the rating; the one the item already has clears it (the same thumb pressed twice)."""
-        if rating is self.rating:
-            return replace(self, rating=Rating.NONE, rated_at=None)
+        return self.with_rating(Rating.NONE if rating is self.rating else rating, at)
+
+    def with_rating(self, rating: Rating, at: datetime) -> Self:
+        """Set the rating exactly, as a group is rated: items already rated that way stay so."""
         return replace(self, rating=rating, rated_at=None if rating is Rating.NONE else at)
 
     def star(self, *, starred: bool = True) -> Self:

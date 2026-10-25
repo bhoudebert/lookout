@@ -17,10 +17,13 @@ export type SourceBody = Schemas["SourceBody"];
 export type SourceCreate = Schemas["SourceCreate"];
 export type Channel = Schemas["ChannelOut"];
 export type Sweep = Schemas["SweepOut"];
+export type BulkRating = Schemas["BulkRatingOut"];
 export type UndoEntry = Schemas["UndoEntry"];
 export type RefileResult = Schemas["RefileOut"];
 /** 1 thumbs up, -1 thumbs down, 0 none. */
 export type Rating = -1 | 0 | 1;
+/** What a sweep does to everything a filter matches: an action, or a rating to set. */
+export type SweepChoice = { action: Action } | { rating: Rating };
 export type Priority = "P0" | "P1" | "P2" | "P3";
 export const PRIORITIES: readonly Priority[] = ["P0", "P1", "P2", "P3"];
 

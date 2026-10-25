@@ -118,6 +118,53 @@
         "title": "BulkOut",
         "type": "object"
       },
+      "BulkRatingIn": {
+        "description": "Give these items one rating (set, never toggled): 1, -1, or 0 to clear.",
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          },
+          "rating": {
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Rating",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ids",
+          "rating"
+        ],
+        "title": "BulkRatingIn",
+        "type": "object"
+      },
+      "BulkRatingOut": {
+        "description": "How many items were rated, and how to put them back.",
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "integer"
+          },
+          "undo": {
+            "items": {
+              "$ref": "#/components/schemas/UndoEntry"
+            },
+            "title": "Undo",
+            "type": "array"
+          }
+        },
+        "required": [
+          "changed",
+          "undo"
+        ],
+        "title": "BulkRatingOut",
+        "type": "object"
+      },
       "ChannelIn": {
         "description": "A new channel.",
         "properties": {
@@ -1037,10 +1084,17 @@
         "type": "string"
       },
       "SweepIn": {
-        "description": "An action on everything a filter matches; with ``dry_run`` it only says what would change.",
+        "description": "An action or a rating on everything a filter matches; ``dry_run`` only says what would change.",
         "properties": {
           "action": {
-            "$ref": "#/components/schemas/Action"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Action"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "dry_run": {
             "default": false,
@@ -1057,6 +1111,20 @@
             "title": "Hours",
             "type": "number"
           },
+          "rating": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": -1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set this rating instead of acting.",
+            "title": "Rating"
+          },
           "until": {
             "anyOf": [
               {
@@ -1070,9 +1138,6 @@
             "title": "Until"
           }
         },
-        "required": [
-          "action"
-        ],
         "title": "SweepIn",
         "type": "object"
       },
@@ -1677,6 +1742,44 @@
           }
         },
         "summary": "Bulk"
+      }
+    },
+    "/api/items/bulk-rating": {
+      "post": {
+        "operationId": "bulk_rating_api_items_bulk_rating_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkRatingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkRatingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk Rating"
       }
     },
     "/api/items/restore-many": {
