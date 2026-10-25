@@ -52,7 +52,7 @@ without leaving it, and tick it; a refusal SHALL be shown and keep what was type
 ### Requirement: Suggested sources
 
 The sources page SHALL suggest well-known sources that are not yet there (by name or by feed address), grouped by theme
-(link sites, a language, AI, security, service status, Reddit communities, YouTube channels, news), each theme
+(link sites, a language, AI, security, service status, Reddit communities, YouTube channels, news, deals), each theme
 collapsed and shown only while it has a suggestion left, each suggestion added with one click. A suggestion that files in a category SHALL create that category first when it does not exist. A refusal
 SHALL be shown and leave the suggestion available.
 

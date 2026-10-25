@@ -55,6 +55,18 @@ A source of type `youtube` SHALL read the recent videos of one channel, named by
 (`UC...`). A handle SHALL be resolved to the channel's id through its page; a name that is no channel SHALL fail the
 source with a message saying so. Each video SHALL be an item at its watch page, by the channel.
 
+### Requirement: Keywords
+
+A source's keywords SHALL keep an entry when it mentions at least one plain keyword (or there are none) and none of the
+excluded ones. A keyword is a word or a phrase matched as whole words, ignoring case, accents and markup (the text of the
+entry is read without its tags, addresses and attributes). A trailing `*` SHALL let a word run on; a keyword starting with
+`-` SHALL exclude. This SHALL hold for every type of source that reads entries (feeds, Reddit, YouTube, Hacker News).
+
+#### Scenario: A short word
+
+- **WHEN** the keyword is `moto` and an entry is titled "Smartphone Motorola Edge"
+- **THEN** the entry is dropped; with `moto*` it is kept, and with `moto`, `-motorola` and an entry "Casque moto" it is kept
+
 ### Requirement: Dedupe
 
 An item SHALL be stored once per (source, external id). The same URL arriving from two sources (after removing

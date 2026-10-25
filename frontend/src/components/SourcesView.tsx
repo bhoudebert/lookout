@@ -64,6 +64,7 @@ export function SourcesView() {
           type: preset.type,
           settings: preset.settings,
           channels: category ? [category.name] : [],
+          keywords: preset.keywords ?? [],
           enabled: true,
         }),
       )

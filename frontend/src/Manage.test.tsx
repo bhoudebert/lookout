@@ -122,6 +122,34 @@ describe("sources", () => {
     });
   });
 
+  it("adds a Dealabs feed under Commerce > Deals, with its keywords and a short memory", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await user.click(await screen.findByRole("button", { name: "+ Dealabs: Cycling" }));
+    expect(await screen.findByRole("row", { name: /Dealabs: Cycling/ })).toHaveTextContent(
+      "Commerce > Deals > Cycling",
+    );
+    expect(calls(backend, "POST", "/api/channels")[0]?.body).toMatchObject({ name: "Commerce > Deals > Cycling" });
+    expect(calls(backend, "POST", "/api/sources")[0]?.body).toMatchObject({
+      type: "rss",
+      settings: { url: "https://www.dealabs.com/rss/tous", max_age_days: 3 },
+      keywords: ["vélo*", "vtt", "gravel", "cyclisme", "cycliste*", "e-bike", "-vélo d'appartement"],
+      channels: ["Commerce > Deals > Cycling"],
+    });
+  });
+
+  it("adds a Dealabs category feed without keywords, and the hot one under the parent category", async () => {
+    const backend = world();
+    const { user } = mount(backend, "/sources");
+    await user.click(await screen.findByRole("button", { name: "+ Dealabs: High-Tech" }));
+    await screen.findByRole("row", { name: /Dealabs: High-Tech/ });
+    await user.click(screen.getByRole("button", { name: "+ Dealabs: Hot" }));
+    await screen.findByRole("row", { name: /Dealabs: Hot/ });
+    const sources = calls(backend, "POST", "/api/sources").map((c) => c.body);
+    expect(sources[0]).toMatchObject({ keywords: [], channels: ["Commerce > Deals > IT"] });
+    expect(sources[1]).toMatchObject({ channels: ["Commerce > Deals"] });
+  });
+
   it("adds a YouTube channel by its handle", async () => {
     const backend = world();
     const { user } = mount(backend, "/sources");

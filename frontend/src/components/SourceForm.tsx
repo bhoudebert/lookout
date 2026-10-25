@@ -251,7 +251,7 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
         Keywords
         <input
           value={keywords}
-          placeholder="only items mentioning one of these, comma separated"
+          placeholder="only items mentioning one of these, comma separated: moto, vélo*, -motorola"
           onChange={(e) => {
             setKeywords(e.target.value);
           }}
