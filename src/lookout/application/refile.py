@@ -26,7 +26,8 @@ class Refile:
         """File by rule what a source decides, and queue for the model what could now go deeper.
 
         An item the model read that sits in ``Other`` or in a category with subcategories now is read again at
-        the next run, so the model can go deeper. An item whose sources allow exactly one category goes there.
+        the next run, so the model can go deeper. An item whose sources allow exactly one category goes there,
+        and so does an unread one in ``Other`` whose sources name one (the model then goes deeper).
         With ``dry_run`` nothing changes and the report says what would.
         """
         catalogue = self._catalogue()
@@ -39,6 +40,15 @@ class Refile:
                     if not dry_run:
                         self._items.save(item.filed_in(target))
                     filed += 1
+            elif (
+                item.enrichment is None
+                and item.channel == OTHER
+                and (target := catalogue.initial(item.sources)) != OTHER
+            ):
+                # Not read yet, and its sources name one category: it waits there, not in Other.
+                if not dry_run:
+                    self._items.save(item.filed_in(target))
+                filed += 1
             elif item.enrichment is not None and (
                 item.channel == OTHER or catalogue.children_of(item.channel)
             ):

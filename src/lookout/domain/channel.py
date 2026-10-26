@@ -103,10 +103,20 @@ class ChannelCatalogue:
         found = tuple(c for c in self.channels if any(is_within(c.name, name) for name in listed))
         return found or self.channels
 
+    def named(self, sources: Iterable[str]) -> str | None:
+        """The one category every one of these sources names (it may have subcategories), else ``None``."""
+        names: dict[str, str] = {}
+        by_name = {c.name.lower(): c.name for c in self.channels}
+        for source in sources:
+            listed = self.routes.get(source, ())
+            if not listed:
+                return None
+            names.update({n.lower(): by_name[n.lower()] for n in listed})
+        return next(iter(names.values())) if len(names) == 1 else None
+
     def initial(self, sources: Iterable[str]) -> str:
-        """Where an item goes before a model has read it: the one category allowed, else ``Other``."""
-        allowed = self.allowed(sources)
-        return allowed[0].name if len(allowed) == 1 else OTHER
+        """Where an item waits until a model reads it: the one category its sources name, else ``Other``."""
+        return self.named(sources) or OTHER
 
     def children_of(self, path: str) -> tuple[Channel, ...]:
         """Every category under ``path``."""

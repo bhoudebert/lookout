@@ -20,7 +20,7 @@ Each source says which categories it may feed. With **one**, its items are filed
 
 ### New categories and the items you already have
 
-**Run now reads new items only**: an item already stored is never fetched or read again, and there is no "from date". So categories you add later apply to new items. To move what is already in your inbox, press **File existing items again** on the Categories page: items from a source that feeds exactly one category go there at once, and items the model left in `Other`, or in a category that has since gained subcategories, are queued to be read again at the next run, within your daily model limit.
+**Run now reads new items only**: an item already stored is never fetched or read again, and there is no "from date". So categories you add later apply to new items. To move what is already in your inbox, press **File existing items again** on the Categories page: items from a source that feeds exactly one category go there at once (and unread ones from a source that names one category with subcategories wait in that category, not in `Other`), and items the model left in `Other`, or in a category that has since gained subcategories, are queued to be read again at the next run, within your daily model limit.
 
 The **author** and the **tags the article itself carries** are facts from the source: the model never changes them, and its own tags are kept alongside. All of them, plus the source, feed [what Lookout learns about you](/personalization).
 
