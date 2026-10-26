@@ -22,12 +22,20 @@ parents. The channel `Other` SHALL always exist. Names SHALL be unique, ignoring
 
 A source SHALL list the channels it may feed; an empty list means every channel. An item SHALL be filed in the channel
 of its source when the source lists exactly one, without asking the model. Otherwise the model SHALL choose among the
-source's channels (every channel when it lists none), and its answer SHALL be validated against that set.
+source's channels (every channel when it lists none), and its answer SHALL be validated against that set. Until the
+model has read it, an item SHALL wait in the one category its sources name, even when that category has subcategories,
+and in `Other` only when its sources name none or several; the model SHALL never be offered `Other` by a source that
+lists channels.
 
 #### Scenario: A single-channel source
 
 - **WHEN** the source "rust-blog" lists only the channel "Rust"
 - **THEN** its items are in "Rust" before any model call, and stay there whatever the model says
+
+#### Scenario: A source naming a category with subcategories
+
+- **WHEN** the source "Deals" lists only `Commerce > Deals`, which has the subcategories `IT` and `DIY`
+- **THEN** its unread items are in `Commerce > Deals`, not in `Other`, and the model later chooses among those three
 
 #### Scenario: The model chooses
 

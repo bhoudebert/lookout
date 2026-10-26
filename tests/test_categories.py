@@ -109,13 +109,13 @@ def test_a_source_feeding_a_parent_feeds_everything_under_it(tmp_path: Path) -> 
         instance.services.close()
 
 
-def test_a_source_feeding_one_leaf_files_straight_there_and_one_with_children_does_not() -> None:
+def test_a_source_feeding_one_leaf_or_one_branch_files_straight_there() -> None:
     catalogue = ChannelCatalogue(
         (Channel("Dev"), Channel("Dev > Rust"), Channel("Dev > Web")),
         {"leaf": ("Dev > Rust",), "branch": ("Dev",)},
     )
     assert catalogue.initial(("leaf",)) == "Dev > Rust"
-    assert catalogue.initial(("branch",)) == OTHER
+    assert catalogue.initial(("branch",)) == "Dev"
     assert [c.name for c in catalogue.allowed(("branch",))] == ["Dev", "Dev > Rust", "Dev > Web"]
     assert [c.name for c in catalogue.children_of("dev")] == ["Dev > Rust", "Dev > Web"]
     assert catalogue.children_of("Dev > Rust") == ()
@@ -332,6 +332,24 @@ def test_an_item_in_other_or_in_a_category_that_now_has_children_is_queued_for_t
     assert stored(items, in_other).enrichment is None
     assert stored(items, broad).enrichment_failed is False
     assert {i.id for i in items.pending_enrichment()} == {in_other.id, broad.id}
+
+
+def test_an_unread_item_in_other_whose_source_names_a_branch_waits_in_it_not_in_other() -> None:
+    refile, items = world(**{"deals": ("Dev",)})
+    waiting = make_item("https://a.test/1", sources=("deals",))
+    elsewhere = make_item("https://a.test/2", sources=("anywhere",))
+    items.save(waiting)
+    items.save(elsewhere)
+
+    assert refile.run(dry_run=True).filed == 1
+    assert stored(items, waiting).channel == OTHER
+    report = refile.run()
+
+    assert (report.filed, report.queued) == (1, 0)
+    assert stored(items, waiting).channel == "Dev"
+    assert stored(items, waiting).enrichment is None
+    assert stored(items, elsewhere).channel == OTHER
+    assert waiting.id in {i.id for i in items.pending_enrichment()}
 
 
 def test_a_dry_run_says_what_would_happen_and_changes_nothing() -> None:
