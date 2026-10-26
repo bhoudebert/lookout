@@ -387,6 +387,27 @@ test("a category gets an icon, kept on the categories page and out of the inbox,
   await expect(tree(page).getByRole("button", { name: /^Rust/ })).not.toContainText("🦀");
 });
 
+test("the list can be made wider with the bar beside it, by mouse or keys", async ({ page }) => {
+  await page.goto("/");
+  const bar = page.getByRole("separator", { name: "List width" });
+  await expect(bar).toBeVisible();
+  const before = Number(await bar.getAttribute("aria-valuenow"));
+  const box = (await bar.boundingBox()) as { x: number; y: number; width: number; height: number };
+  await page.mouse.move(box.x + box.width / 2, box.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + 100);
+  await page.mouse.up();
+  expect(Number(await bar.getAttribute("aria-valuenow"))).toBe(before - 60);
+  await bar.focus();
+  await page.keyboard.press("ArrowRight");
+  expect(Number(await bar.getAttribute("aria-valuenow"))).toBe(before - 36);
+  await page.reload();
+  await expect(page.getByRole("separator", { name: "List width" })).toHaveAttribute(
+    "aria-valuenow",
+    String(before - 36),
+  );
+});
+
 test("a digest is written in the background, followed from anywhere, read and deleted", async ({ page }) => {
   await page.goto("/");
   await actions(page);
