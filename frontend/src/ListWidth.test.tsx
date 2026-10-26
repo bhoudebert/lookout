@@ -66,6 +66,29 @@ describe("the width of the list", () => {
     expect(bar).toHaveAttribute("aria-valuenow", String(DEFAULT_WIDTH));
   });
 
+  it("cannot be touched while a dialog is open, and a drag in progress ends", async () => {
+    const { user, bar } = await opened();
+    fireEvent.mouseDown(bar, { clientX: 500 });
+    fireEvent.mouseMove(window, { clientX: 540 });
+    expect(bar).toHaveAttribute("aria-valuenow", String(DEFAULT_WIDTH + 40));
+
+    await user.keyboard("?");
+    expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+    expect(bar).toHaveAttribute("aria-disabled", "true");
+    expect(bar).toHaveAttribute("tabindex", "-1");
+    fireEvent.mouseMove(window, { clientX: 700 });
+    fireEvent.mouseDown(bar, { clientX: 500 });
+    fireEvent.mouseMove(window, { clientX: 700 });
+    fireEvent.keyDown(bar, { key: "End" });
+    fireEvent.doubleClick(bar);
+    expect(bar).toHaveAttribute("aria-valuenow", String(DEFAULT_WIDTH + 40));
+
+    await user.keyboard("{Escape}");
+    expect(bar).toHaveAttribute("aria-disabled", "false");
+    fireEvent.keyDown(bar, { key: "Home" });
+    expect(bar).toHaveAttribute("aria-valuenow", String(MIN_WIDTH));
+  });
+
   it("is back where it was left at the next visit", async () => {
     rememberListWidth(600);
     const { bar } = await opened();

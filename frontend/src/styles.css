@@ -922,6 +922,10 @@ button.icon.done span {
   background: transparent;
   transition: background var(--ease);
 }
+.resizer[aria-disabled="true"] {
+  pointer-events: none;
+  cursor: default;
+}
 .resizer:hover::after,
 .resizer:focus-visible::after {
   background: var(--accent);
@@ -1069,6 +1073,7 @@ button.icon.done span {
   position: fixed;
   inset: 20% 1rem auto;
   max-width: 28rem;
+  z-index: 10;
   margin: 0 auto;
   background: var(--card);
   border: 1px solid var(--line);

@@ -326,6 +326,8 @@ export function Inbox({ side, filters, openId, onFilters, onOpen }: Props) {
     [move, open, perform, thumb, targets, toggle, focused, message],
   );
   const overlay = snoozing !== null || help;
+  /** Any dialog: while one is open nothing behind it, the list's width included, can be touched. */
+  const modal = overlay || sweeping;
   useShortcuts(handlers, !overlay);
   useShortcuts(
     useMemo(
@@ -548,6 +550,7 @@ export function Inbox({ side, filters, openId, onFilters, onOpen }: Props) {
           {shownId && (
             <ColumnResizer
               width={listWidth}
+              disabled={modal}
               onChange={(width) => {
                 setListWidth(width);
                 rememberListWidth(width);
