@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MouseEvent } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import type { Action, Filters, Item, Rating, Sweep } from "../api/types";
 import {
@@ -17,9 +17,11 @@ import {
   useTaxonomy,
 } from "../hooks";
 import { readLastVisit, rememberVisit } from "../lastVisit";
+import { readListWidth, rememberListWidth } from "../listWidth";
 import { inboxTotal } from "../categories";
 import { useShortcuts } from "../shortcuts";
 import { CategoryTree } from "./CategoryTree";
+import { ColumnResizer } from "./ColumnResizer";
 import { FilterBar, OrderToggle, VIEWS } from "./FilterBar";
 import { ItemDetail } from "./ItemDetail";
 import { ItemList } from "./ItemList";
@@ -78,6 +80,7 @@ export function Inbox({ side, filters, openId, onFilters, onOpen }: Props) {
   const [picked, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [snoozing, setSnoozing] = useState<string[] | null>(null);
   const [help, setHelp] = useState(false);
+  const [listWidth, setListWidth] = useState(readListWidth);
   const [message, setMessage] = useState<Message | null>(null);
   const [sweeping, setSweeping] = useState(false);
   const [lastVisit] = useState(readLastVisit);
@@ -398,7 +401,7 @@ export function Inbox({ side, filters, openId, onFilters, onOpen }: Props) {
           </div>
           <RunStrip />
         </div>
-        <div className="columns">
+        <div className="columns" style={{ "--list-w": `${String(listWidth)}px` } as CSSProperties}>
           <section className="listcol" aria-label="Inbox">
             <FilterBar
               filters={filters}
@@ -542,6 +545,15 @@ export function Inbox({ side, filters, openId, onFilters, onOpen }: Props) {
               )}
             </div>
           </section>
+          {shownId && (
+            <ColumnResizer
+              width={listWidth}
+              onChange={(width) => {
+                setListWidth(width);
+                rememberListWidth(width);
+              }}
+            />
+          )}
           {shownId && (
             <ItemDetail
               key={shownId}
