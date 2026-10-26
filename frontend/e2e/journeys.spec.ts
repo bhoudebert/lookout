@@ -563,6 +563,118 @@ test("the single-page app answers on any path, and the API still answers its own
   expect((await request.get("/api/nothing-here")).status()).toBe(404);
 });
 
+test("no dialog lets the width of the list be touched, and each dialog closes", async ({ page }) => {
+  await page.goto("/");
+  const bar = page.getByRole("separator", { name: "List width" });
+  await expect(bar).toBeVisible();
+  const width = async () => Number(await bar.getAttribute("aria-valuenow"));
+  const before = await width();
+
+  const openers = [
+    { dialog: "Keyboard shortcuts", open: () => page.keyboard.press("?"), close: "Close" },
+    { dialog: "Snooze until", open: () => page.keyboard.press("s"), close: "Cancel" },
+    {
+      dialog: "Act on everything shown",
+      open: async () => {
+        await actions(page);
+        await page.getByRole("button", { name: /^Act on all \d+…$/ }).click();
+      },
+      close: "Cancel",
+    },
+  ];
+  for (const { dialog, open, close } of openers) {
+    await open();
+    const modal = page.getByRole("dialog", { name: dialog });
+    await expect(modal).toBeVisible();
+    await expect(bar).toHaveAttribute("aria-disabled", "true");
+
+    // The dialog is above the bar: what is under the bar's middle, at the dialog's height, is the dialog.
+    const at = (await bar.boundingBox()) as { x: number; width: number };
+    const box = (await modal.boundingBox()) as { y: number; height: number };
+    const x = at.x + at.width / 2;
+    const y = box.y + box.height / 2;
+    const onTop = await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.closest("[role=dialog]") !== null,
+      { x, y },
+    );
+    expect(onTop).toBe(true);
+
+    // Dragging from there does nothing to the list, and the keyboard does not reach the bar either.
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 150, y);
+    await page.mouse.up();
+    expect(await width()).toBe(before);
+    await expect(modal).toBeVisible();
+
+    await modal.getByRole("button", { name: close }).first().click();
+    await expect(modal).toBeHidden();
+    await expect(bar).toHaveAttribute("aria-disabled", "false");
+  }
+
+  // Once every dialog is closed the bar works again.
+  await bar.focus();
+  await page.keyboard.press("ArrowRight");
+  expect(await width()).toBe(before + 24);
+  await page.keyboard.press("Enter");
+  expect(await width()).toBe(480);
+});
+
+test("the sidebar reaches every page, the views are tabs, and / goes to the search", async ({ page }) => {
+  await page.goto("/");
+  await expect(items(page).first()).toBeVisible();
+  const all = await items(page).count();
+  for (const [name, path, heading] of [
+    ["Digest", "/digest", "Digests"],
+    ["Sources", "/sources", "Sources"],
+    ["Categories", "/categories", "Categories"],
+    ["Inbox", "/", "Inbox"],
+  ] as const) {
+    await nav(page, name).click();
+    await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/$" : path}$`));
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    await expect(nav(page, name)).toHaveAttribute("aria-current", "page");
+  }
+
+  for (const view of ["Snoozed", "Done", "Expired", "Everything", "Inbox"]) {
+    await page.getByRole("tab", { name: new RegExp(`^${view}`) }).click();
+    await expect(page.getByRole("tab", { name: new RegExp(`^${view}`) })).toHaveAttribute("aria-selected", "true");
+  }
+
+  await page.keyboard.press("/");
+  const search = page.getByRole("searchbox", { name: "Search items, sources, tags" });
+  await expect(search).toBeFocused();
+  await search.fill("django");
+  await expect(page).toHaveURL(/q=django/);
+  await expect(items(page)).toHaveCount(1);
+  await search.fill("");
+  await expect(items(page)).toHaveCount(all);
+});
+
+test("the reader stars, rates and snoozes the item it shows, and each can be put back", async ({ page }) => {
+  await page.goto("/");
+  await expect(items(page).first()).toBeVisible();
+  const all = await items(page).count();
+  await title(page, REACT).click();
+  const reader = page.getByRole("complementary", { name: "Item detail" });
+
+  await reader.getByRole("button", { name: "Star", exact: true }).click();
+  await expect(reader.getByRole("button", { name: "Unstar" })).toHaveAttribute("aria-pressed", "true");
+  await reader.getByRole("button", { name: "Unstar" }).click();
+  await expect(reader.getByRole("button", { name: "Star", exact: true })).toHaveAttribute("aria-pressed", "false");
+
+  await reader.getByRole("button", { name: "More like this" }).click();
+  await expect(reader.getByRole("button", { name: "More like this" })).toHaveAttribute("aria-pressed", "true");
+  await toast(page, "More like this").getByRole("button", { name: "Undo" }).click();
+  await expect(reader.getByRole("button", { name: "More like this" })).toHaveAttribute("aria-pressed", "false");
+
+  await reader.getByRole("button", { name: "Snooze…" }).click();
+  await page.getByRole("dialog", { name: "Snooze until" }).getByRole("button", { name: "4 hours" }).click();
+  await expect(items(page)).toHaveCount(all - 1);
+  await toast(page, "Snoozed").getByRole("button", { name: "Undo" }).click();
+  await expect(items(page)).toHaveCount(all);
+});
+
 test("nothing is lost on a phone-sized screen", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto("/");

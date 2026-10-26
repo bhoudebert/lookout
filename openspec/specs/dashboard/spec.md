@@ -87,12 +87,18 @@ priority; P2 and P3 SHALL be written for assistive technology and in the panel. 
 when the row is pointed at or focused. The panel SHALL always show an item: the one opened, else the one the list is on,
 as a preview that reads nothing. The list SHALL be 480px wide by default, never more than 42% of the sheet, and the bar
 between it and the open item SHALL resize it by dragging or with the arrow keys (Home and End for the limits, Enter or
-a double click for the default), the width being remembered. Under the title the dashboard SHALL name what needs action today when something does.
+a double click for the default), the width being remembered. While a dialog is open the bar SHALL be inert: it cannot
+be dragged or focused, and a drag in progress ends. Under the title the dashboard SHALL name what needs action today when something does.
 
 #### Scenario: A wider list
 
 - **WHEN** the user drags the bar between the list and the open item to the right
 - **THEN** the list is wider, the open item narrower, and the next visit starts at the same width
+
+#### Scenario: A dialog over the bar
+
+- **WHEN** a dialog is open above the bar and the user drags from where the bar is
+- **THEN** the list keeps its width and the dialog stays open
 
 #### Scenario: Nothing opened
 
