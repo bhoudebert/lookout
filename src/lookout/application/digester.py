@@ -2,6 +2,7 @@
 
 import hashlib
 from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import Protocol
 
 from lookout.application.ports import Clock, InboxQuery, ItemRepository
@@ -32,6 +33,10 @@ class DigestWatch(Protocol):
         """How many parts the digest has: its sections, then the headline."""
         ...
 
+    def selected(self, count: int, since: datetime, until: datetime) -> None:
+        """The digest is made of this many items, published between these two moments."""
+        ...
+
     def started(self, title: str) -> None:
         """Writing of this part begins."""
         ...
@@ -49,6 +54,8 @@ class Unwatched:
     """Nobody follows: never stops, remembers nothing."""
 
     def planned(self, sections: int) -> None: ...
+
+    def selected(self, count: int, since: datetime, until: datetime) -> None: ...
 
     def started(self, title: str) -> None: ...
 
@@ -141,6 +148,9 @@ class Digester:
         if not page.items:
             msg = "nothing matches this selection"
             raise EmptyDigestError(msg)
+        since = min(i.published_at for i in page.items)
+        until = max(i.published_at for i in page.items)
+        watch.selected(len(page.items), since, until)
         groups = _by_category(page.items)
         watch.planned(len(groups) + 1)
         sections: list[Section] = []
@@ -175,6 +185,8 @@ class Digester:
             sections=tuple(sections),
             uncovered=tuple(i.id for i in page.items if i.id not in cited),
             total=page.total,
+            since=since,
+            until=until,
         )
         self._digests.save(digest)
         return digest

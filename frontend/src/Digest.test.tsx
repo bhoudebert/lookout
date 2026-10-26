@@ -98,6 +98,7 @@ describe("summarising a selection", () => {
       finished_at: null,
       error: null,
       digest_id: null,
+      count: 0,
       started: false,
     });
     await user.click(screen.getByRole("link", { name: "Inbox" }));
@@ -192,23 +193,146 @@ describe("reading digests", () => {
     expect(screen.getByRole("article", { name: "Digest" })).toBeInTheDocument();
   });
 
-  it("lists the digests kept and the finished attempt, opens one from either, and deletes it", async () => {
+  it("lists the digests kept, opens one, and deletes it", async () => {
     const { user } = await written();
     await user.click(screen.getByRole("link", { name: "All digests" }));
     const list = await screen.findByRole("region", { name: "Digests" });
-    const rows = within(list).getByRole("list", { name: "Being written" });
-    expect(rows).toHaveTextContent("Ready");
-    await user.click(within(rows).getByRole("button", { name: "Open" }));
-    await digestPage();
-    expect(window.location.pathname).toBe("/digest/d1");
-
-    await user.click(screen.getByRole("link", { name: "All digests" }));
+    expect(within(list).queryByRole("list", { name: "Being written" })).not.toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "Today: a security fix and a release." }));
     await digestPage();
     await user.click(screen.getByRole("button", { name: "Delete this digest" }));
     expect(await screen.findByRole("region", { name: "Digests" })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/digest");
     expect(screen.queryByRole("button", { name: "Today: a security fix and a release." })).not.toBeInTheDocument();
+  });
+
+  it("says when each digest was written and which days its items were published", async () => {
+    const { user } = await written();
+    await user.click(screen.getByRole("link", { name: "All digests" }));
+    const list = await screen.findByRole("list", { name: "Written" });
+    expect(list).toHaveTextContent(/written .*2026/);
+    expect(list).toHaveTextContent(/3 of 3 items published .* – .*2026/);
+  });
+
+  it("sorts the digests by when they were written, by their newest item, or by size", async () => {
+    const backend = new FakeBackend(news());
+    const base = {
+      scope: "Inbox",
+      sections: [],
+      uncovered: [],
+      cited: [],
+    };
+    backend.digests.push(
+      {
+        ...base,
+        id: "x1",
+        headline: "Middle",
+        created_at: "2026-10-22T09:00:00Z",
+        count: 5,
+        total: 5,
+        since: "2026-10-01T00:00:00Z",
+        until: "2026-10-21T00:00:00Z",
+      },
+      {
+        ...base,
+        id: "x2",
+        headline: "Newest",
+        created_at: "2026-10-24T09:00:00Z",
+        count: 2,
+        total: 9,
+        since: "2026-10-10T00:00:00Z",
+        until: "2026-10-12T00:00:00Z",
+      },
+      {
+        ...base,
+        id: "x3",
+        headline: "Oldest",
+        created_at: "2026-10-20T09:00:00Z",
+        count: 9,
+        total: 9,
+        since: null,
+        until: null,
+      },
+    );
+    const { user } = mount(backend, "/digest");
+    const order = async () =>
+      within(await screen.findByRole("list", { name: "Written" }))
+        .getAllByRole("button")
+        .map((b) => b.textContent);
+
+    expect(await order()).toEqual(["Newest", "Middle", "Oldest"]);
+    expect(screen.getByText(/2 of 9 items published/)).toBeInTheDocument();
+    expect(screen.getByText(/9 of 9 items$/)).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "Written, oldest first");
+    expect(await order()).toEqual(["Oldest", "Middle", "Newest"]);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "Newest items first");
+    expect(await order()).toEqual(["Middle", "Newest", "Oldest"]);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "Most items first");
+    expect(await order()).toEqual(["Oldest", "Middle", "Newest"]);
+  });
+
+  it("shows what a digest being written, or one that failed, is made of", async () => {
+    const backend = new FakeBackend(news());
+    backend.digestHold = true;
+    backend.digestJobs.push(
+      {
+        id: "r",
+        scope: "Tech",
+        started_at: "2026-10-24T08:00:00Z",
+        state: "running",
+        section: "Dev",
+        section_number: 1,
+        sections_total: 2,
+        tokens: 5,
+        finished_at: null,
+        error: null,
+        digest_id: null,
+        count: 40,
+        started: false,
+        since: "2026-10-20T08:00:00Z",
+        until: "2026-10-24T07:00:00Z",
+      },
+      {
+        id: "f",
+        scope: "World",
+        started_at: "2026-10-24T07:00:00Z",
+        state: "failed",
+        section: "",
+        section_number: 0,
+        sections_total: 0,
+        tokens: 0,
+        finished_at: null,
+        error: "model down",
+        digest_id: null,
+        count: 13,
+        started: false,
+        since: null,
+        until: null,
+      },
+      {
+        id: "c",
+        scope: "Sport",
+        started_at: "2026-10-24T06:00:00Z",
+        state: "cancelled",
+        section: "",
+        section_number: 0,
+        sections_total: 0,
+        tokens: 0,
+        finished_at: null,
+        error: null,
+        digest_id: null,
+        count: 7,
+        started: false,
+        since: null,
+        until: null,
+      },
+    );
+    mount(backend, "/digest");
+    const rows = await screen.findByRole("list", { name: "Being written" });
+    expect(rows).toHaveTextContent(/40 items published .* – .*2026 · Dev \(1 of 2\)/);
+    expect(rows).toHaveTextContent("13 items · started");
+    expect(rows).toHaveTextContent("model down");
+    expect(rows).toHaveTextContent("7 items · started");
   });
 
   it("explains how to make a first digest", async () => {

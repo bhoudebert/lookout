@@ -95,7 +95,14 @@ covered.
 ### Requirement: Digests are kept
 
 A digest SHALL be stored with its selection in words, so it can be read again without the model. The user SHALL be able
-to list the recent digests, open one and delete one. Items a digest cites that no longer exist SHALL be left out of it.
+to list the recent digests, open one and delete one. A digest SHALL also record when the oldest and the newest item it
+was given were published, and a digest kept before that was recorded SHALL still be readable, without
+those dates. Items a digest cites that no longer exist SHALL be left out of it.
+
+#### Scenario: Which news it covers
+
+- **WHEN** a digest is made of items published from the 20th to the 24th
+- **THEN** its page and the list say "published" with those two days, and the list can be sorted by those dates
 
 #### Scenario: Read it again
 
@@ -115,9 +122,11 @@ The digest SHALL use the model, address and settings of the `digest` block of th
 ### Requirement: Dashboard
 
 The dashboard SHALL offer "Summarise these" on the current selection of the inbox, saying that the digest is written
-in the background and will appear under Digest, without waiting on that page. The Digest page SHALL list the digests
-being written or lately finished above the digests kept (part being written, tokens, time, Cancel or Dismiss, the
-reason of a failure, a link to a finished one), and the header SHALL show a digest being written or just finished on
+in the background and will appear under Digest, without waiting on that page. The Digest page SHALL list, above, the digests
+being written or that went wrong (part being written, tokens, how many items and the days they were published, time,
+Cancel or Dismiss, the reason of a failure), then the digests kept, each with when it was written, how many of the
+matching items it covers and the days they were published, sortable by when it was written, by its newest item
+and by size. The header SHALL show a digest being written or just finished on
 every page. A digest SHALL have its own page (headline, sections, points with their sources as links, items not
 covered), and the user SHALL be able to mark the cited items done in one action and delete a digest. Source links
 SHALL only be web addresses.

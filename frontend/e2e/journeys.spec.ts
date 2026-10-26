@@ -407,11 +407,12 @@ test("a digest is written in the background, followed from anywhere, read and de
   await expect(page).toHaveURL(/\/digest\/[0-9a-f]{12}$/);
 
   await nav(page, "Digest").click();
-  const rows = page.getByRole("list", { name: "Being written" });
-  await expect(rows).toContainText("Ready");
-  await expect(page.getByRole("region", { name: "Digests" }).locator("ul.digests button")).toHaveCount(1);
-  await rows.getByRole("button", { name: /^Dismiss/ }).click();
-  await expect(rows).toHaveCount(0);
+  // The finished attempt is the digest in the list below: it says what it covers and sorts.
+  await expect(page.getByRole("list", { name: "Being written" })).toHaveCount(0);
+  const kept = page.getByRole("list", { name: "Written" });
+  await expect(kept.locator("button")).toHaveCount(1);
+  await expect(kept).toContainText(/\d+ of \d+ items published /);
+  await expect(page.getByRole("combobox", { name: "Sort" })).toBeVisible();
   await page.getByRole("button", { name: "Python and Rust both shipped." }).click();
   await page.getByRole("button", { name: "Delete this digest" }).click();
   await expect(page.getByText(/None yet/)).toBeVisible();
@@ -597,11 +598,11 @@ for (const scheme of ["light", "dark"] as const) {
       await page.getByRole("link", { name: "Digest ready" }).click();
       await expect(page.getByRole("article", { name: "Digest" })).toBeVisible();
       await scan(page);
+      await page.getByRole("link", { name: "All digests" }).click();
+      await expect(page.getByRole("list", { name: "Written" })).toBeVisible();
+      await scan(page);
+      await page.getByRole("list", { name: "Written" }).getByRole("button").click();
       await page.getByRole("button", { name: "Delete this digest" }).click();
-      await page
-        .getByRole("list", { name: "Being written" })
-        .getByRole("button", { name: /^Dismiss/ })
-        .click();
     });
 
     test("the categories", async ({ page }) => {

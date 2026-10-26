@@ -15,12 +15,16 @@ short headline on top.
    says "Digest: writing..." on every page, and "ready" when it is done. A failure stays in that row with its reason
    until you dismiss it. These rows live in the server's memory: restarting `lookout serve` forgets a digest that was
    being written.
+   The rows also say how many items the digest is made of and **which days they were published** ("40 items published
+   20 Oct – 24 Oct 2026"), as soon as the selection is read.
 4. Read the page: the headline, then a section per top category, each point with its sources as links. The points group items by
    theme or region, so 140 items become a few dozen lines, not 140. Every item is
    meant to be covered: the model is told to cite them all and merge only the same story, and an item it leaves out is
    asked about once more. Any that is still missing is listed apart as **not covered**, so nothing is hidden.
 5. **Mark the N cited items done** clears what you have read in one action. The digest stays readable, and **Digest**
-   in the menu lists the recent ones. A digest is kept as written: opening it again costs nothing.
+   in the menu lists the recent ones, each with when it was written, how many items it covers and the days they
+   were published (digests kept before this was recorded show no dates). Choose how the list is sorted: when it was
+   written, newest item, or size. A digest is kept as written: opening it again costs nothing.
 
 It works from what Lookout already holds for each item: the title, the model's own summary of it, and the start of
 the feed text. It does **not** open the articles, so a feed that only gives a title (Hacker News, for example) gives

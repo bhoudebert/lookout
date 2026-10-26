@@ -648,6 +648,12 @@ export interface components {
          */
         DigestJobOut: {
             /**
+             * Count
+             * @description Items it is made of, known once the selection is read.
+             * @default 0
+             */
+            count: number;
+            /**
              * Digest Id
              * @description The digest, once written.
              */
@@ -670,6 +676,11 @@ export interface components {
             /** Sections Total */
             sections_total: number;
             /**
+             * Since
+             * @description Publication of the oldest of them.
+             */
+            since?: string | null;
+            /**
              * Started
              * @description True when this request started it.
              * @default false
@@ -690,6 +701,11 @@ export interface components {
              * @description About how many tokens the model has written so far.
              */
             tokens: number;
+            /**
+             * Until
+             * @description Publication of the newest of them.
+             */
+            until?: string | null;
         };
         /**
          * DigestOut
@@ -720,12 +736,22 @@ export interface components {
             /** Sections */
             sections: components["schemas"]["SectionOut"][];
             /**
+             * Since
+             * @description Publication of the oldest item it was given.
+             */
+            since?: string | null;
+            /**
              * Total
              * @description Items the selection matched.
              */
             total: number;
             /** Uncovered */
             uncovered: components["schemas"]["ItemRef"][];
+            /**
+             * Until
+             * @description Publication of the newest item it was given.
+             */
+            until?: string | null;
         };
         /**
          * DigestSummary
@@ -745,8 +771,18 @@ export interface components {
             id: string;
             /** Scope */
             scope: string;
+            /**
+             * Since
+             * @description Publication of the oldest item it was given.
+             */
+            since?: string | null;
             /** Total */
             total: number;
+            /**
+             * Until
+             * @description Publication of the newest item it was given.
+             */
+            until?: string | null;
         };
         /**
          * ExplanationOut
