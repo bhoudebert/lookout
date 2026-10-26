@@ -18,3 +18,4 @@ docs/guide/reference/commands.md
 docs/guide/.vitepress/dist
 docs/guide/.vitepress/cache
 site/shots
+.agents
