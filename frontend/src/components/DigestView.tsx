@@ -1,6 +1,6 @@
-import { useMemo } from "react";
-import type { Digest, DigestItem, DigestJob } from "../api/types";
-import { timeAgo, webUrl } from "../format";
+import { useMemo, useState } from "react";
+import type { Digest, DigestItem, DigestJob, DigestSummary } from "../api/types";
+import { span, timeAgo, until, webUrl } from "../format";
 import {
   useBulk,
   useCancelDigestJob,
@@ -13,6 +13,33 @@ import {
 import { StateView } from "./StateView";
 
 const message = (error: unknown): string => (error as Error).message;
+
+const SORTS = {
+  written_desc: "Written, newest first",
+  written_asc: "Written, oldest first",
+  items_desc: "Newest items first",
+  size_desc: "Most items first",
+} as const;
+type Sort = keyof typeof SORTS;
+
+const time = (iso: string | null | undefined): number => (iso ? new Date(iso).getTime() : 0);
+
+/** The digests in the order asked for; those kept before the dates were known go last when sorting by items. */
+function sorted(digests: DigestSummary[], by: Sort): DigestSummary[] {
+  const order: Record<Sort, (a: DigestSummary, b: DigestSummary) => number> = {
+    written_desc: (a, b) => time(b.created_at) - time(a.created_at),
+    written_asc: (a, b) => time(a.created_at) - time(b.created_at),
+    items_desc: (a, b) => time(b.until) - time(a.until),
+    size_desc: (a, b) => b.count - a.count,
+  };
+  return [...digests].sort(order[by]);
+}
+
+/** What a digest is made of: how many items, published when. */
+function made(count: number, total: number, since?: string | null, to?: string | null): string {
+  const days = span(since, to);
+  return `${String(count)} of ${String(total)} items${days ? ` published ${days}` : ""}`;
+}
 
 /** Where a cited item can be read: a link when it has a web address, plain text when it does not. */
 function Source({ item }: { item: DigestItem }) {
@@ -50,7 +77,8 @@ function DigestPage({ digest, onClose }: { digest: Digest; onClose: () => void }
           All digests
         </a>
         {" · "}
-        {digest.scope} · {timeAgo(digest.created_at, new Date())} · {digest.count} of {digest.total} items
+        {digest.scope} · written {until(digest.created_at)} ·{" "}
+        {made(digest.count, digest.total, digest.since, digest.until)}
       </p>
       <p className="headline">{digest.headline}</p>
       {digest.sections.map((section) => (
@@ -111,11 +139,13 @@ function DigestPage({ digest, onClose }: { digest: Digest; onClose: () => void }
   );
 }
 
-/** One digest being written, or how an attempt ended, with what can be done about it. */
-function Job({ job, onOpen }: { job: DigestJob; onOpen: (id: string) => void }) {
+/** One digest being written, or an attempt that did not end well, with what can be done about it. */
+function Job({ job }: { job: DigestJob }) {
   const cancel = useCancelDigestJob();
   const dismiss = useDismissDigestJob();
   const when = timeAgo(job.started_at, new Date());
+  const days = span(job.since, job.until);
+  const covers = job.count > 0 ? `${String(job.count)} items${days ? ` published ${days}` : ""}` : "";
   const progress =
     job.sections_total > 0
       ? `${job.section} (${String(job.section_number)} of ${String(job.sections_total)})`
@@ -126,6 +156,7 @@ function Job({ job, onOpen }: { job: DigestJob; onOpen: (id: string) => void }) 
         <>
           <strong>Writing</strong> {job.scope}
           <span className="hint">
+            {covers ? `${covers} · ` : ""}
             {progress} · about {job.tokens} tokens written · started {when}
           </span>
           <button
@@ -139,32 +170,21 @@ function Job({ job, onOpen }: { job: DigestJob; onOpen: (id: string) => void }) 
           </button>
         </>
       )}
-      {job.state === "done" && (
-        <>
-          <strong>Ready</strong> {job.scope}
-          <span className="hint">started {when}</span>
-          {job.digest_id && (
-            <button
-              type="button"
-              onClick={() => {
-                onOpen(job.digest_id as string);
-              }}
-            >
-              Open
-            </button>
-          )}
-        </>
-      )}
       {job.state === "failed" && (
         <>
           <strong>Failed</strong> {job.scope}
+          <span className="hint">
+            {covers ? `${covers} · ` : ""}started {when}
+          </span>
           <span className="hint form-error">{job.error}</span>
         </>
       )}
       {job.state === "cancelled" && (
         <>
           <strong>Cancelled</strong> {job.scope}
-          <span className="hint">started {when}</span>
+          <span className="hint">
+            {covers ? `${covers} · ` : ""}started {when}
+          </span>
         </>
       )}
       {job.state !== "running" && (
@@ -187,6 +207,7 @@ export function DigestView({ id, onOpen }: { id: string | null; onOpen: (id: str
   const one = useDigest(id ?? "");
   const all = useDigests();
   const jobs = useDigestJobs();
+  const [by, setBy] = useState<Sort>("written_desc");
   if (id) {
     if (one.isPending) return <StateView kind="loading" />;
     if (one.isError) {
@@ -221,39 +242,60 @@ export function DigestView({ id, onOpen }: { id: string | null; onOpen: (id: str
       />
     );
   }
+  // A finished job is already in the list of digests: only what is being written or went wrong is shown here.
+  const pending = (jobs.data ?? []).filter((j) => j.state !== "done");
   return (
     <section aria-label="Digests">
       <h1>Digests</h1>
-      {jobs.data && jobs.data.length > 0 && (
+      {pending.length > 0 && (
         <ul className="jobs" aria-label="Being written">
-          {jobs.data.map((job) => (
-            <Job key={job.id} job={job} onOpen={onOpen} />
+          {pending.map((job) => (
+            <Job key={job.id} job={job} />
           ))}
         </ul>
       )}
-      {all.data.length === 0 && !jobs.data?.length ? (
+      {all.data.length === 0 && pending.length === 0 ? (
         <p className="hint">
           None yet. In the inbox, narrow what you want to read (a category, the last day...) and click{" "}
           <em>Summarise these</em>: the model condenses it into a few cited lines per category.
         </p>
       ) : (
-        <ul className="digests">
-          {all.data.map((d) => (
-            <li key={d.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  onOpen(d.id);
+        all.data.length > 0 && (
+          <>
+            <label className="sort">
+              Sort{" "}
+              <select
+                value={by}
+                onChange={(e) => {
+                  setBy(e.target.value as Sort);
                 }}
               >
-                {d.headline}
-              </button>
-              <span className="hint">
-                {d.scope} · {timeAgo(d.created_at, new Date())} · {d.count} of {d.total} items
-              </span>
-            </li>
-          ))}
-        </ul>
+                {Object.entries(SORTS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <ul className="digests" aria-label="Written">
+              {sorted(all.data, by).map((d) => (
+                <li key={d.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpen(d.id);
+                    }}
+                  >
+                    {d.headline}
+                  </button>
+                  <span className="hint">
+                    {d.scope} · written {until(d.created_at)} · {made(d.count, d.total, d.since, d.until)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )
       )}
     </section>
   );

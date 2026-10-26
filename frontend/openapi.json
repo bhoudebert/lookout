@@ -308,6 +308,12 @@
       "DigestJobOut": {
         "description": "A digest being written, or how an attempt ended. Kept in memory: a restart forgets it.",
         "properties": {
+          "count": {
+            "default": 0,
+            "description": "Items it is made of, known once the selection is read.",
+            "title": "Count",
+            "type": "integer"
+          },
           "digest_id": {
             "anyOf": [
               {
@@ -364,6 +370,19 @@
             "title": "Sections Total",
             "type": "integer"
           },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publication of the oldest of them.",
+            "title": "Since"
+          },
           "started": {
             "default": false,
             "description": "True when this request started it.",
@@ -389,6 +408,19 @@
             "description": "About how many tokens the model has written so far.",
             "title": "Tokens",
             "type": "integer"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publication of the newest of them.",
+            "title": "Until"
           }
         },
         "required": [
@@ -447,6 +479,19 @@
             "title": "Sections",
             "type": "array"
           },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publication of the oldest item it was given.",
+            "title": "Since"
+          },
           "total": {
             "description": "Items the selection matched.",
             "title": "Total",
@@ -458,6 +503,19 @@
             },
             "title": "Uncovered",
             "type": "array"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publication of the newest item it was given.",
+            "title": "Until"
           }
         },
         "required": [
@@ -498,9 +556,35 @@
             "title": "Scope",
             "type": "string"
           },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publication of the oldest item it was given.",
+            "title": "Since"
+          },
           "total": {
             "title": "Total",
             "type": "integer"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publication of the newest item it was given.",
+            "title": "Until"
           }
         },
         "required": [

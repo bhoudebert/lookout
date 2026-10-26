@@ -360,6 +360,8 @@ def _digest_routes(app: FastAPI, services: Services) -> None:
                 headline=d.headline,
                 count=d.count,
                 total=d.total,
+                since=d.since,
+                until=d.until,
             )
             for d in services.digests.recent(RECENT_DIGESTS)
         ]
@@ -375,6 +377,7 @@ def _digest_routes(app: FastAPI, services: Services) -> None:
     def delete_digest(digest_id: str) -> None:
         if not services.digests.delete(digest_id):
             raise HTTPException(404, f"no digest {digest_id}")
+        services.digest_jobs.forget_digest(digest_id)
 
 
 def _job_out(job: DigestJob, *, started: bool = False) -> DigestJobOut:
@@ -391,6 +394,9 @@ def _job_out(job: DigestJob, *, started: bool = False) -> DigestJobOut:
         error=job.error,
         digest_id=job.digest_id,
         started=started,
+        count=job.count,
+        since=job.since,
+        until=job.until,
     )
 
 
@@ -444,6 +450,8 @@ def _digest_out(services: Services, digest: Digest) -> DigestOut:
         cited=[i for i in digest.cited if known[i] is not None],
         count=digest.count,
         total=digest.total,
+        since=digest.since,
+        until=digest.until,
     )
 
 

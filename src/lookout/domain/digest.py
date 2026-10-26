@@ -32,6 +32,9 @@ class Digest:
     uncovered: tuple[str, ...]
     total: int
     """How many items matched the selection; the digest covers the first ``len(cited) + len(uncovered)``."""
+    since: datetime | None = None
+    until: datetime | None = None
+    """When its oldest and newest items were published; ``None`` for digests kept before this was recorded."""
 
     @property
     def cited(self) -> tuple[str, ...]:

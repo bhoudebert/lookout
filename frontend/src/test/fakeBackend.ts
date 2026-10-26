@@ -472,6 +472,9 @@ export class FakeBackend {
       error: null,
       digest_id: null,
       started: true,
+      count: 0,
+      since: null,
+      until: null,
     };
     this.digestJobs.unshift(job);
     this.digestQuery = body.filter.text;
@@ -514,6 +517,8 @@ export class FakeBackend {
       cited: chosen.slice(0, 2).map((i) => i.id),
       count: chosen.length,
       total: chosen.length,
+      since: "2026-10-20T08:00:00Z",
+      until: "2026-10-24T07:00:00Z",
     };
     this.digests.unshift(made);
     Object.assign(job, {
@@ -524,6 +529,9 @@ export class FakeBackend {
       sections_total: 2,
       tokens: 120,
       finished_at: "2026-10-24T09:01:00Z",
+      count: chosen.length,
+      since: made.since,
+      until: made.until,
     });
   }
 
@@ -544,6 +552,7 @@ export class FakeBackend {
     if (index < 0) return this.json({ detail: `no digest ${id}` }, 404);
     if (method === "DELETE") {
       this.digests.splice(index, 1);
+      this.digestJobs = this.digestJobs.filter((j) => j.digest_id !== id);
       return new Response(null, { status: 204 });
     }
     const digest = this.digests[index] as Digest;
