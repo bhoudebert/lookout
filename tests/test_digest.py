@@ -5,7 +5,7 @@ import re
 import sqlite3
 from collections.abc import Callable, Iterator
 from dataclasses import replace
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,7 @@ from tests.test_http import Api
 from lookout.adapters.http.app import create_app
 from lookout.adapters.llm.openai_digest import OpenAiDigestWriter
 from lookout.adapters.store import sqlite as store
+from lookout.adapters.store.codec import decode_digest, encode_digest
 from lookout.adapters.store.sqlite import Database, SqliteDigestRepository
 from lookout.application.digest_jobs import DigestJobs, JobRunningError, JobState, UnknownJobError
 from lookout.application.digester import (
@@ -149,6 +150,7 @@ def test_digests_are_kept_listed_opened_and_deleted(world: tuple[Api, Editor]) -
     assert len(editor.requests) == calls
     assert api.client.delete(f"/api/digests/{made['id']}").status_code == 204
     assert api.client.get("/api/digests").json() == []
+    assert api.client.get("/api/digests/jobs").json() == []
     assert api.client.get(f"/api/digests/{made['id']}").status_code == 404
     assert api.client.delete(f"/api/digests/{made['id']}").status_code == 404
 
@@ -313,6 +315,8 @@ class Watcher:
         self.stop_after = stop_after
 
     def planned(self, sections: int) -> None: ...
+
+    def selected(self, count: int, since: datetime, until: datetime) -> None: ...
 
     def started(self, title: str) -> None: ...
 
@@ -735,6 +739,39 @@ def test_a_job_reports_the_tokens_the_model_wrote(world: tuple[Api, Editor]) -> 
         3,
     )
     assert job["tokens"] > 0
+
+
+def test_a_digest_and_its_job_say_when_the_items_they_cover_were_published(world: tuple[Api, Editor]) -> None:
+    api, _ = world
+    dates = sorted(i.published_at for i in api.services.items.search(InboxQuery(limit=50)).items)
+    job, made = write(api)
+
+    assert made is not None
+    (listed,) = api.client.get("/api/digests").json()
+    expected = (_iso(dates[0]), _iso(dates[-1]))
+    assert job["count"] == 3
+    for shown in (job, made, listed):
+        assert (_iso_text(shown["since"]), _iso_text(shown["until"])) == expected
+
+
+def test_a_digest_kept_before_dates_were_known_reads_without_them() -> None:
+    kept = SqliteDigestRepository(Database(":memory:"))
+    old = json.loads(encode_digest(Digest("a", NOW, "s", "h", (Section("T", (Point("p", ("i",)),)),), (), 1)))
+    del old["since"], old["until"]
+
+    read = decode_digest(json.dumps(old))
+    kept.save(read)
+
+    assert (read.since, read.until) == (None, None)
+    assert kept.get("a") == read
+
+
+def _iso(moment: Any) -> str:
+    return _iso_text(moment.isoformat())
+
+
+def _iso_text(text: str) -> str:
+    return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(UTC).isoformat()
 
 
 # --- keeping and migrating ----------------------------------------------------------------------------

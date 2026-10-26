@@ -12,6 +12,18 @@ export function until(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+/** "20 Oct – 24 Oct 2026", or one day when both ends fall on it; empty when the dates are not known. */
+export function span(since: string | null | undefined, to: string | null | undefined): string {
+  if (!since || !to) return "";
+  const day = (iso: string, year: boolean) =>
+    new Date(iso).toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      ...(year ? { year: "numeric" } : {}),
+    });
+  return day(since, true) === day(to, true) ? day(to, true) : `${day(since, false)} – ${day(to, true)}`;
+}
+
 /** The address when it is a web page; anything else (javascript:, data:) must never become a link. */
 export function webUrl(url: string): string | undefined {
   return /^https?:\/\/\S/i.test(url.trim()) ? url.trim() : undefined;

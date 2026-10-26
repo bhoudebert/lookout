@@ -476,6 +476,8 @@ class DigestOut(BaseModel):
     cited: list[str] = Field(description="Ids of the items some point cites.")
     count: int = Field(description="Items the model was given.")
     total: int = Field(description="Items the selection matched.")
+    since: datetime | None = Field(default=None, description="Publication of the oldest item it was given.")
+    until: datetime | None = Field(default=None, description="Publication of the newest item it was given.")
 
 
 class DigestJobOut(BaseModel):
@@ -493,6 +495,9 @@ class DigestJobOut(BaseModel):
     error: str | None
     digest_id: str | None = Field(description="The digest, once written.")
     started: bool = Field(default=False, description="True when this request started it.")
+    count: int = Field(default=0, description="Items it is made of, known once the selection is read.")
+    since: datetime | None = Field(default=None, description="Publication of the oldest of them.")
+    until: datetime | None = Field(default=None, description="Publication of the newest of them.")
 
 
 class DigestSummary(BaseModel):
@@ -504,6 +509,8 @@ class DigestSummary(BaseModel):
     headline: str
     count: int
     total: int
+    since: datetime | None = Field(default=None, description="Publication of the oldest item it was given.")
+    until: datetime | None = Field(default=None, description="Publication of the newest item it was given.")
 
 
 class RefileOut(BaseModel):

@@ -38,6 +38,9 @@ class DigestJob:
     finished_at: datetime | None = None
     error: str | None = None
     digest_id: str | None = None
+    count: int = 0
+    since: datetime | None = None
+    until: datetime | None = None
 
 
 class UnknownJobError(Exception):
@@ -105,6 +108,12 @@ class DigestJobs:
                 raise JobRunningError(msg)
             del self._jobs[job_id]
 
+    def forget_digest(self, digest_id: str) -> None:
+        """Forget the finished job that wrote a digest which has been deleted."""
+        with self._lock:
+            for job in [j for j in self._jobs.values() if j.digest_id == digest_id]:
+                del self._jobs[job.id]
+
     def _get(self, job_id: str) -> DigestJob:
         if job_id not in self._jobs:
             raise UnknownJobError(job_id)
@@ -158,6 +167,9 @@ class _Watch:
 
     def planned(self, sections: int) -> None:
         self._update(sections_total=sections)
+
+    def selected(self, count: int, since: datetime, until: datetime) -> None:
+        self._update(count=count, since=since, until=until)
 
     def started(self, title: str) -> None:
         self._number += 1

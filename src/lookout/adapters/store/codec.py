@@ -149,6 +149,8 @@ def encode_digest(digest: Digest) -> str:
             ],
             "uncovered": list(digest.uncovered),
             "total": digest.total,
+            "since": _dt(digest.since) if digest.since else None,
+            "until": _dt(digest.until) if digest.until else None,
         }
     )
 
@@ -167,4 +169,6 @@ def decode_digest(text: str) -> Digest:
         ),
         uncovered=tuple(raw["uncovered"]),
         total=raw["total"],
+        since=datetime.fromisoformat(raw["since"]) if raw.get("since") else None,
+        until=datetime.fromisoformat(raw["until"]) if raw.get("until") else None,
     )
