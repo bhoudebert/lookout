@@ -44,6 +44,18 @@ many items are waiting for the model when the limit stopped a run.
 - **WHEN** thousands of unread items have expired and a few are in the inbox, with a small daily limit
 - **THEN** the budget is spent on the inbox items only
 
+### Requirement: A model for a source
+
+A source MAY name a model of its own, served by the same endpoint, to read its items; the items of a source that names
+none are read by the default model. An item cited by several sources SHALL be read by the model of the first of its
+sources that names one. `llm.reasoning_effort`, when set, SHALL be sent with every reading, so models that think can be
+asked not to. The category icons are always asked of the default model.
+
+#### Scenario: A French source read by another model
+
+- **WHEN** the source "Dealabs: Hot" names `qwen3:8b` and the default model is `llama3.1`
+- **THEN** its items are read by `qwen3:8b` and the items of every other source by `llama3.1`
+
 ### Requirement: Provider independence
 
 The enricher SHALL speak the OpenAI-compatible chat protocol with a configurable base URL, model and key. `doctor` SHALL

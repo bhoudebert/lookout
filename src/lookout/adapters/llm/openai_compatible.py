@@ -89,12 +89,14 @@ class OpenAiEnricher:
         interests: str = "",
         stack: tuple[str, ...] = (),
         summary_chars: int = 400,
+        reasoning_effort: str = "",
     ) -> None:
         self._client = client
         self._url = base_url.rstrip("/") + "/chat/completions"
         self._model = model
         self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self._summary_chars = summary_chars
+        self._reasoning = reasoning_effort
         self._interests = interests or "not stated"
         self._stack = ", ".join(stack) or "not stated"
 
@@ -159,6 +161,8 @@ class OpenAiEnricher:
             "temperature": 0,
             "stream": False,
         }
+        if self._reasoning:
+            payload["reasoning_effort"] = self._reasoning
         try:
             response = self._client.post(self._url, json=payload, headers=self._headers)
             response.raise_for_status()

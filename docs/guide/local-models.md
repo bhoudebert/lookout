@@ -51,9 +51,16 @@ Lookout reaches Ollama through the OpenAI-compatible API, and that API has no fi
 size goes in the model, with a **Modelfile**: a small named copy of a model with other settings. It shares the weights
 of the original, so it costs no disk space, and it changes nothing for your other projects.
 
+Pull the models first (once), then write the two Modelfiles:
+
+```
+ollama pull qwen3-vl:8b-instruct
+ollama pull gemma4:12b
+```
+
 ```
 # Modelfile.reader: reads each item (short prompts)
-FROM llama3.1:8b
+FROM qwen3-vl:8b-instruct
 PARAMETER num_ctx 8192
 ```
 
@@ -152,6 +159,63 @@ do it:
 - `systemctl restart ollama` does stop it, but also kills whatever your other projects are running on that server.
 
 Stopping Lookout loses the digest being written, so wait if it is close to done.
+
+## Which model reads best
+
+Reading is the work that runs after every sweep, so speed and a short top of the inbox matter more than polish. We read
+the same 1000 items of a real inbox (30 sources, English and French, 574 of them in sources that allow several
+categories) with the reader code of Lookout, one model after another, on an RTX 5080 with a 4k to 8k context and
+thinking switched off (`reasoning_effort: none`).
+
+|                                             | llama3.1 8B | qwen3 8B | qwen3-vl 8B instruct | gemma4 12B |
+| ------------------------------------------- | ----------- | -------- | -------------------- | ---------- |
+| Valid answers                               | 96.5%       | 99.6%    | 99.6%                | 96.5%      |
+| Items left unread (invalid category twice)  | 35          | 4        | 4                    | 35         |
+| Median seconds per item                     | 0.7         | 0.8      | 1.2                  | 1.3        |
+| Items per hour                              | 4300        | 3700     | 2250                 | 2500       |
+| Same category as the majority of the models | 78%         | 74%      | 86%                  | 86%        |
+| Share of items scored 70 or more (P0 or P1) | 25%         | 40%      | 11%                  | 8%         |
+| Summary length (characters)                 | 104         | 91       | 166                  | 236        |
+
+What to take from it:
+
+- **qwen3-vl 8B instruct is the model we recommend for reading** (get it and give it a small context as in [giving Lookout its own sizes](#giving-lookout-its-own-sizes): `ollama pull qwen3-vl:8b-instruct`, a Modelfile with `FROM qwen3-vl:8b-instruct` and `PARAMETER num_ctx 8192`, then `ollama create lookout-reader -f Modelfile.reader` and `model: lookout-reader`). It answers almost always, its scores are spread so the top of the
+  inbox stays short, and it reads 300 new items in about 6 minutes. The "vl" part (images) is not used: what matters is
+  that it is the instruct (non-thinking) build.
+- **llama3.1 8B is the fastest** but files badly across similar categories (a LEGO deal in Cycling) and leaves 3.5% of the
+  items unread.
+- **qwen3 8B inflates scores**: four items in ten reach P0 or P1, so the top stops meaning anything.
+- **gemma4 12B writes the best summaries** and is the strictest on scores, but loses as many items as llama3.1 and
+  sometimes stops at the parent category.
+- **Not worth it for reading:** qwen3 14B is twice as slow (2.2 s per item) for no clear gain, and thinking switched on
+  (`reasoning_effort: medium`) is four times slower (4.6 s per item) without fixing the scores.
+- **Asking for several items at once does not help**: requests sent in parallel were no faster (62, 58, 54 and 58 items a
+  minute with 1, 2, 4 and 8 at once), because one Ollama server answers one request at a time unless
+  `OLLAMA_NUM_PARALLEL` is raised, which also multiplies the memory kept for context.
+
+Caveats: there is no list of right answers, so "same category as the majority" shows consistency, not accuracy, and the
+numbers come from one inbox and one GPU. Judge a model on your own sources: [a model per source](#a-model-per-source) lets
+you give one source another model and compare.
+
+## A model per source
+
+One model does not read everything equally well: a model strong in English can file French deals badly. A source can
+name its own model, served by the same Ollama:
+
+```yaml
+llm:
+  model: lookout-reader
+  reasoning_effort: none # sent with every reading; harmless for models that do not think
+sources:
+  - name: "Dealabs: Hot"
+    type: rss
+    url: https://www.dealabs.com/rss/hot
+    model: qwen3:8b # reads this source only; empty means llm.model
+```
+
+The same field is in the source form of the dashboard (**Model**) and in the Sources table. An item cited by several
+sources is read by the model of the first one that names a model. Each model you name takes its own memory when it is
+loaded, so name few, and give each the same small context as `llm.model` (a `Modelfile` with `num_ctx 4096`).
 
 ## A checklist
 

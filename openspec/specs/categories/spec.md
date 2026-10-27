@@ -60,7 +60,8 @@ only categories the server has.
 ### Requirement: Filing existing items again
 
 The user SHALL be able to file existing items again. An item whose sources allow exactly one category SHALL be filed
-there by rule. An item the model has read that sits in `Other`, or in a category that now has subcategories, and whose
+there by rule, and so SHALL an unread item in `Other` whose sources all name the same category, even one that has
+subcategories (the model goes deeper when it reads it). An item the model has read that sits in `Other`, or in a category that now has subcategories, and whose
 sources allow several categories SHALL be queued to be read again at the next run. Nothing else changes, and the daily
 model budget still applies.
 

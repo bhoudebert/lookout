@@ -1,5 +1,6 @@
 """Wiring: builds every adapter from the configuration and hands the use cases to the entry points."""
 
+import functools
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
@@ -40,7 +41,7 @@ from lookout.adapters.store.sqlite import (
 )
 from lookout.application.digest_jobs import DigestJobs
 from lookout.application.digester import Digester, DigestLimits, DigestRepository
-from lookout.application.enrich import Enrich
+from lookout.application.enrich import Enrich, OwnModels
 from lookout.application.errors import ConfigError
 from lookout.application.expire import AgeLimited, Expire
 from lookout.application.github import GitHubGateway
@@ -509,15 +510,21 @@ def _assemble(
         registry.seed(config.sources, config.channels)
     except (UnknownChannelError, InvalidError) as error:
         raise ConfigError(str(error)) from error
-    enricher = OpenAiEnricher(
-        llm_http,
-        base_url=config.llm.base_url,
-        model=config.llm.model,
-        api_key=config.llm.api_key,
-        interests=config.interests,
-        stack=tuple(e.name for e in config.stack.entries),
-        summary_chars=config.llm.summary_chars,
-    )
+
+    def reader(model: str) -> OpenAiEnricher:
+        return OpenAiEnricher(
+            llm_http,
+            base_url=config.llm.base_url,
+            model=model,
+            api_key=config.llm.api_key,
+            interests=config.interests,
+            stack=tuple(e.name for e in config.stack.entries),
+            summary_chars=config.llm.summary_chars,
+            reasoning_effort=config.llm.reasoning_effort,
+        )
+
+    enricher = reader(config.llm.model)
+    readers = functools.cache(reader)
     return Container(
         config=config,
         database=database,
@@ -543,6 +550,7 @@ def _assemble(
             profile=personalize.profile,
             catalogue=registry.catalogue,
             examples=personalize.examples,
+            own_models=OwnModels(registry.models, readers),
         ),
         triage=Triage(items, personalize, clock),
         inbox=Inbox(items, clock),

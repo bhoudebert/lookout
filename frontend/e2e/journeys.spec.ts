@@ -387,6 +387,27 @@ test("a category gets an icon, kept on the categories page and out of the inbox,
   await expect(tree(page).getByRole("button", { name: /^Rust/ })).not.toContainText("🦀");
 });
 
+test("the list can be made wider with the bar beside it, by mouse or keys", async ({ page }) => {
+  await page.goto("/");
+  const bar = page.getByRole("separator", { name: "List width" });
+  await expect(bar).toBeVisible();
+  const before = Number(await bar.getAttribute("aria-valuenow"));
+  const box = (await bar.boundingBox()) as { x: number; y: number; width: number; height: number };
+  await page.mouse.move(box.x + box.width / 2, box.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + 100);
+  await page.mouse.up();
+  expect(Number(await bar.getAttribute("aria-valuenow"))).toBe(before - 60);
+  await bar.focus();
+  await page.keyboard.press("ArrowRight");
+  expect(Number(await bar.getAttribute("aria-valuenow"))).toBe(before - 36);
+  await page.reload();
+  await expect(page.getByRole("separator", { name: "List width" })).toHaveAttribute(
+    "aria-valuenow",
+    String(before - 36),
+  );
+});
+
 test("a digest is written in the background, followed from anywhere, read and deleted", async ({ page }) => {
   await page.goto("/");
   await actions(page);
@@ -524,6 +545,28 @@ test("a category can be created from the source form and the source files straig
   await expect(page.getByRole("button", { name: "Edit Hobbies", exact: true })).toHaveCount(0);
 });
 
+test("a source can ask for a model of its own, shown in the table and changed or cleared", async ({ page }) => {
+  await page.goto("/sources");
+  await page.getByRole("button", { name: "Add a source" }).click();
+  const form = page.getByRole("form", { name: "Add a source" });
+  await form.getByLabel("Name").fill("french feed");
+  await form.getByLabel("Feed address").fill("http://127.0.0.1:8902/feed.xml");
+  await form.getByLabel("Model").fill(" qwen3:8b ");
+  await form.getByRole("button", { name: "Add", exact: true }).click();
+  const row = page.getByRole("row", { name: /french feed/ });
+  await expect(row).toContainText("qwen3:8b");
+
+  await page.getByRole("button", { name: "Edit french feed" }).click();
+  const edit = page.getByRole("form", { name: /Edit/ });
+  await expect(edit.getByLabel("Model")).toHaveValue("qwen3:8b");
+  await edit.getByLabel("Model").fill("");
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(row).toContainText("default");
+
+  await page.getByRole("button", { name: "Delete french feed" }).click();
+  await expect(row).toHaveCount(0);
+});
+
 test("a search can be widened from the inbox to everything", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Search", { exact: true }).fill("django");
@@ -540,6 +583,118 @@ test("the single-page app answers on any path, and the API still answers its own
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
   expect((await request.get("/api/health")).ok()).toBe(true);
   expect((await request.get("/api/nothing-here")).status()).toBe(404);
+});
+
+test("no dialog lets the width of the list be touched, and each dialog closes", async ({ page }) => {
+  await page.goto("/");
+  const bar = page.getByRole("separator", { name: "List width" });
+  await expect(bar).toBeVisible();
+  const width = async () => Number(await bar.getAttribute("aria-valuenow"));
+  const before = await width();
+
+  const openers = [
+    { dialog: "Keyboard shortcuts", open: () => page.keyboard.press("?"), close: "Close" },
+    { dialog: "Snooze until", open: () => page.keyboard.press("s"), close: "Cancel" },
+    {
+      dialog: "Act on everything shown",
+      open: async () => {
+        await actions(page);
+        await page.getByRole("button", { name: /^Act on all \d+…$/ }).click();
+      },
+      close: "Cancel",
+    },
+  ];
+  for (const { dialog, open, close } of openers) {
+    await open();
+    const modal = page.getByRole("dialog", { name: dialog });
+    await expect(modal).toBeVisible();
+    await expect(bar).toHaveAttribute("aria-disabled", "true");
+
+    // The dialog is above the bar: what is under the bar's middle, at the dialog's height, is the dialog.
+    const at = (await bar.boundingBox()) as { x: number; width: number };
+    const box = (await modal.boundingBox()) as { y: number; height: number };
+    const x = at.x + at.width / 2;
+    const y = box.y + box.height / 2;
+    const onTop = await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.closest("[role=dialog]") !== null,
+      { x, y },
+    );
+    expect(onTop).toBe(true);
+
+    // Dragging from there does nothing to the list, and the keyboard does not reach the bar either.
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 150, y);
+    await page.mouse.up();
+    expect(await width()).toBe(before);
+    await expect(modal).toBeVisible();
+
+    await modal.getByRole("button", { name: close }).first().click();
+    await expect(modal).toBeHidden();
+    await expect(bar).toHaveAttribute("aria-disabled", "false");
+  }
+
+  // Once every dialog is closed the bar works again.
+  await bar.focus();
+  await page.keyboard.press("ArrowRight");
+  expect(await width()).toBe(before + 24);
+  await page.keyboard.press("Enter");
+  expect(await width()).toBe(480);
+});
+
+test("the sidebar reaches every page, the views are tabs, and / goes to the search", async ({ page }) => {
+  await page.goto("/");
+  await expect(items(page).first()).toBeVisible();
+  const all = await items(page).count();
+  for (const [name, path, heading] of [
+    ["Digest", "/digest", "Digests"],
+    ["Sources", "/sources", "Sources"],
+    ["Categories", "/categories", "Categories"],
+    ["Inbox", "/", "Inbox"],
+  ] as const) {
+    await nav(page, name).click();
+    await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/$" : path}$`));
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    await expect(nav(page, name)).toHaveAttribute("aria-current", "page");
+  }
+
+  for (const view of ["Snoozed", "Done", "Expired", "Everything", "Inbox"]) {
+    await page.getByRole("tab", { name: new RegExp(`^${view}`) }).click();
+    await expect(page.getByRole("tab", { name: new RegExp(`^${view}`) })).toHaveAttribute("aria-selected", "true");
+  }
+
+  await page.keyboard.press("/");
+  const search = page.getByRole("searchbox", { name: "Search items, sources, tags" });
+  await expect(search).toBeFocused();
+  await search.fill("django");
+  await expect(page).toHaveURL(/q=django/);
+  await expect(items(page)).toHaveCount(1);
+  await search.fill("");
+  await expect(items(page)).toHaveCount(all);
+});
+
+test("the reader stars, rates and snoozes the item it shows, and each can be put back", async ({ page }) => {
+  await page.goto("/");
+  await expect(items(page).first()).toBeVisible();
+  const all = await items(page).count();
+  await title(page, REACT).click();
+  const reader = page.getByRole("complementary", { name: "Item detail" });
+
+  await reader.getByRole("button", { name: "Star", exact: true }).click();
+  await expect(reader.getByRole("button", { name: "Unstar" })).toHaveAttribute("aria-pressed", "true");
+  await reader.getByRole("button", { name: "Unstar" }).click();
+  await expect(reader.getByRole("button", { name: "Star", exact: true })).toHaveAttribute("aria-pressed", "false");
+
+  await reader.getByRole("button", { name: "More like this" }).click();
+  await expect(reader.getByRole("button", { name: "More like this" })).toHaveAttribute("aria-pressed", "true");
+  await toast(page, "More like this").getByRole("button", { name: "Undo" }).click();
+  await expect(reader.getByRole("button", { name: "More like this" })).toHaveAttribute("aria-pressed", "false");
+
+  await reader.getByRole("button", { name: "Snooze…" }).click();
+  await page.getByRole("dialog", { name: "Snooze until" }).getByRole("button", { name: "4 hours" }).click();
+  await expect(items(page)).toHaveCount(all - 1);
+  await toast(page, "Snoozed").getByRole("button", { name: "Undo" }).click();
+  await expect(items(page)).toHaveCount(all);
 });
 
 test("nothing is lost on a phone-sized screen", async ({ page }) => {

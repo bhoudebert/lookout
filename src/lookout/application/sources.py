@@ -18,6 +18,7 @@ class SourceView:
     enabled: bool
     channels: tuple[str, ...]
     keywords: tuple[str, ...]
+    model: str
     settings: dict[str, Any]
     last_run: datetime | None
     last_error: str | None
@@ -44,6 +45,7 @@ class SourceDirectory:
             enabled=source.enabled,
             channels=source.channels,
             keywords=source.keywords,
+            model=source.model,
             settings=source.settings,
             last_run=status.last_run,
             last_error=status.last_error,

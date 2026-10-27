@@ -30,7 +30,7 @@ sources:
     enabled: true
 ```
 
-`keywords` keeps only the entries whose title or text mentions one of them. `enabled: false` turns a source off.
+`keywords` keeps only the entries whose title or text mentions one of them. `enabled: false` turns a source off. `model` (optional, also a field of the source form) reads that source's items with another model of the same endpoint, for example `model: qwen3:8b` on a French feed; empty means `llm.model`. See [local models](/local-models#a-model-per-source).
 
 Keywords are matched as **whole words**, ignoring case, accents and markup:
 

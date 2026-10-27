@@ -243,6 +243,7 @@ describe("sources", () => {
       settings: { url: "https://rust.test/feed.xml" },
       channels: ["Dev > Rust"],
       keywords: ["rust", "async"],
+      model: "",
       enabled: true,
     });
   });
@@ -329,6 +330,7 @@ describe("sources", () => {
     await user.clear(within(form).getByLabelText("Feed address"));
     await user.type(within(form).getByLabelText("Feed address"), "https://new.test/feed");
     await user.click(within(form).getByRole("checkbox", { name: "AI" }));
+    await user.type(within(form).getByLabelText("Model"), "  qwen3:8b ");
     await user.click(within(form).getByRole("button", { name: "Save" }));
     await waitFor(() => {
       expect(screen.queryByRole("form", { name: /source|Edit/ })).not.toBeInTheDocument();
@@ -338,9 +340,11 @@ describe("sources", () => {
       settings: { url: "https://new.test/feed" },
       channels: [],
       keywords: ["llm"],
+      model: "qwen3:8b",
       enabled: true,
     });
     expect(screen.getByRole("row", { name: /blog/ })).toHaveTextContent("model decides");
+    expect(screen.getByRole("row", { name: /blog/ })).toHaveTextContent("qwen3:8b");
   });
 
   it("shows why a change was refused", async () => {

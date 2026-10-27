@@ -24,6 +24,8 @@ class LlmConfig:
     api_key: str = ""
     daily_limit: int = 200
     summary_chars: int = 400
+    reasoning_effort: str = ""
+    """Sent with each reading when set (``none``, ``low``...) for models that think; empty sends nothing."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +178,7 @@ def _llm(reader: _Reader, data: dict[str, Any], env: dict[str, str]) -> LlmConfi
         model=reader.text(data, "model", base.model),
         api_key=env.get("LOOKOUT_LLM_API_KEY", ""),
         daily_limit=reader.integer(data, "daily_limit", base.daily_limit),
+        reasoning_effort=reader.text(data, "reasoning_effort", base.reasoning_effort),
         summary_chars=reader.integer(data, "summary_chars", base.summary_chars, minimum=50),
     )
 
@@ -295,7 +298,9 @@ def _sources(reader: _Reader, raw: object, supported: tuple[str, ...]) -> tuple[
                 f"source '{name}' has type {source_type!r}; supported types: {', '.join(supported)}"
             )
         settings = {
-            k: v for k, v in data.items() if k not in {"name", "type", "keywords", "enabled", "channels"}
+            k: v
+            for k, v in data.items()
+            if k not in {"name", "type", "keywords", "enabled", "channels", "model"}
         }
         sources.append(
             SourceDef(
@@ -305,6 +310,7 @@ def _sources(reader: _Reader, raw: object, supported: tuple[str, ...]) -> tuple[
                 keywords=reader.strings(data, "keywords", ()),
                 enabled=reader.boolean(data, "enabled", default=True),
                 channels=reader.strings(data, "channels", ()),
+                model=reader.text(data, "model", ""),
             )
         )
     return tuple(sources)

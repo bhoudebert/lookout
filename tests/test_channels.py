@@ -46,6 +46,13 @@ def test_a_source_listing_several_lets_the_model_choose_among_them() -> None:
     assert cat.initial(("mixed",)) == OTHER
 
 
+def test_sources_naming_the_same_category_agree_on_it_and_others_leave_it_to_the_model() -> None:
+    cat = catalogue(**{"a": ("rust",), "b": ("Rust",), "c": ("AI",)})
+    assert cat.named(("a", "b")) == "Rust"
+    assert cat.named(("a", "c")) is None
+    assert cat.named(("a", "unlisted")) is None
+
+
 def test_a_source_listing_none_may_feed_every_channel() -> None:
     cat = catalogue()
     assert [c.name for c in cat.allowed(("anything",))] == ["AI", "Rust", OTHER]

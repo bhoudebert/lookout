@@ -451,6 +451,7 @@ kbd {
   background: var(--known);
 }
 .columns {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: grid;
@@ -458,7 +459,8 @@ kbd {
   border-top: 1px solid var(--line);
 }
 .columns:has(.detail) {
-  grid-template-columns: 400px minmax(0, 1fr);
+  /* The width chosen, but never more than 42% of the sheet: the reader keeps its room on a small screen. */
+  grid-template-columns: min(var(--list-w, 480px), 42%) minmax(0, 1fr);
 }
 .listcol {
   display: flex;
@@ -899,6 +901,36 @@ button.icon.done span {
   color: var(--p0);
 }
 
+/* The bar between the list and the reader */
+.resizer {
+  position: absolute;
+  left: min(var(--list-w, 480px), 42%);
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 9px;
+  margin-left: -5px;
+  cursor: col-resize;
+}
+.resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  transition: background var(--ease);
+}
+.resizer[aria-disabled="true"] {
+  pointer-events: none;
+  cursor: default;
+}
+.resizer:hover::after,
+.resizer:focus-visible::after {
+  background: var(--accent);
+}
+
 /* The open item: the reader, then its details */
 .detail {
   display: grid;
@@ -1041,6 +1073,7 @@ button.icon.done span {
   position: fixed;
   inset: 20% 1rem auto;
   max-width: 28rem;
+  z-index: 10;
   margin: 0 auto;
   background: var(--card);
   border: 1px solid var(--line);
@@ -1354,6 +1387,9 @@ td button + button {
   .columns,
   .columns:has(.detail) {
     display: block;
+  }
+  .resizer {
+    display: none;
   }
   .list {
     overflow: visible;

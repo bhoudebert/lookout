@@ -65,6 +65,7 @@ export function SourcesView() {
           settings: preset.settings,
           channels: category ? [category.name] : [],
           keywords: preset.keywords ?? [],
+          model: "",
           enabled: true,
         }),
       )
@@ -145,6 +146,7 @@ export function SourcesView() {
                 <th>Name</th>
                 <th>Type</th>
                 <th>Categories</th>
+                <th>Model</th>
                 <th>Last run</th>
                 <th>Items</th>
                 <th>Last error</th>
@@ -158,6 +160,7 @@ export function SourcesView() {
                   <th scope="row">{s.name}</th>
                   <td>{s.type}</td>
                   <td>{s.channels.length > 0 ? s.channels.join(", ") : "model decides"}</td>
+                  <td>{s.model || "default"}</td>
                   <td>{s.last_run ? until(s.last_run) : "never"}</td>
                   <td>{s.items_seen}</td>
                   <td>{s.last_error ?? "none"}</td>
