@@ -41,7 +41,7 @@ Open the address in a browser. The first item is a critical advisory on Django, 
 
 ## Use it for real
 
-1. Start Ollama and pull a model: `ollama pull llama3.1`.
+1. Start Ollama and pull a model: `ollama pull llama3.1` is enough to start. For better readings, see [which model reads best](/local-models#which-model-reads-best).
 2. Edit `lookout.yaml`: list your [sources](/sources), your stack and a sentence about your interests. See [configuration](/configuration).
 3. Check everything: `lookout doctor`. It tells you what to fix, for example to start Ollama.
 4. Fetch and read: `lookout run`, or press **Run now** in the dashboard.
