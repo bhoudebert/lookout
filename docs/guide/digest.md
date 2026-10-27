@@ -36,7 +36,7 @@ Reading one item is a small, frequent job; a digest is one big call. You can giv
 
 ```yaml
 llm:
-  model: llama3.1 # reads each item
+  model: lookout-reader # reads each item (a small-context copy of the reading model, see local models)
 digest:
   model: gemma4-digest # writes digests
 ```

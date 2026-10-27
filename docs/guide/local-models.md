@@ -51,9 +51,16 @@ Lookout reaches Ollama through the OpenAI-compatible API, and that API has no fi
 size goes in the model, with a **Modelfile**: a small named copy of a model with other settings. It shares the weights
 of the original, so it costs no disk space, and it changes nothing for your other projects.
 
+Pull the models first (once), then write the two Modelfiles:
+
+```
+ollama pull qwen3-vl:8b-instruct
+ollama pull gemma4:12b
+```
+
 ```
 # Modelfile.reader: reads each item (short prompts)
-FROM llama3.1:8b
+FROM qwen3-vl:8b-instruct
 PARAMETER num_ctx 8192
 ```
 
@@ -172,7 +179,7 @@ thinking switched off (`reasoning_effort: none`).
 
 What to take from it:
 
-- **qwen3-vl 8B instruct is the default we recommend.** It answers almost always, its scores are spread so the top of the
+- **qwen3-vl 8B instruct is the model we recommend for reading** (get it and give it a small context as in [giving Lookout its own sizes](#giving-lookout-its-own-sizes): `ollama pull qwen3-vl:8b-instruct`, a Modelfile with `FROM qwen3-vl:8b-instruct` and `PARAMETER num_ctx 8192`, then `ollama create lookout-reader -f Modelfile.reader` and `model: lookout-reader`). It answers almost always, its scores are spread so the top of the
   inbox stays short, and it reads 300 new items in about 6 minutes. The "vl" part (images) is not used: what matters is
   that it is the instruct (non-thinking) build.
 - **llama3.1 8B is the fastest** but files badly across similar categories (a LEGO deal in Cycling) and leaves 3.5% of the
