@@ -158,6 +158,11 @@ def migrate_v8(db: sqlite3.Connection) -> None:
     db.execute("CREATE TABLE digests (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, data TEXT NOT NULL)")
 
 
+def migrate_v9(db: sqlite3.Connection) -> None:
+    """A model of its own for a source."""
+    db.execute("ALTER TABLE source_defs ADD COLUMN model TEXT NOT NULL DEFAULT ''")
+
+
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     migrate_v1,
     migrate_v2,
@@ -167,6 +172,7 @@ MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     migrate_v6,
     migrate_v7,
     migrate_v8,
+    migrate_v9,
 )
 
 
@@ -472,6 +478,7 @@ class SqliteSourceDefinitions:
                 keywords=tuple(json.loads(r["keywords"])),
                 channels=tuple(json.loads(r["channels"])),
                 enabled=bool(r["enabled"]),
+                model=r["model"],
             )
             for r in rows
         )
@@ -480,10 +487,11 @@ class SqliteSourceDefinitions:
         """Insert a source, or replace the one with this name keeping its place."""
         self._db.run(
             """
-            INSERT INTO source_defs (name, type, settings, keywords, channels, enabled, position)
-            VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM source_defs))
+            INSERT INTO source_defs (name, type, settings, keywords, channels, enabled, model, position)
+            VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM source_defs))
             ON CONFLICT(name) DO UPDATE SET type = excluded.type, settings = excluded.settings,
-                keywords = excluded.keywords, channels = excluded.channels, enabled = excluded.enabled
+                keywords = excluded.keywords, channels = excluded.channels, enabled = excluded.enabled,
+                model = excluded.model
             """,
             (
                 source.name,
@@ -492,6 +500,7 @@ class SqliteSourceDefinitions:
                 json.dumps(list(source.keywords)),
                 json.dumps(list(source.channels)),
                 int(source.enabled),
+                source.model,
             ),
         )
 

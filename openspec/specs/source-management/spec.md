@@ -18,7 +18,7 @@ channels. After that the stored ones are the truth and the file's lists SHALL NO
 
 ### Requirement: Sources
 
-The user SHALL be able to add a source (name, type, the settings its type takes, channels, keywords, enabled), change
+The user SHALL be able to add a source (name, type, the settings its type takes, channels, keywords, a model of its own, enabled), change
 any of it except the name, switch it on and off, and delete it. Names SHALL be unique, ignoring case. The dashboard SHALL
 learn from the API which types exist and which fields each takes, and build its form from that.
 

@@ -293,6 +293,7 @@ def _definition(name: str, body: SourceBody) -> SourceDef:
         channels=tuple(body.channels),
         keywords=tuple(body.keywords),
         enabled=body.enabled,
+        model=body.model,
     )
 
 

@@ -69,6 +69,7 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
   const [values, setValues] = useState<Values>(initial(type, source?.settings ?? {}));
   const [picked, setPicked] = useState<string[]>(source?.channels ?? []);
   const [keywords, setKeywords] = useState((source?.keywords ?? []).join(", "));
+  const [model, setModel] = useState(source?.model ?? "");
   const [enabled, setEnabled] = useState(source?.enabled ?? true);
   const [fresh, setFresh] = useState({ name: "", description: "" });
   const [freshError, setFreshError] = useState<string | null>(null);
@@ -103,6 +104,7 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
         .split(",")
         .map((k) => k.trim())
         .filter(Boolean),
+      model: model.trim(),
       enabled,
     });
   };
@@ -254,6 +256,16 @@ export function SourceForm({ types, channels, source, error, busy, onSave, onCan
           placeholder="only items mentioning one of these, comma separated: moto, vélo*, -motorola"
           onChange={(e) => {
             setKeywords(e.target.value);
+          }}
+        />
+      </label>
+      <label>
+        Model
+        <input
+          value={model}
+          placeholder="empty: the default model. Or one that reads this source better, e.g. qwen3:8b"
+          onChange={(e) => {
+            setModel(e.target.value);
           }}
         />
       </label>

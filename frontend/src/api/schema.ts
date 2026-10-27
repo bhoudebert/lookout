@@ -1089,6 +1089,12 @@ export interface components {
             enabled: boolean;
             /** Keywords */
             keywords?: string[];
+            /**
+             * Model
+             * @description Reads this source's items; empty means the default model.
+             * @default
+             */
+            model: string;
             /** Settings */
             settings?: {
                 [key: string]: unknown;
@@ -1113,6 +1119,12 @@ export interface components {
             enabled: boolean;
             /** Keywords */
             keywords?: string[];
+            /**
+             * Model
+             * @description Reads this source's items; empty means the default model.
+             * @default
+             */
+            model: string;
             /** Name */
             name: string;
             /** Settings */
@@ -1139,6 +1151,11 @@ export interface components {
             last_error: string | null;
             /** Last Run */
             last_run: string | null;
+            /**
+             * Model
+             * @description The model that reads its items; empty means the default one.
+             */
+            model: string;
             /** Name */
             name: string;
             /** Settings */

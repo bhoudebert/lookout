@@ -191,7 +191,10 @@ class Registry:
             if canonical not in channels:
                 channels.append(canonical)
         checked = replace(
-            source, channels=tuple(channels), keywords=tuple(k.strip() for k in source.keywords if k.strip())
+            source,
+            channels=tuple(channels),
+            keywords=tuple(k.strip() for k in source.keywords if k.strip()),
+            model=source.model.strip(),
         )
         self._validate(checked)
         return checked
@@ -310,6 +313,10 @@ class Registry:
     def _channel(self, name: str) -> Channel | None:
         wanted = " > ".join(part.strip() for part in name.split(">")).lower()
         return next((c for c in self._channels.all() if c.name.lower() == wanted), None)
+
+    def models(self) -> dict[str, str]:
+        """The model each source asks for, for the sources that ask for one."""
+        return {s.name: s.model for s in self._sources.all() if s.model}
 
     def catalogue(self) -> ChannelCatalogue:
         """The categories and which of them each source feeds, as the pipeline needs them."""

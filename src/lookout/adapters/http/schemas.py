@@ -256,6 +256,7 @@ class SourceOut(BaseModel):
     enabled: bool
     channels: list[str]
     keywords: list[str]
+    model: str = Field(description="The model that reads its items; empty means the default one.")
     settings: dict[str, Any]
     last_run: datetime | None
     last_error: str | None
@@ -269,6 +270,7 @@ class SourceOut(BaseModel):
             enabled=view.enabled,
             channels=list(view.channels),
             keywords=list(view.keywords),
+            model=view.model,
             settings=view.settings,
             last_run=view.last_run,
             last_error=view.last_error,
@@ -283,6 +285,7 @@ class SourceBody(BaseModel):
     settings: dict[str, Any] = Field(default_factory=dict[str, Any])
     channels: list[str] = Field(default_factory=list[str], description="Empty means every channel.")
     keywords: list[str] = Field(default_factory=list[str])
+    model: str = Field(default="", description="Reads this source's items; empty means the default model.")
     enabled: bool = True
 
 

@@ -48,6 +48,7 @@ export function makeSource(overrides: Partial<Source> = {}): Source {
     enabled: true,
     channels: [],
     keywords: [],
+    model: "",
     settings: { url: "https://example.test/feed" },
     last_run: "2026-10-24T08:00:00Z",
     last_error: null,
