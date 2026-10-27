@@ -153,6 +153,26 @@ do it:
 
 Stopping Lookout loses the digest being written, so wait if it is close to done.
 
+## A model per source
+
+One model does not read everything equally well: a model strong in English can file French deals badly. A source can
+name its own model, served by the same Ollama:
+
+```yaml
+llm:
+  model: lookout-reader
+  reasoning_effort: none # sent with every reading; harmless for models that do not think
+sources:
+  - name: "Dealabs: Hot"
+    type: rss
+    url: https://www.dealabs.com/rss/hot
+    model: qwen3:8b # reads this source only; empty means llm.model
+```
+
+The same field is in the source form of the dashboard (**Model**) and in the Sources table. An item cited by several
+sources is read by the model of the first one that names a model. Each model you name takes its own memory when it is
+loaded, so name few, and give each the same small context as `llm.model` (a `Modelfile` with `num_ctx 4096`).
+
 ## A checklist
 
 - [ ] The server default (`OLLAMA_CONTEXT_LENGTH`) is whatever your other projects need; Lookout does not depend on it.

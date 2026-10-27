@@ -14,3 +14,5 @@ class SourceDef:
     channels: tuple[str, ...] = ()
     keywords: tuple[str, ...] = ()
     enabled: bool = True
+    model: str = ""
+    """The model that reads this source's items; empty means the one of ``llm``."""

@@ -7,6 +7,7 @@ llm:
   base_url: http://localhost:11434/v1
   model: llama3.1
   daily_limit: 200
+  # reasoning_effort: none  # for models that think (qwen3, gemma4): do not let them think about each item
 
 # Told to the model so scores reflect you.
 interests: Backend engineering in Python, PostgreSQL, React, and the security of what I run.

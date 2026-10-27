@@ -1292,6 +1292,12 @@
             "title": "Keywords",
             "type": "array"
           },
+          "model": {
+            "default": "",
+            "description": "Reads this source's items; empty means the default model.",
+            "title": "Model",
+            "type": "string"
+          },
           "settings": {
             "additionalProperties": true,
             "title": "Settings",
@@ -1330,6 +1336,12 @@
             },
             "title": "Keywords",
             "type": "array"
+          },
+          "model": {
+            "default": "",
+            "description": "Reads this source's items; empty means the default model.",
+            "title": "Model",
+            "type": "string"
           },
           "name": {
             "title": "Name",
@@ -1400,6 +1412,11 @@
             ],
             "title": "Last Run"
           },
+          "model": {
+            "description": "The model that reads its items; empty means the default one.",
+            "title": "Model",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -1420,6 +1437,7 @@
           "enabled",
           "channels",
           "keywords",
+          "model",
           "settings",
           "last_run",
           "last_error",

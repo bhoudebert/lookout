@@ -545,6 +545,28 @@ test("a category can be created from the source form and the source files straig
   await expect(page.getByRole("button", { name: "Edit Hobbies", exact: true })).toHaveCount(0);
 });
 
+test("a source can ask for a model of its own, shown in the table and changed or cleared", async ({ page }) => {
+  await page.goto("/sources");
+  await page.getByRole("button", { name: "Add a source" }).click();
+  const form = page.getByRole("form", { name: "Add a source" });
+  await form.getByLabel("Name").fill("french feed");
+  await form.getByLabel("Feed address").fill("http://127.0.0.1:8902/feed.xml");
+  await form.getByLabel("Model").fill(" qwen3:8b ");
+  await form.getByRole("button", { name: "Add", exact: true }).click();
+  const row = page.getByRole("row", { name: /french feed/ });
+  await expect(row).toContainText("qwen3:8b");
+
+  await page.getByRole("button", { name: "Edit french feed" }).click();
+  const edit = page.getByRole("form", { name: /Edit/ });
+  await expect(edit.getByLabel("Model")).toHaveValue("qwen3:8b");
+  await edit.getByLabel("Model").fill("");
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(row).toContainText("default");
+
+  await page.getByRole("button", { name: "Delete french feed" }).click();
+  await expect(row).toHaveCount(0);
+});
+
 test("a search can be widened from the inbox to everything", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Search", { exact: true }).fill("django");
