@@ -153,6 +153,43 @@ do it:
 
 Stopping Lookout loses the digest being written, so wait if it is close to done.
 
+## Which model reads best
+
+Reading is the work that runs after every sweep, so speed and a short top of the inbox matter more than polish. We read
+the same 1000 items of a real inbox (30 sources, English and French, 574 of them in sources that allow several
+categories) with the reader code of Lookout, one model after another, on an RTX 5080 with a 4k to 8k context and
+thinking switched off (`reasoning_effort: none`).
+
+|                                             | llama3.1 8B | qwen3 8B | qwen3-vl 8B instruct | gemma4 12B |
+| ------------------------------------------- | ----------- | -------- | -------------------- | ---------- |
+| Valid answers                               | 96.5%       | 99.6%    | 99.6%                | 96.5%      |
+| Items left unread (invalid category twice)  | 35          | 4        | 4                    | 35         |
+| Median seconds per item                     | 0.7         | 0.8      | 1.2                  | 1.3        |
+| Items per hour                              | 4300        | 3700     | 2250                 | 2500       |
+| Same category as the majority of the models | 78%         | 74%      | 86%                  | 86%        |
+| Share of items scored 70 or more (P0 or P1) | 25%         | 40%      | 11%                  | 8%         |
+| Summary length (characters)                 | 104         | 91       | 166                  | 236        |
+
+What to take from it:
+
+- **qwen3-vl 8B instruct is the default we recommend.** It answers almost always, its scores are spread so the top of the
+  inbox stays short, and it reads 300 new items in about 6 minutes. The "vl" part (images) is not used: what matters is
+  that it is the instruct (non-thinking) build.
+- **llama3.1 8B is the fastest** but files badly across similar categories (a LEGO deal in Cycling) and leaves 3.5% of the
+  items unread.
+- **qwen3 8B inflates scores**: four items in ten reach P0 or P1, so the top stops meaning anything.
+- **gemma4 12B writes the best summaries** and is the strictest on scores, but loses as many items as llama3.1 and
+  sometimes stops at the parent category.
+- **Not worth it for reading:** qwen3 14B is twice as slow (2.2 s per item) for no clear gain, and thinking switched on
+  (`reasoning_effort: medium`) is four times slower (4.6 s per item) without fixing the scores.
+- **Asking for several items at once does not help**: requests sent in parallel were no faster (62, 58, 54 and 58 items a
+  minute with 1, 2, 4 and 8 at once), because one Ollama server answers one request at a time unless
+  `OLLAMA_NUM_PARALLEL` is raised, which also multiplies the memory kept for context.
+
+Caveats: there is no list of right answers, so "same category as the majority" shows consistency, not accuracy, and the
+numbers come from one inbox and one GPU. Judge a model on your own sources: [a model per source](#a-model-per-source) lets
+you give one source another model and compare.
+
 ## A model per source
 
 One model does not read everything equally well: a model strong in English can file French deals badly. A source can
