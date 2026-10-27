@@ -1,6 +1,6 @@
 [project]
 name = "lookout"
-version = "0.0.0"
+version = "0.1.0"
 description = "Self-hosted watch tower for the feeds, releases and advisories that matter to your work"
 readme = "README.md"
 license = "MIT"
