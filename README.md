@@ -1,5 +1,12 @@
 # Lookout
 
+[![CI](https://img.shields.io/github/actions/workflow/status/bhoudebert/lookout/ci.yml?branch=main&label=CI)](https://github.com/bhoudebert/lookout/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/bhoudebert/lookout)](https://github.com/bhoudebert/lookout/releases)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Node.js 24](https://img.shields.io/badge/node-24-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Conventional Commits 1.0.0](https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org/en/v1.0.0/)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
+
 A self-hosted watch tower for the feeds, releases and advisories that matter to your work.
 
 Plug in sources, let an LLM summarise, classify and prioritise each item, and work an inbox: seen, done, snoozed. A thumb
