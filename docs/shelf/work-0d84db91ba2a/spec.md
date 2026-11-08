@@ -4,6 +4,11 @@ Round 0 feedback ("fix the CI quality gates !!") changed this spec: a new requir
 `Quality gate` job part of the work; the earlier "touch only README.md and the work documents" limit now has an
 exception for the cause of a red step; the "investigating CI is out of scope" line is removed.
 
+Re-checked this round: no shell and no CI log were available again, so the red step is still unidentified. Read directly
+instead: `commitlint.config.mjs` (header 100, body line 120, kebab-case scope) and `.prettierignore` (does not exclude
+`docs/shelf/`); no line of `request.md` or `spec.md` exceeds 120 columns; all workflows use the same action major
+versions (`checkout@v7`, `upload-artifact@v7`), so a version typo is less likely than a gate step.
+
 ## 1. Goal
 
 I want a row of GitHub badges at the top of `README.md`, right under the title (CI, docs site, release pipeline,
