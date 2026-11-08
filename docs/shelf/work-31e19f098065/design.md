@@ -14,16 +14,27 @@ Only `README.md`: lines added after line 1, none removed or edited.
 
 Shape: `[![alt](image-url)](link-url)`. One badge per line, so the diff reads cleanly and a later badge is a one-line addition. Consecutive lines without blank lines render inline on one row.
 
-| # | Alt | Image URL | Link |
-|---|-----|-----------|------|
-| 1 | CI | `https://img.shields.io/github/actions/workflow/status/bhoudebert/lookout/ci.yml?branch=main&label=CI` | `https://github.com/bhoudebert/lookout/actions/workflows/ci.yml` |
-| 2 | Release | `https://img.shields.io/github/v/release/bhoudebert/lookout` | `https://github.com/bhoudebert/lookout/releases` |
-| 3 | Python 3.13+ | `https://img.shields.io/badge/python-3.13%2B-3776AB?logo=python&logoColor=white` | `https://www.python.org/` |
-| 4 | Node.js 24 | `https://img.shields.io/badge/node-24-339933?logo=nodedotjs&logoColor=white` | `https://nodejs.org/` |
-| 5 | Conventional Commits 1.0.0 | `https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white` | `https://www.conventionalcommits.org/en/v1.0.0/` |
-| 6 | MIT licence | `https://img.shields.io/badge/licence-MIT-blue` | `LICENSE` (relative link) |
+1. Alt `CI`
+   - Image: `https://img.shields.io/github/actions/workflow/status/bhoudebert/lookout/ci.yml?branch=main&label=CI`
+   - Link: `https://github.com/bhoudebert/lookout/actions/workflows/ci.yml`
+2. Alt `Release`
+   - Image: `https://img.shields.io/github/v/release/bhoudebert/lookout`
+   - Link: `https://github.com/bhoudebert/lookout/releases`
+3. Alt `Python 3.13+`
+   - Image: `https://img.shields.io/badge/python-3.13%2B-3776AB?logo=python&logoColor=white`
+   - Link: `https://www.python.org/`
+4. Alt `Node.js 24`
+   - Image: `https://img.shields.io/badge/node-24-339933?logo=nodedotjs&logoColor=white`
+   - Link: `https://nodejs.org/`
+5. Alt `Conventional Commits 1.0.0`
+   - Image: `https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white`
+   - Link: `https://www.conventionalcommits.org/en/v1.0.0/`
+6. Alt `MIT licence`
+   - Image: `https://img.shields.io/badge/licence-MIT-blue`
+   - Link: `LICENSE` (relative link)
 
 Notes:
+
 - Order follows the request: health (CI), release, tech, process, licence.
 - Python and Node values are copied from `pyproject.toml` (`requires-python = ">=3.13"`) and `.nvmrc` (`24`). They are typed by hand and can drift (accepted in the spec).
 - The Python and Node links go to the project home pages. The spec requires only that every badge has a link.
