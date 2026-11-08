@@ -21,13 +21,15 @@ requirement.
 3. The row SHALL contain exactly these five badges, in this order, with exactly this alt text, image URL and link URL
    (`R` = `https://github.com/bhoudebert/lookout`):
 
-   | # | Alt text | Image URL | Link URL |
-   |---|----------|-----------|----------|
-   | a | `CI status` | `R/actions/workflows/ci.yml/badge.svg?branch=main` | `R/actions/workflows/ci.yml` |
-   | b | `Latest release` | `https://img.shields.io/github/v/release/bhoudebert/lookout?style=flat` | `R/releases` |
-   | c | `MIT licence` | `https://img.shields.io/github/license/bhoudebert/lookout?style=flat` | `R/blob/main/LICENSE` |
-   | d | `Python 3.13+` | `https://img.shields.io/badge/python-3.13%2B-blue?style=flat` | `https://www.python.org/downloads/` |
-   | e | `Pages deploy` | `R/actions/workflows/pages.yml/badge.svg?branch=main` | `https://bhoudebert.github.io/lookout/` |
+   - a. alt `CI status`, image `R/actions/workflows/ci.yml/badge.svg?branch=main`, link `R/actions/workflows/ci.yml`
+   - b. alt `Latest release`, image `https://img.shields.io/github/v/release/bhoudebert/lookout?style=flat`, link
+     `R/releases`
+   - c. alt `MIT licence`, image `https://img.shields.io/github/license/bhoudebert/lookout?style=flat`, link
+     `R/blob/main/LICENSE`
+   - d. alt `Python 3.13+`, image `https://img.shields.io/badge/python-3.13%2B-blue?style=flat`, link
+     `https://www.python.org/downloads/`
+   - e. alt `Pages deploy`, image `R/actions/workflows/pages.yml/badge.svg?branch=main`, link
+     `https://bhoudebert.github.io/lookout/`
 
 4. Badges b, c and d SHALL carry `style=flat`. Badges a and e use GitHub's own workflow badge, which has no style
    parameter and is `flat`-looking; this is accepted and is the only exception to uniformity.
