@@ -1,5 +1,7 @@
 # Lookout
 
+[![CI status](https://github.com/bhoudebert/lookout/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bhoudebert/lookout/actions/workflows/ci.yml) [![Latest release](https://img.shields.io/github/v/release/bhoudebert/lookout?style=flat)](https://github.com/bhoudebert/lookout/releases) [![MIT licence](https://img.shields.io/github/license/bhoudebert/lookout?style=flat)](https://github.com/bhoudebert/lookout/blob/main/LICENSE) [![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue?style=flat)](https://www.python.org/downloads/) [![Pages deploy](https://github.com/bhoudebert/lookout/actions/workflows/pages.yml/badge.svg?branch=main)](https://bhoudebert.github.io/lookout/)
+
 A self-hosted watch tower for the feeds, releases and advisories that matter to your work.
 
 Plug in sources, let an LLM summarise, classify and prioritise each item, and work an inbox: seen, done, snoozed. A thumb
