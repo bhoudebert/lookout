@@ -22,7 +22,7 @@ jobs:
         with:
           # Full history: commitlint checks every commit of the pull request.
           fetch-depth: 0
-      - uses: cachix/install-nix-action@v31
+      - uses: cachix/install-nix-action@v32
       - name: Install dependencies
         run: nix develop --command just setup
       - name: Gate (format, lint, types, contracts, 100% coverage on Python and UI, journeys in a browser)
